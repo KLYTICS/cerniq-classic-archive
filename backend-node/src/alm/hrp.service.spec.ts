@@ -15,15 +15,18 @@ describe('HRPService', () => {
     expect(service).toBeDefined();
   });
 
-  it('returns demo result when fewer than 2 asset subcategories', async () => {
+  it('returns data_unavailable when fewer than 2 asset subcategories', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([
       { subcategory: 'cash', category: 'asset', balance: 100, rate: 0.01 },
     ]);
     const result = await service.computeHRP('inst_1');
 
-    expect(result.assetNames).toContain('cash');
-    expect(result.weights).toHaveLength(6); // demo has 6
-    expect(result.diversificationRatio).toBeCloseTo(1.32, 2);
+    expect(result.status).toBe('data_unavailable');
+    expect(result.weights).toEqual([]);
+    expect(result.diversificationRatio).toBeNull();
+    expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+      true,
+    );
   });
 
   it('computes weights that sum to 1.0', async () => {

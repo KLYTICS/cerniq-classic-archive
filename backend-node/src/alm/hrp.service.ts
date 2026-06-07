@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // Hierarchical Risk Parity — Lopez de Prado (2016)
 // No matrix inversion needed — numerically stable for any n
@@ -7,10 +8,12 @@ import { PrismaService } from '../prisma.service';
 export interface HRPResult {
   weights: number[];
   assetNames: string[];
-  portfolioVol: number;
-  diversificationRatio: number;
+  portfolioVol: number | null;
+  diversificationRatio: number | null;
   clusterOrder: number[];
   dendrogramLevels: Array<{ left: number; right: number; distance: number }>;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -38,7 +41,9 @@ export class HRPService {
 
     const assetNames = Array.from(bySub.keys());
     const n = assetNames.length;
-    if (n < 2) return this.getDemoResult();
+    // D1: HRP needs ≥2 asset classes to cluster. Refuse rather than fabricate
+    // a 6-asset demo allocation for an institution with insufficient data.
+    if (n < 2) return this.dataUnavailableResult(n);
 
     // Volatilities
     const vols = assetNames.map((name) => {
@@ -94,6 +99,7 @@ export class HRPService {
       diversificationRatio: +divRatio.toFixed(4),
       clusterOrder: order,
       dendrogramLevels: dendrogram,
+      status: 'ok',
     };
   }
 
@@ -194,23 +200,27 @@ export class HRPService {
     );
   }
 
-  private getDemoResult(): HRPResult {
+  // D1 honest shell. Replaces the former getDemoResult() that fabricated a
+  // 6-asset hierarchical allocation for an institution with <2 asset classes.
+  private dataUnavailableResult(assetCount: number): HRPResult {
+    const action =
+      assetCount === 0
+        ? 'Cargue los activos del balance para construir el árbol de riesgo jerárquico.'
+        : 'La paridad de riesgo jerárquica requiere al menos 2 clases de activos; cargue activos adicionales.';
     return {
-      weights: [0.08, 0.22, 0.25, 0.12, 0.18, 0.15],
-      assetNames: [
-        'cash',
-        'securities',
-        'residential_mortgage',
-        'commercial_re',
-        'consumer_loans',
-        'auto_loans',
-      ],
-      portfolioVol: 0.038,
-      diversificationRatio: 1.32,
-      clusterOrder: [0, 1, 3, 2, 4, 5],
-      dendrogramLevels: [
-        { left: 0, right: 1, distance: 0.18 },
-        { left: 4, right: 5, distance: 0.22 },
+      weights: [],
+      assetNames: [],
+      portfolioVol: null,
+      diversificationRatio: null,
+      clusterOrder: [],
+      dendrogramLevels: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('hrp.assets', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action,
+          context: { service: 'hrp', assetCount },
+        }),
       ],
     };
   }

@@ -20,17 +20,19 @@ describe('KeyRateDurationService', () => {
 
   // ── Demo fallback ─────────────────────────────────────────
 
-  it('returns demo result when no balance sheet items exist', async () => {
+  it('returns data_unavailable when no balance sheet items exist', async () => {
     prisma.balanceSheetItem.findMany.mockResolvedValue([]);
 
     const result = await service.analyzePortfolio('inst_123');
 
+    expect(result.status).toBe('data_unavailable');
     expect(result.instruments).toHaveLength(0);
-    expect(result.portfolioModifiedDuration).toBe(4.2);
-    expect(result.portfolioEffectiveDuration).toBe(3.8);
-    expect(result.portfolioConvexity).toBe(-0.6);
-    expect(result.durationGap).toBe(2.1);
-    expect(result.portfolioKRDs.length).toBeGreaterThan(0);
+    expect(result.portfolioModifiedDuration).toBeNull();
+    expect(result.durationGap).toBeNull();
+    expect(result.portfolioKRDs).toEqual([]);
+    expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+      true,
+    );
   });
 
   // ── Single instrument KRD computation ─────────────────────

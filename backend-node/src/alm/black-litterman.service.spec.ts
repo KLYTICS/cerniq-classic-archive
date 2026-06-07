@@ -57,8 +57,8 @@ describe('BlackLittermanService', () => {
     expect(result.viewContributions).toEqual([]);
   });
 
-  // ── Empty balance sheet ─────────────────────────────────────
-  it('handles empty balance sheet items without crashing', async () => {
+  // ── D1: empty balance sheet → data_unavailable, never demo ──
+  it('returns data_unavailable with a CRITICAL gap on an empty balance sheet', async () => {
     const emptyPrisma = {
       balanceSheetItem: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -66,12 +66,13 @@ describe('BlackLittermanService', () => {
     } as any;
     const emptySvc = new BlackLittermanService(emptyPrisma);
     const result = await emptySvc.computeBLPortfolio('inst-1');
-    // With no items, assetNames is empty but n defaults to 6
-    // The service should still return a valid BLResult
-    expect(result).toHaveProperty('equilibriumReturns');
-    expect(result).toHaveProperty('optimalWeights');
-    expect(result).toHaveProperty('sharpeRatio');
-    expect(Number.isFinite(result.sharpeRatio)).toBe(true);
+    expect(result.status).toBe('data_unavailable');
+    expect(result.assetNames).toEqual([]);
+    expect(result.optimalWeights).toEqual([]);
+    expect(result.sharpeRatio).toBeNull();
+    expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+      true,
+    );
   });
 
   // ── Views incorporation ────────────────────────────────────

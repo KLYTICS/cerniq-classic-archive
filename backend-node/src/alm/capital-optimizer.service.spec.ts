@@ -12,61 +12,19 @@ describe('CapitalOptimizerService', () => {
     svc = new CapitalOptimizerService(mockPrisma);
   });
 
-  it('should return demo result when no items exist', async () => {
-    const result = await svc.optimize('inst-1');
-    expect(result).toHaveProperty('deltaAllocations');
-    expect(result).toHaveProperty('projectedNIIGain');
-    expect(result).toHaveProperty('projectedNIIGainPct');
-    expect(result).toHaveProperty('constraintSlacks');
-    expect(result).toHaveProperty('aggressivenessLevel');
-    expect(result).toHaveProperty('narrative');
-    expect(result).toHaveProperty('narrativeEs');
-  });
-
-  it('should respect aggressiveness level in demo result', async () => {
-    const conservative = await svc.optimize('inst-1', 'conservative');
-    expect(conservative.aggressivenessLevel).toBe('conservative');
-
-    const aggressive = await svc.optimize('inst-1', 'aggressive');
-    expect(aggressive.aggressivenessLevel).toBe('aggressive');
-  });
-
-  it('should have non-negative NII gain in demo result', async () => {
-    const result = await svc.optimize('inst-1');
-    expect(result.projectedNIIGain).toBeGreaterThanOrEqual(0);
-    expect(result.projectedNIIGainPct).toBeGreaterThanOrEqual(0);
-  });
-
-  it('should produce balanced delta allocations (sum to zero)', async () => {
-    const result = await svc.optimize('inst-1');
-    const totalDelta = result.deltaAllocations.reduce(
-      (s, d) => s + d.deltaUSD,
-      0,
+  // ── D1: empty balance sheet → data_unavailable, never demo ──
+  // (Real reallocation math is covered by the "with real balance sheet data"
+  // block below; the former top-level tests only asserted static demo values.)
+  it('returns data_unavailable with a CRITICAL gap when no items exist', async () => {
+    const result = await svc.optimize('inst-1', 'conservative');
+    expect(result.status).toBe('data_unavailable');
+    expect(result.deltaAllocations).toEqual([]);
+    expect(result.projectedNIIGain).toBeNull();
+    expect(result.constraintSlacks).toEqual([]);
+    expect(result.aggressivenessLevel).toBe('conservative');
+    expect(result.gaps?.some((g) => g.reason === 'EMPTY_BALANCE_SHEET')).toBe(
+      true,
     );
-    expect(totalDelta).toBeCloseTo(0, 1);
-  });
-
-  it('should compute correct constraint slacks in demo', async () => {
-    const result = await svc.optimize('inst-1');
-    expect(result.constraintSlacks.length).toBeGreaterThan(0);
-    for (const cs of result.constraintSlacks) {
-      expect(cs).toHaveProperty('constraint');
-      expect(cs).toHaveProperty('currentValue');
-      expect(cs).toHaveProperty('limit');
-      expect(cs).toHaveProperty('slack');
-      expect(cs).toHaveProperty('binding');
-    }
-  });
-
-  it('defaults to moderate aggressiveness', async () => {
-    const result = await svc.optimize('inst-1');
-    expect(result.aggressivenessLevel).toBe('moderate');
-  });
-
-  it('demo narrative mentions dollar amounts', async () => {
-    const result = await svc.optimize('inst-1');
-    expect(result.narrative).toContain('$');
-    expect(result.narrativeEs).toContain('$');
   });
 
   // ── With real balance sheet items ──────────────────────────
@@ -171,7 +129,7 @@ describe('CapitalOptimizerService', () => {
 
     it('narrative describes reallocation for profitable moves', async () => {
       const result = await svcReal.optimize('inst-1');
-      if (result.projectedNIIGain > 0) {
+      if (result.projectedNIIGain! > 0) {
         expect(result.narrative).toContain('Shift');
         expect(result.narrative).toContain('NII');
       }

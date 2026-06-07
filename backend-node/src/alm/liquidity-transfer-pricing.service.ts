@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // ─── Internal Funding Curve ─────────────────────────────────
 
@@ -76,11 +77,13 @@ export interface LTPSegment {
 export interface LTPResult {
   segments: LTPSegment[];
   internalFundingCurve: typeof INTERNAL_FUNDING_CURVE;
-  totalLiquidityCharge: number;
-  totalLiquidityCredit: number;
-  netLTPTransfer: number;
+  totalLiquidityCharge: number | null;
+  totalLiquidityCredit: number | null;
+  netLTPTransfer: number | null;
   topConsumers: string[];
   topProviders: string[];
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -93,7 +96,9 @@ export class LiquidityTransferPricingService {
     const items = await this.prisma.balanceSheetItem.findMany({
       where: { institutionId },
     });
-    if (items.length === 0) return this.getDemoResult();
+    // D1: no balance sheet → refuse rather than fabricate a demo liquidity
+    // transfer-pricing breakdown for an institution with no data.
+    if (items.length === 0) return this.dataUnavailableResult();
 
     // Aggregate by subcategory
     const bySub = new Map<
@@ -175,74 +180,30 @@ export class LiquidityTransferPricingService {
         .filter((s) => s.liquidityCharge < 0)
         .slice(0, 3)
         .map((s) => s.segment),
+      status: 'ok',
     };
   }
 
-  private getDemoResult(): LTPResult {
+  // D1 honest shell. Replaces the former getDemoResult() that fabricated a
+  // 5-segment liquidity transfer-pricing breakdown for an empty balance sheet.
+  private dataUnavailableResult(): LTPResult {
     return {
-      segments: [
-        {
-          segment: 'residential mortgage',
-          category: 'asset',
-          balance: 95,
-          matchedBucket: '5-10Y',
-          liquidityPremium: 60,
-          liquidityCharge: 0.57,
-          beforeLTP_NIM: 5.5,
-          afterLTP_NIM: 4.9,
-          isLiquidityConsumer: true,
-        },
-        {
-          segment: 'commercial re',
-          category: 'asset',
-          balance: 120,
-          matchedBucket: '5-10Y',
-          liquidityPremium: 60,
-          liquidityCharge: 0.72,
-          beforeLTP_NIM: 5.8,
-          afterLTP_NIM: 5.2,
-          isLiquidityConsumer: true,
-        },
-        {
-          segment: 'consumer loans',
-          category: 'asset',
-          balance: 85,
-          matchedBucket: '1-3Y',
-          liquidityPremium: 40,
-          liquidityCharge: 0.34,
-          beforeLTP_NIM: 7.2,
-          afterLTP_NIM: 6.8,
-          isLiquidityConsumer: true,
-        },
-        {
-          segment: 'demand deposits',
-          category: 'liability',
-          balance: 180,
-          matchedBucket: '0-3M',
-          liquidityPremium: 20,
-          liquidityCharge: -0.36,
-          beforeLTP_NIM: 0.5,
-          afterLTP_NIM: 0.7,
-          isLiquidityConsumer: false,
-        },
-        {
-          segment: 'time deposits',
-          category: 'liability',
-          balance: 75,
-          matchedBucket: '1-3Y',
-          liquidityPremium: 40,
-          liquidityCharge: -0.3,
-          beforeLTP_NIM: 4.0,
-          afterLTP_NIM: 4.4,
-          isLiquidityConsumer: false,
-        },
-      ],
+      segments: [],
       internalFundingCurve: INTERNAL_FUNDING_CURVE,
-      totalLiquidityCharge: 2.05,
-      totalLiquidityCredit: 1.38,
-      netLTPTransfer: 0.67,
-      topConsumers: ['commercial re', 'residential mortgage', 'consumer loans'],
-      topProviders: ['demand deposits', 'time deposits'],
+      totalLiquidityCharge: null,
+      totalLiquidityCredit: null,
+      netLTPTransfer: null,
+      topConsumers: [],
+      topProviders: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('ltp.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los activos y pasivos del balance para calcular el precio de transferencia de liquidez (LTP).',
+          context: { service: 'liquidity-transfer-pricing' },
+        }),
+      ],
     };
   }
 }
