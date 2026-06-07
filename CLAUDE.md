@@ -107,6 +107,14 @@ git commit --only frontend/scripts/verify-bundle-budget.mjs frontend/package.jso
 
 `git commit --only <paths>` re-asserts the file set at commit time; it survives index churn from peer activity between your `git add` and your `git commit`. **This is the canonical pattern on this repo.**
 
+**Caveat — `--only` is index-safe, not same-file-disk-safe.** `git commit --only <paths>` (and `commit -- <paths>`) re-reads the **working-tree content** of each named path *at commit time*. That defeats peers staging *other* files (modes 1–3 above), but it does **not** protect a hot shared file that a peer rewrites *on disk* in the gap between your last inspection and your commit — `--only` will capture the peer's freshly-written lines into your commit. Observed live: `41237e8` absorbed a peer's RC-1 §5 bullet because a peer wrote `docs/SESSION_HANDOFF.md` between a `git diff HEAD` check and the `git commit --only` (see the `chore(coord): stage-race attribution correction` entry in SESSION_HANDOFF §5). **Mitigation for hot docs** (`docs/SESSION_HANDOFF.md` especially): run the verify and the commit in the **same shell invocation**, gated on an exact added-line count, so a concurrent write aborts instead of silently landing:
+
+```sh
+ADDED=$(git diff HEAD -- docs/SESSION_HANDOFF.md | grep -cE '^\+- 2026')
+[ "$ADDED" = "1" ] && git commit --only docs/SESSION_HANDOFF.md -m "..." \
+  || echo "ABORT: concurrent write to the doc — re-inspect before committing"
+```
+
 **Coordination CLI** — `~/.claude/peers/bin/claude-peers`:
 - `status` — see active peer claims (project + paths + age)
 - `claim <name> --paths <p1>,<p2>` — register your lane (advisory; warns on overlap)
