@@ -52,7 +52,7 @@ export interface CustomScenarioResult {
 // ─── Result Interfaces ────────────────────────────────────────
 
 export interface NEVRiskBand {
-  level: 'low' | 'moderate' | 'high' | 'extreme';
+  level: 'low' | 'moderate' | 'high';
   label: string;
   labelEs: string;
 }
@@ -565,12 +565,13 @@ export class StressTestingService {
   /**
    * Formal NEV supervisory analysis (Layer 1, #3). Revalues the balance
    * sheet under parallel shocks of ±100/200/300 bps using duration +
-   * convexity, and classifies each post-shock NEV ratio against the
-   * NCUA NEV Supervisory Test bands (COSSEC follows NCUA methodology):
-   *   > 7%  → low risk (bajo)
-   *   4–7%  → moderate (moderado)
-   *   2–4%  → high (alto)
-   *   < 2%  → extreme (extremo)
+   * convexity. Classification follows the COSSEC CC-2025-01 stress-testing
+   * framework / CAMEL-S sensitivity bands (Vol10 §NEV), a NCUA-derived but
+   * COSSEC-published methodology — a TWO-dimensional test on the +300bps
+   * supervisory point, taking the worse of:
+   *   NEV ratio:        > 6% low · 4–6% moderate · < 4% high
+   *   NEV sensitivity:  < 15% low · 15–25% moderate · > 25% high  (|Δ NEV|)
+   * (No "extreme" band — COSSEC/NCUA retired it; < 4% is High.)
    *
    * D1: refuses to compute when the balance sheet is empty — returns a
    * data_unavailable shell with a CRITICAL gap, never phantom zeros.
@@ -644,7 +645,7 @@ export class StressTestingService {
         nev: round(nev, 2),
         nevRatio,
         nevChangePct,
-        riskBand: this.nevRiskBand(nevRatio),
+        riskBand: this.nevRiskBand(nevRatio, Math.abs(nevChangePct)),
       };
     });
 
@@ -652,35 +653,43 @@ export class StressTestingService {
       s.nevRatio < worst.nevRatio ? s : worst,
     );
 
+    // COSSEC CC-2025-01 anchors the supervisory classification on the
+    // instantaneous +300bps parallel shock specifically; the rest of the
+    // grid is informational. Fall back to worst-case only if +300 is absent.
+    const supervisoryPoint =
+      shocks.find((s) => s.shockBps === 300) ?? worstCase;
+
     return {
       institutionId,
       baseNEV: round(baseNEV, 2),
       baseNEVRatio,
       shocks,
       worstCase,
-      overallRating: worstCase.riskBand.level,
+      overallRating: supervisoryPoint.riskBand.level,
     };
   }
 
-  private nevRiskBand(nevRatio: number): NEVRiskBand {
-    if (nevRatio > 7) {
+  /**
+   * COSSEC CC-2025-01 / CAMEL-S two-dimensional NEV band (Vol10 §NEV): the
+   * worse of the post-shock NEV-ratio band (>6 low · 4–6 moderate · <4 high)
+   * and the NEV-sensitivity band (<15 low · 15–25 moderate · >25 high). No
+   * "extreme" tier — COSSEC/NCUA retired it; sub-4% / >25% sensitivity is High.
+   */
+  private nevRiskBand(nevRatio: number, sensitivityPct: number): NEVRiskBand {
+    const ratioRank = nevRatio > 6 ? 0 : nevRatio >= 4 ? 1 : 2;
+    const sensRank = sensitivityPct < 15 ? 0 : sensitivityPct <= 25 ? 1 : 2;
+    const rank = Math.max(ratioRank, sensRank);
+    if (rank === 0) {
       return { level: 'low', label: 'Low risk', labelEs: 'Riesgo bajo' };
     }
-    if (nevRatio >= 4) {
+    if (rank === 1) {
       return {
         level: 'moderate',
         label: 'Moderate risk',
         labelEs: 'Riesgo moderado',
       };
     }
-    if (nevRatio >= 2) {
-      return { level: 'high', label: 'High risk', labelEs: 'Riesgo alto' };
-    }
-    return {
-      level: 'extreme',
-      label: 'Extreme risk',
-      labelEs: 'Riesgo extremo',
-    };
+    return { level: 'high', label: 'High risk', labelEs: 'Riesgo alto' };
   }
 
   // ─── Scenario Builders ───────────────────────────────────────

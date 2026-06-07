@@ -565,18 +565,28 @@ describe('StressTestingService', () => {
       expect(down300.nev).toBeGreaterThan(result.baseNEV!);
     });
 
-    it('assigns NCUA supervisory-test risk bands with Spanish labels', async () => {
+    it('assigns COSSEC CC-2025-01 risk bands (3-tier, no retired "extreme")', async () => {
       const result = await service.getNEVAnalysis('inst-1');
       for (const s of result.shocks) {
-        expect(['low', 'moderate', 'high', 'extreme']).toContain(
-          s.riskBand.level,
-        );
+        expect(['low', 'moderate', 'high']).toContain(s.riskBand.level);
         expect(s.riskBand.labelEs).toMatch(/Riesgo/);
       }
       expect(result.worstCase).not.toBeNull();
       expect(result.worstCase!.nevRatio).toBe(
         Math.min(...result.shocks.map((s) => s.nevRatio)),
       );
+    });
+
+    it('classifies on the +300bps supervisory point, worse of ratio/sensitivity', async () => {
+      const result = await service.getNEVAnalysis('inst-1');
+      const up300 = result.shocks.find((s) => s.shockBps === 300)!;
+      // overallRating is the +300bps band (CC-2025-01), not the grid-wide worst ratio.
+      expect(result.overallRating).toBe(up300.riskBand.level);
+      // This asset-sensitive book sheds >25% of NEV at +300bps, so the
+      // sensitivity leg escalates it to 'high' even though the ~5.9% ratio
+      // alone would be 'moderate' — proving the two-dimensional test.
+      expect(Math.abs(up300.nevChangePct)).toBeGreaterThan(25);
+      expect(up300.riskBand.level).toBe('high');
     });
 
     it('returns data_unavailable + CRITICAL gap on empty balance sheet (D1)', async () => {

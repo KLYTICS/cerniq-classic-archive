@@ -53,7 +53,7 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     depositShockPct: 0,
     creditShockPct: 0,
     description: 'Moderate rate increase stress test',
-    descriptionEs: 'Prueba de estres con aumento moderado de tasas',
+    descriptionEs: 'Prueba de estrés con aumento moderado de tasas',
     regulatoryBasis: 'COSSEC Standard Scenario Set',
   },
   {
@@ -65,7 +65,7 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     depositShockPct: 0,
     creditShockPct: 0,
     description: 'Severe rate increase stress test',
-    descriptionEs: 'Prueba de estres severa con aumento de tasas',
+    descriptionEs: 'Prueba de estrés severa con aumento de tasas',
     regulatoryBasis: 'COSSEC Standard Scenario Set',
   },
   {
@@ -77,7 +77,7 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     depositShockPct: 0,
     creditShockPct: 0,
     description: 'Rate decrease scenario',
-    descriptionEs: 'Escenario de disminucion de tasas',
+    descriptionEs: 'Escenario de disminución de tasas',
     regulatoryBasis: 'COSSEC Standard Scenario Set',
   },
   {
@@ -91,7 +91,7 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     description:
       'Short rates +200bps, long rates +100bps — deposit competition',
     descriptionEs:
-      'Tasas cortas +200pbs, tasas largas +100pbs — competencia por depositos',
+      'Tasas cortas +200pbs, tasas largas +100pbs — competencia por depósitos',
     regulatoryBasis: 'COSSEC Enhanced Scenario Guidelines',
   },
   {
@@ -104,7 +104,7 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     creditShockPct: 0,
     description: 'Moderate rate decrease — margin compression test',
     descriptionEs:
-      'Disminucion moderada de tasas — prueba de compresion de margen',
+      'Disminución moderada de tasas — prueba de compresión de margen',
     regulatoryBasis: 'COSSEC Standard Scenario Set',
   },
   {
@@ -117,13 +117,13 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     creditShockPct: 0,
     description: 'Severe rate decrease — zero-bound proximity test',
     descriptionEs:
-      'Disminucion severa de tasas — prueba de cercania al limite cero',
+      'Disminución severa de tasas — prueba de cercanía al límite cero',
     regulatoryBasis: 'COSSEC Standard Scenario Set',
   },
   {
     id: 'pr_hurricane_stress',
     name: 'PR Hurricane Stress',
-    nameEs: 'Estres Huracan PR',
+    nameEs: 'Estrés Huracán PR',
     type: 'pr_specific',
     rateShiftBps: 150,
     depositShockPct: -5,
@@ -131,13 +131,13 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     description:
       'Rates +150bps, deposits -5%, loan defaults +2% — hurricane/disaster scenario',
     descriptionEs:
-      'Tasas +150pbs, depositos -5%, morosidad +2% — escenario huracan/desastre',
+      'Tasas +150pbs, depósitos -5%, morosidad +2% — escenario huracán/desastre',
     regulatoryBasis: 'COSSEC Hurricane Preparedness Guidelines',
   },
   {
     id: 'pr_migration_stress',
     name: 'PR Population Migration Stress',
-    nameEs: 'Estres Migracion Poblacional PR',
+    nameEs: 'Estrés Migración Poblacional PR',
     type: 'pr_specific',
     rateShiftBps: 0,
     depositShockPct: -8,
@@ -145,13 +145,13 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     description:
       'Deposits -8%, loan defaults +1.5% — sustained out-migration of working-age members (US Census PR trend)',
     descriptionEs:
-      'Depositos -8%, morosidad +1.5% — emigracion sostenida de socios en edad laboral (tendencia Censo PR)',
+      'Depósitos -8%, morosidad +1.5% — emigración sostenida de socios en edad laboral (tendencia Censo PR)',
     regulatoryBasis: 'CERNIQ PR Scenario Library — Census Bureau PR estimates',
   },
   {
     id: 'pr_tourism_stress',
     name: 'PR Tourism Revenue Stress',
-    nameEs: 'Estres Ingresos Turismo PR',
+    nameEs: 'Estrés Ingresos Turismo PR',
     type: 'pr_specific',
     rateShiftBps: -50,
     depositShockPct: -3,
@@ -159,7 +159,7 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     description:
       'Rates -50bps, deposits -3%, defaults +2.5% concentrated in commercial — tourism revenue collapse (recessionary)',
     descriptionEs:
-      'Tasas -50pbs, depositos -3%, morosidad +2.5% concentrada en comercial — caida de ingresos turisticos (recesion)',
+      'Tasas -50pbs, depósitos -3%, morosidad +2.5% concentrada en comercial — caída de ingresos turísticos (recesión)',
     regulatoryBasis: 'CERNIQ PR Scenario Library — tourism dependency analysis',
   },
 ];

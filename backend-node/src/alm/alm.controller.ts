@@ -1045,13 +1045,14 @@ export class AlmController {
   /**
    * Formal NEV (Net Economic Value / Valor Económico Neto) supervisory
    * analysis: ±100/200/300bps parallel shocks, duration+convexity
-   * revaluation, NCUA supervisory-test risk bands (COSSEC-aligned).
+   * revaluation, classified per the COSSEC CC-2025-01 / CAMEL-S two-
+   * dimensional bands (NEV ratio + sensitivity) on the +300bps point.
    */
   @Get(':institutionId/stress-test/nev')
   @UseGuards(AuthTenantGuard)
   @ApiOperation({
     summary:
-      'NEV supervisory analysis (±100/200/300bps) with COSSEC-aligned risk bands',
+      'NEV supervisory analysis (±100/200/300bps), COSSEC CC-2025-01 / CAMEL-S risk bands',
   })
   @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
   @ApiResponse({ status: 200, description: 'NEV shock table + risk rating' })

@@ -902,7 +902,7 @@ export class AlmEnterpriseService {
     // leverage view `capitalRatio` (equity/total-assets) is retained for trend
     // and summary back-compat.
     const riskWeightedAssets = assetItems.reduce(
-      (s: number, i: any) =>
+      (s: number, i: { balance: number; subcategory: string }) =>
         s + Number(i.balance) * this.cossecRiskWeight(i.subcategory),
       0,
     );
