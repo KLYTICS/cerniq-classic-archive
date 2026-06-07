@@ -1,7 +1,15 @@
 /**
- * PR Cooperativa Sector Benchmarks (COSSEC Q3 2025)
- * Source: COSSEC Informe Sectorial, NCUA Call Reports
- * Update quarterly when COSSEC publishes new sector data.
+ * PR Cooperativa Sector Benchmarks — CERNIQ PROVISIONAL / ILLUSTRATIVE peer set.
+ *
+ * PROVENANCE HONESTY (D1): these per-ratio medians/quartiles are CERNIQ
+ * directional estimates, NOT an official COSSEC publication. COSSEC does not
+ * publish an "Informe Sectorial"; its real quarterly release is "Estadísticas
+ * Industria Cooperativas de Ahorro y Crédito" (aggregate sector totals, not
+ * per-ratio quartiles). These values are informed by NCUA Call Report
+ * aggregates + sector order-of-magnitude and are pending a real per-ratio
+ * source — OPERATOR-INPUT-NEEDED. Consumers MUST disclose the provisional basis
+ * (`provisional: true`) and must never present these as a COSSEC-sourced
+ * sector comparison.
  */
 
 export interface SectorBenchmark {
@@ -13,6 +21,8 @@ export interface SectorBenchmark {
 export interface SectorBenchmarks {
   lastUpdated: string;
   source: string;
+  /** True when the figures are CERNIQ provisional/illustrative, not an official source. */
+  provisional: boolean;
   medianAssets: number; // in $M
   ratios: {
     capitalAdequacy: SectorBenchmark;
@@ -30,8 +40,10 @@ export interface SectorBenchmarks {
 
 export const PR_COOP_BENCHMARKS: SectorBenchmarks = {
   lastUpdated: '2025-Q3',
-  source: 'COSSEC Informe Sectorial Q3 2025 / NCUA Call Reports',
-  medianAssets: 185, // $185M
+  provisional: true,
+  source:
+    'CERNIQ provisional/illustrative peer benchmark (directional) — NOT an official COSSEC publication; informed by NCUA Call Report aggregates, pending real per-ratio COSSEC sector data',
+  medianAssets: 185, // $185M (provisional)
   ratios: {
     capitalAdequacy: { median: 9.2, p25: 7.8, p75: 11.1 },
     assetQuality: { median: 2.8, p25: 1.2, p75: 4.5 },

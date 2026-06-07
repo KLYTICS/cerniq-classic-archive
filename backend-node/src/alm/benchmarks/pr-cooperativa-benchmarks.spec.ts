@@ -11,8 +11,15 @@ describe('PR Cooperativa Benchmarks', () => {
   describe('PR_COOP_BENCHMARKS', () => {
     it('has valid metadata', () => {
       expect(PR_COOP_BENCHMARKS.lastUpdated).toBe('2025-Q3');
-      expect(PR_COOP_BENCHMARKS.source).toContain('COSSEC');
       expect(PR_COOP_BENCHMARKS.medianAssets).toBe(185);
+    });
+
+    it('declares honest provisional provenance — not a (non-existent) COSSEC publication (D1)', () => {
+      // COSSEC publishes no "Informe Sectorial"; these are CERNIQ provisional
+      // estimates. The source must not wear a fabricated regulatory citation.
+      expect(PR_COOP_BENCHMARKS.provisional).toBe(true);
+      expect(PR_COOP_BENCHMARKS.source).not.toMatch(/Informe Sectorial/i);
+      expect(PR_COOP_BENCHMARKS.source.toLowerCase()).toContain('provisional');
     });
 
     it('has all required ratio categories', () => {

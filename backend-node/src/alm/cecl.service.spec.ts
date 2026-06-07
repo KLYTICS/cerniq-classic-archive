@@ -452,6 +452,19 @@ describe('CECLService', () => {
       expect(result.segments[0].methodology).toContain('PR');
     });
 
+    it('discloses the ASC 326 accounting basis + the provisional macro-overlay gap (D1)', async () => {
+      const service = mkService(prSegments);
+      const result = await service.getCooperativaCECLAnalysis('inst-1');
+      expect(result.overallStatus).toBe('computed');
+      // Measurement-basis disclosure: CECL is ASC 326 (GAAP); COSSEC is CAEL/RAP→GAAP.
+      expect(result.accountingBasis?.framework).toMatch(/ASC 326/);
+      expect(result.accountingBasis?.regulatoryContext).toMatch(/COSSEC/);
+      // The PR macro overlay (2.1x/3.6x, 45/35/20) is always disclosed as provisional.
+      expect(result.gaps?.some((g) => g.field === 'cecl.macroOverlay')).toBe(
+        true,
+      );
+    });
+
     it('produces a HIGHER weighted allowance than mainland CCAR overlay (PR multipliers are harsher)', async () => {
       const service = mkService(prSegments);
       const pr = await service.getCooperativaCECLAnalysis('inst-1');

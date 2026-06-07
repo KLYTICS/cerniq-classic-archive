@@ -77,6 +77,16 @@ export interface CECLSummary {
     weighted: number;
   };
   overallStatus?: 'computed' | 'data_unavailable';
+  /**
+   * Measurement-basis disclosure (cooperativa path). CECL is ASC 326 (GAAP);
+   * COSSEC reporting is CAEL/RAP transitioning to GAAP — examiner-relevant, so
+   * the basis is surfaced rather than left implicit in code comments.
+   */
+  accountingBasis?: {
+    framework: string;
+    regulatoryContext: string;
+    effectiveNote: string;
+  };
   gaps?: import('./reports/data-gap').DataGap[];
 }
 
@@ -636,8 +646,26 @@ export class CECLService {
       overlayLabel: 'PR',
     });
 
+    // D1: always disclose that the PR macro overlay itself is a PROVISIONAL
+    // calibration (an estimate presented as an estimate), independent of
+    // whether per-segment registry PD/LGD defaults were applied.
+    gaps.push({
+      field: 'cecl.macroOverlay',
+      reason: 'COSSEC_INPUTS_INSUFFICIENT',
+      severity: 'WARNING',
+      action:
+        'Los multiplicadores macro de PR (adverso 2.1x, severo 3.6x) y los pesos de escenario (45/35/20) son una calibración PROVISIONAL (post-María / migración); los valores definitivos requieren validación COSSEC/NCUA o calibración con datos propios. / The PR macro overlay multipliers (adverse 2.1x, severe 3.6x) and scenario weights (45/35/20) are a PROVISIONAL calibration; definitive values require COSSEC/NCUA validation or institution-specific calibration.',
+    });
+
     return {
       ...summary,
+      accountingBasis: {
+        framework: 'ASC 326 (FASB ASU 2016-13, CECL) — GAAP measurement basis',
+        regulatoryContext:
+          'COSSEC CAEL con cómputo CECL (Reglamento 7790); reporte cooperativo en transición RAP→GAAP. / COSSEC CAEL with CECL computation (Reg. 7790); cooperativa reporting transitioning RAP→GAAP.',
+        effectiveNote:
+          'CECL efectivo para entidades no-PBE en años fiscales que comienzan después del 2022-12-15. / CECL effective for non-PBE entities for fiscal years beginning after 2022-12-15.',
+      },
       gaps: [...(summary.gaps ?? []), ...gaps],
       productClassification,
     };
