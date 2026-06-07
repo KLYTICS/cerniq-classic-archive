@@ -196,12 +196,18 @@ function AlmPageContent<T>({ state, locale, mod, children }: AlmPageContentProps
             {locale === 'es' ? `No se pudo cargar ${mod.name.es}` : `Could not load ${mod.name.en}`}
           </p>
           <p className="mt-1 text-xs text-rose-700">{formatAlmError(state.error, locale)}</p>
+          {/* retry is a synchronous nonce-bump (useAlmEndpoint) that swaps this
+              branch for the loading skeleton — there is no per-button async
+              state to track, so aria-busy is a static false baseline. ~35 ALM
+              pages render their error state through this shell, so the a11y
+              parity lands for all of them here. */}
           <button
             type="button"
             onClick={state.retry}
+            aria-busy={false}
             className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             {locale === 'es' ? 'Reintentar' : 'Retry'}
           </button>
         </div>
