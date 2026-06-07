@@ -459,8 +459,8 @@ export class CECLService {
     // D1 (2026-04-07): the previous behavior fell back to DEMO segments
     // and produced a real-looking CECL allowance against fake data — a
     // worse failure mode than silent zero. Now we refuse and surface a
-    // CRITICAL gap. Demo segments are still available via getDemoSegments()
-    // for explicit demo paths, but never as a silent substitute.
+    // CRITICAL gap (the demo-segment helper has since been removed entirely,
+    // so there is no longer any path that substitutes fabricated segments).
     if (segments.length === 0) {
       this.logger.warn({
         event: 'cecl_data_unavailable',
@@ -722,66 +722,5 @@ export class CECLService {
     });
 
     return { imported: created.count, institutionId };
-  }
-
-  // ─── Demo Data ────────────────────────────────────────────
-
-  private getDemoSegments() {
-    return [
-      {
-        segmentName: 'Consumer Loans',
-        balance: 85,
-        weightedAvgRate: 0.072,
-        weightedAvgMaturity: 3.5,
-        historicalLossRate: 0.018,
-        lgd: 0.45,
-        qualitativeAdj: 0.002,
-      },
-      {
-        segmentName: 'Auto Loans',
-        balance: 62,
-        weightedAvgRate: 0.065,
-        weightedAvgMaturity: 4.2,
-        historicalLossRate: 0.012,
-        lgd: 0.35,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Commercial RE',
-        balance: 120,
-        weightedAvgRate: 0.058,
-        weightedAvgMaturity: 7.5,
-        historicalLossRate: 0.008,
-        lgd: 0.4,
-        qualitativeAdj: 0.003,
-      },
-      {
-        segmentName: 'Residential Mortgage',
-        balance: 95,
-        weightedAvgRate: 0.055,
-        weightedAvgMaturity: 15.0,
-        historicalLossRate: 0.004,
-        lgd: 0.3,
-        qualitativeAdj: 0.001,
-      },
-      {
-        segmentName: 'Credit Cards',
-        balance: 28,
-        weightedAvgRate: 0.145,
-        weightedAvgMaturity: 1.5,
-        historicalLossRate: 0.035,
-        lgd: 0.8,
-        qualitativeAdj: 0.005,
-      },
-      {
-        segmentName: 'Commercial & Industrial',
-        balance: 55,
-        weightedAvgRate: 0.068,
-        weightedAvgMaturity: 5.0,
-        historicalLossRate: 0.015,
-        lgd: 0.5,
-        qualitativeAdj: 0.002,
-      },
-    ];
   }
 }

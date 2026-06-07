@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
 import { computePromptVersion } from './analyst/prompt-version';
@@ -19,6 +20,11 @@ export interface HealthScore {
   credit: number;
   concentration: number;
   label: 'STRONG' | 'SATISFACTORY' | 'FAIR' | 'MARGINAL' | 'UNSATISFACTORY';
+  // D1: set when the underlying ALM summary could not be computed. Sub-scores
+  // are then a conservative placeholder (0 / UNSATISFACTORY), never a
+  // fabricated healthy score; consumers should render "—" and surface the gap.
+  dataUnavailable?: boolean;
+  gaps?: DataGap[];
 }
 
 export interface RiskAlert {
@@ -90,8 +96,13 @@ export class AlmAdvisorV2Service {
     let summary: any;
     try {
       summary = await this.almEnterprise.getALMSummary(institutionId);
-    } catch {
-      return this.getDemoHealthScore();
+    } catch (err) {
+      // D1 + no-silent-failure: a compute failure must not surface as a
+      // healthy score. Log it and return a conservative, flagged shell.
+      this.logger.warn(
+        `getALMSummary failed for ${institutionId}; returning data_unavailable health score: ${(err as Error).message}`,
+      );
+      return this.dataUnavailableHealthScore();
     }
 
     const capital = this.scoreCapital(summary);
@@ -582,15 +593,27 @@ export class AlmAdvisorV2Service {
     return 14; // Placeholder — upgraded when ConcentrationService data is available
   }
 
-  private getDemoHealthScore(): HealthScore {
+  // D1 honest shell. Replaces the former getDemoHealthScore() that returned a
+  // fabricated 72 / SATISFACTORY when the ALM summary failed to compute —
+  // hiding a failure behind a healthy-looking score. Conservative + flagged.
+  private dataUnavailableHealthScore(): HealthScore {
     return {
-      overall: 72,
-      capital: 16,
-      liquidity: 16,
-      rateRisk: 12,
-      credit: 14,
-      concentration: 14,
-      label: 'SATISFACTORY',
+      overall: 0,
+      capital: 0,
+      liquidity: 0,
+      rateRisk: 0,
+      credit: 0,
+      concentration: 0,
+      label: 'UNSATISFACTORY',
+      dataUnavailable: true,
+      gaps: [
+        dataGap('advisor.healthScore', 'CALCULATION_FAILED', {
+          severity: 'CRITICAL',
+          action:
+            'No se pudo calcular el resumen ALM. Verifique que el balance, la liquidez y los segmentos estén cargados.',
+          context: { service: 'alm-advisor-v2' },
+        }),
+      ],
     };
   }
 }
