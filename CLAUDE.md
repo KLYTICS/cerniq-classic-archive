@@ -31,6 +31,7 @@ eslint
 → verify:d1-no-silent-fallback            (CerniQ D1 — never silent zeros; no getDemo* fallback in src/alm)
 → verify:no-silent-catch                  (CerniQ — no swallowed errors / empty catch in src/alm)
 → verify:no-unseeded-random               (CerniQ — reproducible quant; no global Math.random() in src/alm)
+→ verify:no-phantom-balance-total         (CerniQ D1 — no `reduce(...balance,0) || 445` fabricated totals in src/alm)
 → verify:auth-coverage                    (auth-guard coverage strict)
 → verify:rule-4-audit-immutable           (KLYTICS Rule 4 — audit_log* append-only)
 → verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
