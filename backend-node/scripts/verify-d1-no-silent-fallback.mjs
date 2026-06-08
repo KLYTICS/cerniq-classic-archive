@@ -25,7 +25,7 @@
 //   This gate strips comments, then flags any src/alm file that still
 //   references a `getDemo*` identifier in code and is not on the baseline.
 //   New fabrication paths are blocked at CI; the baseline is the chip-away
-//   ledger of the 14 services that still need the sweep.
+//   ledger of the 10 services that still need the sweep.
 //
 // HONEST SCOPE (this gate is not magic — D1 demands we say so):
 //   • It catches the established `getDemo*` naming anti-pattern in src/alm.
@@ -79,7 +79,7 @@ function stripComments(content) {
 //   ALLOW — a deliberately-named, honestly-labeled demo endpoint. Not a
 //           silent fallback; permanent. Documented so review knows it's OK.
 //
-// Locked 2026-06-07: 14 TODO + 2 ALLOW = 16 files. 0 unbaselined violations.
+// Locked 2026-06-07: 10 TODO + 2 ALLOW = 12 files. 0 unbaselined violations.
 const BASELINE = {
   // ── ALLOW: honest, explicitly-labeled demo endpoints (permanent) ──
   'alm/alm.service.ts':
@@ -91,13 +91,7 @@ const BASELINE = {
   'alm/cvar-optimizer.service.ts':
     'TODO D1 — optimize(): n===0 (no asset subcategories) → getDemoResult(alpha) fabricates weights/cvar/var.',
   'alm/nim-attribution.service.ts':
-    'TODO D1 — computeAttribution(): items.length===0 → getDemoResult() fabricates NIM attribution.',
-  'alm/copula-credit.service.ts':
-    'TODO D1 — segments.length===0 → getDemoResult(copulaType) fabricates copula correlation.',
-  'alm/credit-conc-var.service.ts':
-    'TODO D1 — segments.length===0 || totalLoans===0 → getDemoResult() fabricates concentration VaR.',
-  'alm/credit-metrics.service.ts':
-    'TODO D1 — segments.length===0 → getDemoResult() fabricates CreditMetrics output.',
+    'TODO D1 — computeAttribution(): items.length===0 → getDemoResult() fabricates NIM attribution. (Also a no-silent-catch baseline entry — the empty path is a .catch(()=>({demo})) swallow; fix D1 + swallow together.)',
   'alm/forward-simulation.service.ts':
     'TODO D1 — items.length===0 → getDemoResult(horizon, paths) fabricates a forward simulation.',
   'alm/frtb-es.service.ts':
@@ -114,8 +108,6 @@ const BASELINE = {
     'TODO D1 — yieldChanges.length<10 → getDemoResult() fabricates PCA yield-curve factors.',
   'alm/sofr-monitor.service.ts':
     'TODO D1 — exposures.length===0 → getDemoResult(totalPortfolio) fabricates SOFR exposure.',
-  'alm/wrong-way-risk.service.ts':
-    'TODO D1 — segments.length===0 → getDemoResult() fabricates wrong-way-risk.',
 };
 
 // ─── Walker ──────────────────────────────────────────────────────────────

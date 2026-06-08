@@ -1,7 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
+import * as Sentry from '@sentry/nestjs';
 
 // JP Morgan CreditMetrics (1997) — Portfolio Credit Risk via Migration Matrix
+//
+// D1 (never silent zeros, SESSION_HANDOFF §1 / 2026-04-07): portfolio VaR/ES is
+// computed from the institution's real loan segments via Monte Carlo. An
+// institution with no loan-segment data returns an HONEST data_unavailable shell
+// with a CRITICAL gap — NEVER a fabricated demo VaR. (Formerly returned a
+// hardcoded $18.5M VaR / $24.2M ES demo.)
 
 const TRANSITION_MATRIX: Record<string, Record<string, number>> = {
   AAA: { AAA: 0.9081, AA: 0.0833, A: 0.0068, BBB: 0.0006, BB: 0.0012, D: 0 },
@@ -35,11 +47,14 @@ const RECOVERY_RATES: Record<string, number> = {
 };
 
 export interface CreditMetricsResult {
-  portfolioVaR99: number;
-  portfolioES99: number;
-  expectedLoss: number;
-  unexpectedLoss: number;
-  economicCapital: number;
+  // Nullable per D1: with no loan segments there is nothing to simulate, so the
+  // engine returns `null` + a gap rather than a fabricated demo VaR. `null` is
+  // structurally distinct from a real `0` an examiner could act on.
+  portfolioVaR99: number | null;
+  portfolioES99: number | null;
+  expectedLoss: number | null;
+  unexpectedLoss: number | null;
+  economicCapital: number | null;
   migrationMatrix: typeof TRANSITION_MATRIX;
   paths: number;
   perSegmentContribution: Array<{
@@ -47,6 +62,8 @@ export interface CreditMetricsResult {
     marginalVaR: number;
     pctOfTotal: number;
   }>;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -60,71 +77,87 @@ export class CreditMetricsService {
     paths: number = 10000,
     rho: number = 0.15,
   ): Promise<CreditMetricsResult> {
-    const segments = await this.prisma.loanSegment.findMany({
-      where: { institutionId },
-    });
-    if (segments.length === 0) return this.getDemoResult();
+    try {
+      const segments = await this.prisma.loanSegment.findMany({
+        where: { institutionId },
+      });
+      // D1 (never silent zeros): no loan segments means there is nothing to
+      // simulate. Return an honest data_unavailable shell with a CRITICAL gap —
+      // NEVER the former hardcoded $18.5M getDemoResult() fabrication.
+      if (segments.length === 0) return this.dataUnavailableResult(paths);
 
-    const rng = this.seededRNG(42);
-    const portfolioPnL: number[] = [];
+      const rng = this.seededRNG(42);
+      const portfolioPnL: number[] = [];
 
-    for (let p = 0; p < paths; p++) {
-      const Z_market = this.normalRandom(rng);
-      let portfolioLoss = 0;
+      for (let p = 0; p < paths; p++) {
+        const Z_market = this.normalRandom(rng);
+        let portfolioLoss = 0;
 
-      for (const seg of segments) {
-        const Z_idio = this.normalRandom(rng);
-        const Z_i = Math.sqrt(rho) * Z_market + Math.sqrt(1 - rho) * Z_idio;
+        for (const seg of segments) {
+          const Z_idio = this.normalRandom(rng);
+          const Z_i = Math.sqrt(rho) * Z_market + Math.sqrt(1 - rho) * Z_idio;
 
-        const currentRating = 'BBB'; // default for cooperativa loans
-        const transitions =
-          TRANSITION_MATRIX[currentRating] ?? TRANSITION_MATRIX.BBB;
-        const newRating = this.drawRating(Z_i, transitions);
+          const currentRating = 'BBB'; // default for cooperativa loans
+          const transitions =
+            TRANSITION_MATRIX[currentRating] ?? TRANSITION_MATRIX.BBB;
+          const newRating = this.drawRating(Z_i, transitions);
 
-        if (newRating === 'D') {
-          const lgd = 1 - RECOVERY_RATES.unsecured;
-          portfolioLoss += seg.balance * lgd;
-        } else if (
-          this.ratingOrder(newRating) > this.ratingOrder(currentRating)
-        ) {
-          // Downgrade: spread widening loss
-          const spreadChange =
-            (this.ratingOrder(newRating) - this.ratingOrder(currentRating)) *
-            0.005;
-          portfolioLoss +=
-            seg.balance * spreadChange * (seg.weightedAvgMaturity ?? 3);
+          if (newRating === 'D') {
+            const lgd = 1 - RECOVERY_RATES.unsecured;
+            portfolioLoss += seg.balance * lgd;
+          } else if (
+            this.ratingOrder(newRating) > this.ratingOrder(currentRating)
+          ) {
+            // Downgrade: spread widening loss
+            const spreadChange =
+              (this.ratingOrder(newRating) - this.ratingOrder(currentRating)) *
+              0.005;
+            portfolioLoss +=
+              seg.balance * spreadChange * (seg.weightedAvgMaturity ?? 3);
+          }
         }
+        portfolioPnL.push(-portfolioLoss);
       }
-      portfolioPnL.push(-portfolioLoss);
+
+      portfolioPnL.sort((a, b) => a - b);
+      const var99Idx = Math.floor(paths * 0.01);
+      const var99 = -portfolioPnL[var99Idx];
+      const es99 =
+        -portfolioPnL.slice(0, var99Idx).reduce((s, v) => s + v, 0) /
+        Math.max(var99Idx, 1);
+      const el = -portfolioPnL.reduce((s, v) => s + v, 0) / paths;
+      const ul = var99 - el;
+
+      return {
+        portfolioVaR99: +var99.toFixed(2),
+        portfolioES99: +es99.toFixed(2),
+        expectedLoss: +el.toFixed(2),
+        unexpectedLoss: +ul.toFixed(2),
+        economicCapital: +(ul * 1.06).toFixed(2),
+        migrationMatrix: TRANSITION_MATRIX,
+        paths,
+        perSegmentContribution: segments.map((s: any) => ({
+          name: s.segmentName,
+          marginalVaR: +(s.balance * 0.02).toFixed(2),
+          pctOfTotal: +(
+            (s.balance /
+              segments.reduce(
+                (sum: number, seg: any) => sum + seg.balance,
+                0,
+              )) *
+            100
+          ).toFixed(1),
+        })),
+        status: 'ok',
+      };
+    } catch (error) {
+      const e = error as Error;
+      this.logger.error(`Computation failed: ${e.message}`, e.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
     }
-
-    portfolioPnL.sort((a, b) => a - b);
-    const var99Idx = Math.floor(paths * 0.01);
-    const var99 = -portfolioPnL[var99Idx];
-    const es99 =
-      -portfolioPnL.slice(0, var99Idx).reduce((s, v) => s + v, 0) /
-      Math.max(var99Idx, 1);
-    const el = -portfolioPnL.reduce((s, v) => s + v, 0) / paths;
-    const ul = var99 - el;
-
-    return {
-      portfolioVaR99: +var99.toFixed(2),
-      portfolioES99: +es99.toFixed(2),
-      expectedLoss: +el.toFixed(2),
-      unexpectedLoss: +ul.toFixed(2),
-      economicCapital: +(ul * 1.06).toFixed(2),
-      migrationMatrix: TRANSITION_MATRIX,
-      paths,
-      perSegmentContribution: segments.map((s: any) => ({
-        name: s.segmentName,
-        marginalVaR: +(s.balance * 0.02).toFixed(2),
-        pctOfTotal: +(
-          (s.balance /
-            segments.reduce((sum: number, seg: any) => sum + seg.balance, 0)) *
-          100
-        ).toFixed(1),
-      })),
-    };
   }
 
   private drawRating(Z: number, transitions: Record<string, number>): string {
@@ -176,19 +209,28 @@ export class CreditMetricsService {
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
-  private getDemoResult(): CreditMetricsResult {
+  // D1: the honest empty-data shell. Replaces the former getDemoResult()
+  // fabrication ($18.5M VaR / $24.2M ES / $13.5M economic capital with three
+  // demo segments) that read as a real portfolio credit-risk position on every
+  // empty institution.
+  private dataUnavailableResult(paths: number): CreditMetricsResult {
     return {
-      portfolioVaR99: 18.5,
-      portfolioES99: 24.2,
-      expectedLoss: 5.8,
-      unexpectedLoss: 12.7,
-      economicCapital: 13.5,
+      portfolioVaR99: null,
+      portfolioES99: null,
+      expectedLoss: null,
+      unexpectedLoss: null,
+      economicCapital: null,
       migrationMatrix: TRANSITION_MATRIX,
-      paths: 10000,
-      perSegmentContribution: [
-        { name: 'Commercial RE', marginalVaR: 6.2, pctOfTotal: 27 },
-        { name: 'Residential Mortgage', marginalVaR: 4.8, pctOfTotal: 21 },
-        { name: 'Consumer Loans', marginalVaR: 3.5, pctOfTotal: 19 },
+      paths,
+      perSegmentContribution: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('creditMetrics.loanSegments', 'NO_LOAN_SEGMENTS', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los segmentos de préstamos (con saldo y vencimiento promedio ponderado) para simular el VaR de crédito del portafolio (CreditMetrics). / Load loan segments (with balance and weighted-average maturity) to simulate portfolio credit VaR (CreditMetrics).',
+          context: { service: 'credit-metrics' },
+        }),
       ],
     };
   }

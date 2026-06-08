@@ -1,70 +1,54 @@
 import { CopulaCreditService } from './copula-credit.service';
 
 describe('CopulaCreditService', () => {
-  let svc: CopulaCreditService;
+  const mk = (segments: unknown[]) =>
+    new CopulaCreditService({
+      loanSegment: { findMany: jest.fn().mockResolvedValue(segments) },
+    } as any);
 
-  beforeEach(() => {
-    const mockPrisma = {
-      loanSegment: { findMany: jest.fn().mockResolvedValue([]) },
-    } as any;
-    svc = new CopulaCreditService(mockPrisma);
+  // ── D1: honest empty-data shell (never the $22.5M demo) ────────
+
+  describe('no loan segments (data_unavailable)', () => {
+    let svc: CopulaCreditService;
+    beforeEach(() => {
+      svc = mk([]);
+    });
+
+    it('returns a data_unavailable shell with null risk metrics + CRITICAL gap', async () => {
+      const result = await svc.simulateWithCopula('inst-1', 'gaussian');
+      expect(result.status).toBe('data_unavailable');
+      expect(result.var99).toBeNull();
+      expect(result.var999).toBeNull();
+      expect(result.es99).toBeNull();
+      expect(result.tailDependence).toBeNull();
+      expect(result.tCopulaPremium).toBeNull();
+      expect(result.jointDefaultProbability).toBeNull();
+      expect(result.correlationMatrix).toEqual([]);
+      expect(result.segments).toEqual([]);
+
+      const critical = result.gaps?.find((g) => g.severity === 'CRITICAL');
+      expect(critical).toBeDefined();
+      expect(critical!.reason).toBe('NO_LOAN_SEGMENTS');
+      expect(critical!.field).toBe('copulaCredit.loanSegments');
+    });
+
+    it('echoes the requested copula method even in the empty shell', async () => {
+      expect((await svc.simulateWithCopula('inst-1', 'gaussian')).method).toBe(
+        'gaussian',
+      );
+      expect((await svc.simulateWithCopula('inst-1', 't-copula')).method).toBe(
+        't-copula',
+      );
+    });
   });
 
-  it('should return demo result with correct shape when no segments', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 'gaussian');
-    expect(result).toHaveProperty('method');
-    expect(result).toHaveProperty('var99');
-    expect(result).toHaveProperty('var999');
-    expect(result).toHaveProperty('es99');
-    expect(result).toHaveProperty('tailDependence');
-    expect(result).toHaveProperty('jointDefaultProbability');
-    expect(result).toHaveProperty('correlationMatrix');
-    expect(result).toHaveProperty('segments');
-  });
+  // ── D1: real-data Monte Carlo computation ──────────────────────
 
-  it('should set method to gaussian when requested', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 'gaussian');
-    expect(result.method).toBe('gaussian');
-    expect(result.tailDependence).toBe(0);
-  });
-
-  it('should set method to t-copula when requested', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 't-copula');
-    expect(result.method).toBe('t-copula');
-    expect(result.tCopulaPremium).toBeGreaterThan(0);
-  });
-
-  it('should have VaR999 >= VaR99', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 'gaussian');
-    expect(result.var999).toBeGreaterThanOrEqual(result.var99);
-  });
-
-  it('should have ES99 >= VaR99 in demo result', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 'gaussian');
-    expect(result.es99).toBeGreaterThanOrEqual(result.var99);
-  });
-
-  it('demo gaussian result has zero tCopulaPremium', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 'gaussian');
-    expect(result.tCopulaPremium).toBe(0);
-  });
-
-  it('demo t-copula result has positive tail dependence', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 't-copula');
-    expect(result.tailDependence).toBeGreaterThan(0);
-  });
-
-  it('demo result includes two segments (Consumer, Commercial)', async () => {
-    const result = await svc.simulateWithCopula('inst-1', 'gaussian');
-    expect(result.segments).toEqual(['Consumer', 'Commercial']);
-  });
-
-  // ── Gaussian copula with real segments ──────────────────────
   describe('with real loan segments', () => {
     let svcWithData: CopulaCreditService;
 
     beforeEach(() => {
-      const segments = [
+      svcWithData = mk([
         {
           segmentName: 'Consumer',
           balance: 5000,
@@ -83,23 +67,20 @@ describe('CopulaCreditService', () => {
           historicalLossRate: 0.01,
           lgd: 0.3,
         },
-      ];
-      const mockPrisma = {
-        loanSegment: { findMany: jest.fn().mockResolvedValue(segments) },
-      } as any;
-      svcWithData = new CopulaCreditService(mockPrisma);
+      ]);
     });
 
-    it('gaussian copula produces correlation matrix matching segment count', async () => {
+    it('gaussian copula produces correlation matrix matching segment count + status ok', async () => {
       const result = await svcWithData.simulateWithCopula(
         'inst-1',
         'gaussian',
         5,
         1000,
       );
+      expect(result.status).toBe('ok');
+      expect(result.gaps).toBeUndefined();
       expect(result.correlationMatrix).toHaveLength(3);
       expect(result.correlationMatrix[0]).toHaveLength(3);
-      // Diagonal should be 1.0
       expect(result.correlationMatrix[0][0]).toBe(1.0);
       expect(result.correlationMatrix[1][1]).toBe(1.0);
       expect(result.correlationMatrix[2][2]).toBe(1.0);
@@ -123,7 +104,7 @@ describe('CopulaCreditService', () => {
         5,
         2000,
       );
-      expect(result.var99).toBeGreaterThan(0);
+      expect(result.var99!).toBeGreaterThan(0);
     });
 
     it('joint default probability is between 0 and 1', async () => {
@@ -133,8 +114,8 @@ describe('CopulaCreditService', () => {
         5,
         2000,
       );
-      expect(result.jointDefaultProbability).toBeGreaterThanOrEqual(0);
-      expect(result.jointDefaultProbability).toBeLessThanOrEqual(1);
+      expect(result.jointDefaultProbability!).toBeGreaterThanOrEqual(0);
+      expect(result.jointDefaultProbability!).toBeLessThanOrEqual(1);
     });
 
     it('gaussian copula has zero tail dependence', async () => {
@@ -164,7 +145,7 @@ describe('CopulaCreditService', () => {
         5,
         1000,
       );
-      expect(result.tailDependence).toBeGreaterThan(0);
+      expect(result.tailDependence!).toBeGreaterThan(0);
       expect(result.method).toBe('t-copula');
     });
 
@@ -175,7 +156,6 @@ describe('CopulaCreditService', () => {
         5,
         1000,
       );
-      // tCopulaPremium = t_var99 - gauss_var99; can be positive or negative
       expect(typeof result.tCopulaPremium).toBe('number');
     });
 
@@ -186,7 +166,7 @@ describe('CopulaCreditService', () => {
         5,
         2000,
       );
-      expect(result.es99).toBeGreaterThanOrEqual(result.var99);
+      expect(result.es99!).toBeGreaterThanOrEqual(result.var99!);
     });
 
     it('VaR999 >= VaR99 for real segment data', async () => {
@@ -196,30 +176,25 @@ describe('CopulaCreditService', () => {
         5,
         2000,
       );
-      expect(result.var999).toBeGreaterThanOrEqual(result.var99);
+      expect(result.var999!).toBeGreaterThanOrEqual(result.var99!);
     });
 
     it('PD is capped at 0.3 even when historicalLossRate is high', async () => {
-      const highPDSegments = [
+      const svcHighPD = mk([
         {
           segmentName: 'Risky',
           balance: 1000,
           historicalLossRate: 0.5,
           lgd: 0.6,
         },
-      ];
-      const mockPrisma = {
-        loanSegment: { findMany: jest.fn().mockResolvedValue(highPDSegments) },
-      } as any;
-      const svcHighPD = new CopulaCreditService(mockPrisma);
+      ]);
       const result = await svcHighPD.simulateWithCopula(
         'inst-1',
         'gaussian',
         5,
         500,
       );
-      // If PD was capped at 0.3, defaults should still be bounded
-      expect(result.var99).toBeGreaterThanOrEqual(0);
+      expect(result.var99!).toBeGreaterThanOrEqual(0);
     });
   });
 });

@@ -3,69 +3,82 @@ import { WrongWayRiskService } from './wrong-way-risk.service';
 describe('WrongWayRiskService', () => {
   let service: WrongWayRiskService;
 
-  describe('demo mode', () => {
-    beforeEach(() => {
-      const mockPrisma = {
-        loanSegment: { findMany: jest.fn().mockResolvedValue([]) },
-      } as any;
-      service = new WrongWayRiskService(mockPrisma);
-    });
+  const realSegments = [
+    {
+      segmentName: 'CRE',
+      historicalLossRate: 0.02,
+      lgd: 0.4,
+      balance: 100,
+      weightedAvgMaturity: 5,
+    },
+    {
+      segmentName: 'Consumer',
+      historicalLossRate: 0.03,
+      lgd: 0.6,
+      balance: 50,
+      weightedAvgMaturity: 3,
+    },
+  ];
 
-    it('should return demo CVA values', async () => {
-      const result = await service.computeWWR('inst-1');
-      expect(result.naiveCVA).toBeCloseTo(2.4, 1);
-      expect(result.adjustedCVA).toBeCloseTo(3.8, 1);
-    });
+  const mk = (segments: unknown[]) =>
+    new WrongWayRiskService({
+      loanSegment: { findMany: jest.fn().mockResolvedValue(segments) },
+    } as any);
 
-    it('WWR premium should be adjustedCVA - naiveCVA', async () => {
-      const result = await service.computeWWR('inst-1');
-      expect(result.wwrPremium).toBeCloseTo(
-        result.adjustedCVA - result.naiveCVA,
-        1,
-      );
-    });
+  // ── D1: honest empty-data shell (never the $3.8M demo) ─────────
 
-    it('multiplier should be > 1 (WWR increases CVA)', async () => {
-      const result = await service.computeWWR('inst-1');
-      expect(result.wwrMultiplier).toBeGreaterThan(1);
-      expect(result.wwrMultiplier).toBeCloseTo(1.58, 2);
-    });
-  });
+  it('returns a data_unavailable shell with a CRITICAL gap when no loan segments exist', async () => {
+    service = mk([]);
 
-  it('should compute WWR with loan segments', async () => {
-    const mockPrisma = {
-      loanSegment: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            segmentName: 'CRE',
-            historicalLossRate: 0.02,
-            lgd: 0.4,
-            balance: 100,
-            weightedAvgMaturity: 5,
-          },
-          {
-            segmentName: 'Consumer',
-            historicalLossRate: 0.03,
-            lgd: 0.6,
-            balance: 50,
-            weightedAvgMaturity: 3,
-          },
-        ]),
-      },
-    } as any;
-    service = new WrongWayRiskService(mockPrisma);
-    const result = await service.computeWWR('inst-1', 0.3);
-    expect(result.adjustedCVA).toBeGreaterThan(result.naiveCVA);
-    expect(result.bySegment).toHaveLength(2);
-  });
-
-  it('narratives should be in both languages', async () => {
-    const mockPrisma = {
-      loanSegment: { findMany: jest.fn().mockResolvedValue([]) },
-    } as any;
-    service = new WrongWayRiskService(mockPrisma);
     const result = await service.computeWWR('inst-1');
-    expect(result.narrativeEn).toBeDefined();
-    expect(result.narrativeEs).toBeDefined();
+
+    expect(result.status).toBe('data_unavailable');
+    expect(result.naiveCVA).toBeNull();
+    expect(result.adjustedCVA).toBeNull();
+    expect(result.wwrPremium).toBeNull();
+    expect(result.wwrMultiplier).toBeNull();
+    expect(result.bySegment).toEqual([]);
+    expect(result.narrativeEs).toBeNull();
+    expect(result.narrativeEn).toBeNull();
+
+    const critical = result.gaps?.find((g) => g.severity === 'CRITICAL');
+    expect(critical).toBeDefined();
+    expect(critical!.reason).toBe('NO_LOAN_SEGMENTS');
+    expect(critical!.field).toBe('wrongWayRisk.loanSegments');
+  });
+
+  // ── D1: real-data computation (not the unconditional demo) ─────
+
+  it('computes WWR-adjusted CVA from real loan segments', async () => {
+    service = mk(realSegments);
+
+    const result = await service.computeWWR('inst-1', 0.3);
+
+    expect(result.status).toBe('ok');
+    expect(result.adjustedCVA).toBeGreaterThan(result.naiveCVA!);
+    expect(result.bySegment).toHaveLength(2);
+    expect(result.bySegment.map((s) => s.segment)).toEqual(['CRE', 'Consumer']);
+    expect(result.gaps).toBeUndefined();
+  });
+
+  it('WWR premium = adjustedCVA - naiveCVA and multiplier > 1 on real data', async () => {
+    service = mk(realSegments);
+
+    const result = await service.computeWWR('inst-1');
+
+    expect(result.wwrPremium).toBeCloseTo(
+      result.adjustedCVA! - result.naiveCVA!,
+      1,
+    );
+    expect(result.wwrMultiplier).toBeGreaterThan(1);
+  });
+
+  it('produces bilingual narratives on real data', async () => {
+    service = mk(realSegments);
+
+    const result = await service.computeWWR('inst-1');
+
+    expect(result.narrativeEn).toBeTruthy();
+    expect(result.narrativeEs).toBeTruthy();
   });
 });
