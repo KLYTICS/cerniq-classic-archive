@@ -87,13 +87,15 @@ export function countRandom(content) {
 // the remediation: swap Math.random() for a SEEDED PRNG and, where it fabricated
 // a missing input, an honest data_unavailable + DataGap.
 //
-// Locked 2026-06-08: 4 entries / 12 calls. 0 unbaselined. monte-carlo.service.ts
+// Locked 2026-06-08: 3 entries / 11 calls. 0 unbaselined. monte-carlo.service.ts
 // is NOT here — its only `Math.random` is a comment explaining what it avoids
 // (stripped before counting).
+// (nim-attribution.service.ts cleared 2026-06-08: the Math.random()-perturbed
+//  prior was deleted in the D1 sweep — the prior-period NIM now comes from the
+//  most recent BoardReport.nimSnapshot, so the attribution is deterministic.)
 const BASELINE = {
   'alm/portfolio-var.service.ts': 7, // historical-VaR scenarios fabricated with Math.random() → phantom VaR/ES, different every run; reseed an MC over real MarketDataSnapshot rates.
   'alm/cvar-optimizer.service.ts': 3, // CVaR sampling + Box-Muller draws from Math.random() → non-reproducible "optimal" allocation; seed the PRNG. (peer-active lane coop-d1-bs-batch — they may clear this.)
-  'alm/nim-attribution.service.ts': 1, // prior-period NIM = Math.random()-perturbed current → the whole 7-factor waterfall is noise; compute the real prior from the AnalysisRun snapshot. (also D1 + no-silent-catch.)
   'alm/reports/reports.service.ts': 1, // report-ID suffix, NOT a financial metric — non-reproducible id; prefer crypto.randomUUID() (Rule-12-adjacent). Low priority.
 };
 
@@ -299,13 +301,13 @@ function selfTest() {
     {
       name: 'baselined file AT its count → baselined',
       content: `const a = Math.random();`, // count 1, baseline 1
-      rel: 'alm/nim-attribution.service.ts',
+      rel: 'alm/reports/reports.service.ts',
       expected: 'baselined',
     },
     {
       name: 'baselined file GROWN past its count → violation',
       content: `const a = Math.random();\nconst b = Math.random();`, // count 2 > baseline 1
-      rel: 'alm/nim-attribution.service.ts',
+      rel: 'alm/reports/reports.service.ts',
       expected: 'violation',
     },
   ];

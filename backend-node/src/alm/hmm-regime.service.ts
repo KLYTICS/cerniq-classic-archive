@@ -1,7 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // 4-state Hidden Markov Model for interest rate regime detection
 // States: RISING_RATES, PLATEAU, EASING, CRISIS
+//
+// D1 (never silent zeros, SESSION_HANDOFF §1 / 2026-04-07): regime detection
+// needs at least 4 rate observations for the Viterbi/forward recursion to be
+// statistically meaningful. With fewer it returns an HONEST data_unavailable
+// shell with a WARNING gap — NEVER the former hardcoded PLATEAU demo regime.
+// (NOTE: the macro-regime controller endpoint formerly fed a SYNTHETIC sine-wave
+// rate series; that fabrication has been removed — until a real rate-history
+// source is wired, the endpoint reports data_unavailable honestly.)
 
 const STATE_NAMES = ['RISING_RATES', 'PLATEAU', 'EASING', 'CRISIS'] as const;
 type RegimeState = (typeof STATE_NAMES)[number];
@@ -30,12 +39,16 @@ const TRANSITION = [
 const INITIAL = [0.25, 0.4, 0.25, 0.1];
 
 export interface RegimeResult {
-  currentRegime: RegimeState;
+  // Nullable per D1: with fewer than 4 observations there is nothing to detect,
+  // so the engine returns `null`/`[]` + a gap rather than a fabricated regime.
+  currentRegime: RegimeState | null;
   currentProbabilities: Array<{ regime: RegimeState; probability: number }>;
-  regimePersistence: number;
+  regimePersistence: number | null;
   statePath: RegimeState[];
-  almImplications: string;
-  almImplicationsEs: string;
+  almImplications: string | null;
+  almImplicationsEs: string | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -44,7 +57,10 @@ export class HMMRegimeService {
   private readonly K = 4;
 
   detectRegime(observations: number[][]): RegimeResult {
-    if (observations.length < 4) return this.getDemoResult();
+    // D1 (never silent zeros): regime inference is not statistically meaningful
+    // below 4 observations. Return an honest data_unavailable shell with a
+    // WARNING gap — NEVER the former hardcoded PLATEAU getDemoResult().
+    if (observations.length < 4) return this.dataUnavailableResult();
 
     const T = observations.length;
 
@@ -122,6 +138,7 @@ export class HMMRegimeService {
       statePath: path.map((s: number) => STATE_NAMES[s]),
       almImplications: implications[currentRegime].en,
       almImplicationsEs: implications[currentRegime].es,
+      status: 'ok',
     };
   }
 
@@ -170,26 +187,26 @@ export class HMMRegimeService {
     return alpha;
   }
 
-  private getDemoResult(): RegimeResult {
+  // D1: the honest insufficient-data shell. Replaces the former getDemoResult()
+  // (a hardcoded PLATEAU regime / 0.55 probability / 5-step demo path) that read
+  // as a real macro-regime call whenever fewer than 4 observations were supplied.
+  private dataUnavailableResult(): RegimeResult {
     return {
-      currentRegime: 'PLATEAU',
-      currentProbabilities: [
-        { regime: 'RISING_RATES', probability: 0.15 },
-        { regime: 'PLATEAU', probability: 0.55 },
-        { regime: 'EASING', probability: 0.25 },
-        { regime: 'CRISIS', probability: 0.05 },
+      currentRegime: null,
+      currentProbabilities: [],
+      regimePersistence: null,
+      statePath: [],
+      almImplications: null,
+      almImplicationsEs: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('hmmRegime.observations', 'STRESS_INPUTS_INSUFFICIENT', {
+          severity: 'WARNING',
+          action:
+            'La detección de régimen requiere al menos 4 observaciones de tasas (semanas). Cargue un historial de tasas más largo. / Regime detection requires at least 4 rate observations (weeks). Load a longer rate history.',
+          context: { service: 'hmm-regime' },
+        }),
       ],
-      regimePersistence: 0.8,
-      statePath: [
-        'RISING_RATES',
-        'RISING_RATES',
-        'PLATEAU',
-        'PLATEAU',
-        'PLATEAU',
-      ],
-      almImplications: 'Rate plateau regime. NIM stable but under pressure.',
-      almImplicationsEs:
-        'Régimen de meseta de tasas. NIM estable pero bajo presión.',
     };
   }
 }

@@ -1,7 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // PCA Yield Curve — 3-Factor Decomposition (Level, Slope, Curvature)
 // Decomposes yield curve movements into orthogonal risk factors
+//
+// D1 (never silent zeros, SESSION_HANDOFF §1 / 2026-04-07): PCA needs at least
+// 10 yield-change observations for the covariance/eigen decomposition to be
+// rank-stable. With fewer it returns an HONEST data_unavailable shell with a
+// WARNING gap — NEVER the former hardcoded Level/Slope/Curvature demo (89.2 /
+// 7.8 / 2.1 explained-variance). (NOTE: the pca-factors controller endpoint
+// formerly fed SYNTHETIC yield changes generated from a hardcoded base curve;
+// that fabrication has been removed — until a real YieldCurve history is wired,
+// the endpoint reports data_unavailable honestly.)
 
 export interface PCAFactor {
   name: string;
@@ -12,9 +22,14 @@ export interface PCAFactor {
 
 export interface PCAResult {
   factors: PCAFactor[];
-  totalExplainedPct: number;
+  // Nullable per D1: with fewer than 10 observations there is nothing to
+  // decompose, so the engine returns `[]`/`null` + a gap, never a fabricated
+  // 99.1% explained-variance demo.
+  totalExplainedPct: number | null;
   tenorLabels: string[];
   dv01Attribution?: { level: number; slope: number; curvature: number };
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -22,7 +37,10 @@ export class PCAYieldCurveService {
   private readonly logger = new Logger(PCAYieldCurveService.name);
 
   computePCAFactors(yieldChanges: number[][]): PCAResult {
-    if (yieldChanges.length < 10) return this.getDemoResult();
+    // D1 (never silent zeros): PCA is not rank-stable below 10 observations.
+    // Return an honest data_unavailable shell with a WARNING gap — NEVER the
+    // former hardcoded Level/Slope/Curvature getDemoResult().
+    if (yieldChanges.length < 10) return this.dataUnavailableResult();
 
     const n = yieldChanges.length;
     const m = yieldChanges[0]?.length ?? 10;
@@ -80,6 +98,7 @@ export class PCAYieldCurveService {
         .reduce((s, f) => s + f.explainedVariancePct, 0)
         .toFixed(1),
       tenorLabels,
+      status: 'ok',
     };
   }
 
@@ -97,7 +116,10 @@ export class PCAYieldCurveService {
     };
   }
 
-  // Generate synthetic yield changes from current rates for demo
+  // Generate synthetic yield changes from base rates — a TEST/utility helper
+  // (honestly named "synthetic"); NOT used as a production data source. The
+  // controller no longer feeds these to computePCAFactors (D1: a real YieldCurve
+  // history must be sourced before PCA results can be presented as real).
   generateSyntheticChanges(
     baseRates: number[],
     weeks: number = 52,
@@ -153,42 +175,22 @@ export class PCAYieldCurveService {
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
-  private getDemoResult(): PCAResult {
+  // D1: the honest insufficient-data shell. Replaces the former getDemoResult()
+  // (hardcoded Level 89.2% / Slope 7.8% / Curvature 2.1% / 99.1% total) that read
+  // as a real PCA decomposition whenever fewer than 10 observations were supplied.
+  private dataUnavailableResult(): PCAResult {
     return {
-      factors: [
-        {
-          name: 'Level',
-          loadings: [0.31, 0.32, 0.33, 0.33, 0.33, 0.32, 0.32, 0.31, 0.3, 0.29],
-          explainedVariancePct: 89.2,
-          eigenvalue: 0.000245,
-        },
-        {
-          name: 'Slope',
-          loadings: [
-            -0.42, -0.35, -0.25, -0.1, 0.05, 0.2, 0.3, 0.38, 0.42, 0.43,
-          ],
-          explainedVariancePct: 7.8,
-          eigenvalue: 0.000021,
-        },
-        {
-          name: 'Curvature',
-          loadings: [0.35, 0.2, -0.05, -0.3, -0.4, -0.3, -0.1, 0.15, 0.4, 0.45],
-          explainedVariancePct: 2.1,
-          eigenvalue: 0.0000058,
-        },
-      ],
-      totalExplainedPct: 99.1,
-      tenorLabels: [
-        '3M',
-        '6M',
-        '1Y',
-        '2Y',
-        '3Y',
-        '5Y',
-        '7Y',
-        '10Y',
-        '20Y',
-        '30Y',
+      factors: [],
+      totalExplainedPct: null,
+      tenorLabels: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('pcaYieldCurve.yieldChanges', 'STRESS_INPUTS_INSUFFICIENT', {
+          severity: 'WARNING',
+          action:
+            'La descomposición PCA requiere al menos 10 observaciones de cambios en la curva. Cargue un historial de curvas de rendimiento más largo. / PCA decomposition requires at least 10 yield-change observations. Load a longer yield-curve history.',
+          context: { service: 'pca-yield-curve' },
+        }),
       ],
     };
   }

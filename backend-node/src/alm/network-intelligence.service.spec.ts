@@ -1,44 +1,39 @@
 import { NetworkIntelligenceService } from './network-intelligence.service';
 
 describe('NetworkIntelligenceService', () => {
-  let service: NetworkIntelligenceService;
-  let prisma: any;
-
-  beforeEach(() => {
-    prisma = {
-      institution: { findMany: jest.fn() },
-    };
-    service = new NetworkIntelligenceService(prisma);
-  });
+  const mk = (institutions: unknown[]) =>
+    new NetworkIntelligenceService({
+      institution: { findMany: jest.fn().mockResolvedValue(institutions) },
+    } as any);
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
+    expect(mk([])).toBeDefined();
   });
 
-  it('returns demo result when no institutions exist', async () => {
-    prisma.institution.findMany.mockResolvedValue([]);
+  // ── D1: honest empty-data shell (never the 94-institution demo) ──
 
-    const result = await service.getNetworkOverview();
+  it('returns a data_unavailable shell with a CRITICAL gap when no institutions exist', async () => {
+    const result = await mk([]).getNetworkOverview();
 
-    expect(result.aggregates.totalInstitutions).toBe(94);
-    expect(result.institutions).toHaveLength(15);
-    expect(result.outliers.length).toBeGreaterThan(0);
-    expect(result.contagionRisks.length).toBeGreaterThan(0);
-    expect(result.aggregates.systemicRiskScore).toBe(35);
+    expect(result.status).toBe('data_unavailable');
+    expect(result.aggregates.totalInstitutions).toBe(0);
+    expect(result.aggregates.systemicRiskScore).toBeNull();
+    expect(result.aggregates.avgNWR).toBeNull();
+    expect(result.aggregates.riskDistribution).toBeNull();
+    expect(result.institutions).toEqual([]);
+    expect(result.outliers).toEqual([]);
+    expect(result.contagionRisks).toEqual([]);
+
+    const critical = result.gaps?.find((g) => g.severity === 'CRITICAL');
+    expect(critical).toBeDefined();
+    expect(critical!.reason).toBe('MISSING_INSTITUTION');
+    expect(critical!.field).toBe('networkIntelligence.institutions');
   });
 
-  it('demo institutions have expected PR cooperativa names', async () => {
-    prisma.institution.findMany.mockResolvedValue([]);
+  // ── D1: real institutions — honest aggregates ──────────────────
 
-    const result = await service.getNetworkOverview();
-    const names = result.institutions.map((i) => i.name);
-    expect(names).toContain('Cooperativa Oriental');
-    expect(names).toContain('Cooperativa Ponce');
-    expect(names).toContain('Cooperativa Fajardo');
-  });
-
-  it('computes network overview from real institutions', async () => {
-    prisma.institution.findMany.mockResolvedValue([
+  it('computes network overview from real institutions with status ok', async () => {
+    const result = await mk([
       {
         id: 'i1',
         name: 'CU Alpha',
@@ -59,17 +54,48 @@ describe('NetworkIntelligenceService', () => {
           { category: 'liability', balance: 185 },
         ],
       },
-    ]);
+    ]).getNetworkOverview();
 
-    const result = await service.getNetworkOverview();
+    expect(result.status).toBe('ok');
     expect(result.aggregates.totalInstitutions).toBe(2);
     expect(result.aggregates.totalSystemAssets).toBe(500);
     expect(result.institutions).toHaveLength(2);
     expect(result.institutions[0].name).toBe('CU Alpha');
+    // avgNWR is computable from real balance sheets: (10% + 7.5%) / 2 = 8.75,
+    // rounded to one decimal (8.8) by the service.
+    expect(result.aggregates.avgNWR).toBeCloseTo(8.8, 1);
   });
 
-  it('risk level classification based on NWR', async () => {
-    prisma.institution.findMany.mockResolvedValue([
+  it('reports the not-yet-wired network indicators as null with a disclosed gap', async () => {
+    const result = await mk([
+      {
+        id: 'i1',
+        name: 'CU Alpha',
+        totalAssets: 300,
+        type: 'cooperativa',
+        balanceSheetItems: [
+          { category: 'asset', balance: 300 },
+          { category: 'liability', balance: 270 },
+        ],
+      },
+    ]).getNetworkOverview();
+
+    // CAMEL/NIM/LCR averages, systemic-risk score and the rating distribution
+    // need per-institution scoring that is not wired — null, not fabricated.
+    expect(result.aggregates.avgCAMEL).toBeNull();
+    expect(result.aggregates.avgNIM).toBeNull();
+    expect(result.aggregates.avgLCR).toBeNull();
+    expect(result.aggregates.systemicRiskScore).toBeNull();
+    expect(result.aggregates.riskDistribution).toBeNull();
+    expect(result.contagionRisks).toEqual([]);
+
+    const warning = result.gaps?.find((g) => g.severity === 'WARNING');
+    expect(warning).toBeDefined();
+    expect(warning!.reason).toBe('INDICATOR_NOT_WIRED');
+  });
+
+  it('classifies institution risk level from real NWR', async () => {
+    const result = await mk([
       {
         id: 'i1',
         name: 'Well-Cap',
@@ -90,24 +116,13 @@ describe('NetworkIntelligenceService', () => {
           { category: 'liability', balance: 96 }, // NWR = 4%
         ],
       },
-    ]);
+    ]).getNetworkOverview();
 
-    const result = await service.getNetworkOverview();
     const wellCap = result.institutions.find((i) => i.name === 'Well-Cap');
     const lowCap = result.institutions.find((i) => i.name === 'Low-Cap');
     expect(wellCap!.riskLevel).toBe('low');
     expect(lowCap!.riskLevel).toBe('high');
-  });
-
-  it('contagion risks include bilingual descriptions', async () => {
-    prisma.institution.findMany.mockResolvedValue([]);
-
-    const result = await service.getNetworkOverview();
-    for (const risk of result.contagionRisks) {
-      expect(typeof risk.risk).toBe('string');
-      expect(typeof risk.riskEs).toBe('string');
-      expect(risk.affectedInstitutions).toBeGreaterThan(0);
-      expect(typeof risk.severity).toBe('string');
-    }
+    // camelComposite stays null (CAMEL not computed per institution — honest)
+    expect(wellCap!.camelComposite).toBeNull();
   });
 });

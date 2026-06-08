@@ -24,8 +24,9 @@
 //
 //   This gate strips comments, then flags any src/alm file that still
 //   references a `getDemo*` identifier in code and is not on the baseline.
-//   New fabrication paths are blocked at CI; the baseline is the chip-away
-//   ledger of the 5 services that still need the sweep.
+//   New fabrication paths are blocked at CI; the chip-away ledger is now at
+//   ZERO (every src/alm service has been swept), so the gate is a pure
+//   non-regression lock + the 2 ALLOW labeled-demo routes.
 //
 // HONEST SCOPE (this gate is not magic — D1 demands we say so):
 //   • It catches the established `getDemo*` naming anti-pattern in src/alm.
@@ -79,7 +80,10 @@ function stripComments(content) {
 //   ALLOW — a deliberately-named, honestly-labeled demo endpoint. Not a
 //           silent fallback; permanent. Documented so review knows it's OK.
 //
-// Locked 2026-06-08: 5 TODO + 2 ALLOW = 7 files. 0 unbaselined violations.
+// Locked 2026-06-08: 0 TODO + 2 ALLOW = 2 files. 0 unbaselined violations.
+// 🎉 The D1 chip-away ledger is at ZERO — every src/alm report producer now
+// returns an honest data_unavailable shell on empty/insufficient input. The
+// gate is now a pure non-regression lock + the 2 ALLOW (labeled-demo) routes.
 const BASELINE = {
   // ── ALLOW: honest, explicitly-labeled demo endpoints (permanent) ──
   'alm/alm.service.ts':
@@ -87,20 +91,12 @@ const BASELINE = {
   'alm/alm.controller.ts':
     'ALLOW — @Get("demo-balance-sheet") / @Get("demo-analysis") are explicit demo routes that never masquerade as a real institution.',
 
-  // ── TODO: services that still fabricate on empty/insufficient input ──
-  'alm/nim-attribution.service.ts':
-    'TODO D1 — computeAttribution(): items.length===0 → getDemoResult() fabricates NIM attribution. (Also a no-silent-catch baseline entry — the empty path is a .catch(()=>({demo})) swallow; fix D1 + swallow together.)',
-  'alm/sofr-monitor.service.ts':
-    'TODO D1 — exposures.length===0 → getDemoResult(totalPortfolio) fabricates SOFR exposure.',
-  'alm/network-intelligence.service.ts':
-    'TODO D1 — institutions.length===0 → getDemoResult() fabricates peer-network intelligence. (Audit flag: getNetworkOverview() is cross-institution / not tenant-scoped — confirm intent when fixing.)',
-  // Threshold-driven + param-driven (controller feeds SYNTHETIC input): the
-  // getDemo* removal is the smaller problem — these need a real data source,
-  // not just a shell swap. Defer to a dedicated pass (see D1 ledger audit).
-  'alm/hmm-regime.service.ts':
-    'TODO D1 — observations.length<4 → getDemoResult() fabricates a regime classification. Param-driven; controller feeds synthetic observations.',
-  'alm/pca-yield-curve.service.ts':
-    'TODO D1 — yieldChanges.length<10 → getDemoResult() fabricates PCA yield-curve factors. Param-driven; controller feeds synthetic yield changes.',
+  // ── TODO: (empty) — the D1 chip-away ledger is at ZERO. Every src/alm
+  //    service now returns an honest data_unavailable shell on empty/insufficient
+  //    input (deposit-decay, repricing-gap, the 4 loan-segment-credit services,
+  //    the 5 balance-sheet readers, sofr-monitor, nim-attribution,
+  //    network-intelligence, hmm-regime, pca-yield-curve). The hmm/pca
+  //    controller endpoints that fed SYNTHETIC input were de-fabricated too.
 };
 
 // ─── Walker ──────────────────────────────────────────────────────────────
@@ -256,10 +252,10 @@ function selfTest() {
       expected: 'none',
     },
     {
-      name: 'baselined TODO offender → baselined',
-      content: `return this.getDemoResult(totalPortfolio);`,
+      name: 'getDemo* in a now-fixed (non-baselined) alm service → violation (ledger at zero)',
+      content: `if (n === 0) return this.getDemoResult(alpha);`,
       rel: 'alm/sofr-monitor.service.ts',
-      expected: 'baselined',
+      expected: 'violation',
     },
     {
       name: 'baselined ALLOW demo endpoint → baselined',
