@@ -61,7 +61,7 @@ export class ComplianceCalendarService {
         urgency: this.calculateUrgency(estimated, now),
         description: 'Estimated COSSEC exam based on last exam + 15 months',
         descriptionEs:
-          'Examen COSSEC estimado basado en ultimo examen + 15 meses',
+          'Examen COSSEC estimado basado en último examen + 15 meses',
         relatedModule: '/alm',
       });
     }
@@ -163,7 +163,7 @@ export class ComplianceCalendarService {
             description:
               'Annual fiscal year-end regulatory filing due 90 days after FYE',
             descriptionEs:
-              'Informe regulatorio de cierre fiscal anual, debido 90 dias despues del cierre',
+              'Informe regulatorio de cierre fiscal anual, debido 90 días después del cierre',
             relatedModule: '/alm',
           });
         } else {
@@ -177,7 +177,7 @@ export class ComplianceCalendarService {
             description:
               'Annual fiscal year-end regulatory filing due 90 days after FYE',
             descriptionEs:
-              'Informe regulatorio de cierre fiscal anual, debido 90 dias despues del cierre',
+              'Informe regulatorio de cierre fiscal anual, debido 90 días después del cierre',
             relatedModule: '/alm',
           });
         }

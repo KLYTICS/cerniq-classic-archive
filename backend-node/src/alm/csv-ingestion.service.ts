@@ -271,7 +271,7 @@ export class CSVIngestionService {
           field: 'duration',
           value: String(rawDuration),
           message: `Duration must be between 0 and 600 months (got ${rawDuration})`,
-          messageEs: `La duracion debe estar entre 0 y 600 meses (recibido ${rawDuration})`,
+          messageEs: `La duración debe estar entre 0 y 600 meses (recibido ${rawDuration})`,
         });
         continue;
       }

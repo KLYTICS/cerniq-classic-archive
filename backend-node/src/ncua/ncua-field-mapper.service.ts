@@ -84,14 +84,14 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'loans',
     name: 'Total Loans',
-    nameEs: 'Prestamos Totales',
+    nameEs: 'Préstamos Totales',
   },
   {
     acctCode: 'ACCT_011',
     category: 'asset',
     subcategory: 'loans',
     name: 'Real Estate Loans',
-    nameEs: 'Prestamos Hipotecarios',
+    nameEs: 'Préstamos Hipotecarios',
     rateType: 'fixed',
   },
   {
@@ -99,7 +99,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'loans',
     name: 'Consumer Loans',
-    nameEs: 'Prestamos de Consumo',
+    nameEs: 'Préstamos de Consumo',
     rateType: 'fixed',
   },
   {
@@ -107,7 +107,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'loans',
     name: 'Commercial Loans',
-    nameEs: 'Prestamos Comerciales',
+    nameEs: 'Préstamos Comerciales',
     rateType: 'variable',
   },
   {
@@ -153,7 +153,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'loans',
     name: 'Used Vehicle Loans',
-    nameEs: 'Prestamos Vehiculos Usados',
+    nameEs: 'Préstamos Vehículos Usados',
     rateType: 'fixed',
   },
   {
@@ -161,7 +161,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'loans',
     name: 'New Vehicle Loans',
-    nameEs: 'Prestamos Vehiculos Nuevos',
+    nameEs: 'Préstamos Vehículos Nuevos',
     rateType: 'fixed',
   },
   {
@@ -169,7 +169,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'loans',
     name: 'Credit Card Loans',
-    nameEs: 'Prestamos Tarjeta de Credito',
+    nameEs: 'Préstamos Tarjeta de Crédito',
     rateType: 'variable',
   },
   {
@@ -177,7 +177,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'reserves',
     name: 'Allowance for Loan Losses',
-    nameEs: 'Reserva para Prestamos Incobrables',
+    nameEs: 'Reserva para Préstamos Incobrables',
   },
 
   // ── Liabilities ───────────────────────────────────────────────────────────
@@ -186,7 +186,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'liability',
     subcategory: 'deposits',
     name: 'Total Deposits/Shares',
-    nameEs: 'Depositos/Acciones Totales',
+    nameEs: 'Depósitos/Acciones Totales',
   },
   {
     acctCode: 'ACCT_602',
@@ -241,7 +241,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'liability',
     subcategory: 'borrowings',
     name: 'FHLB Borrowings',
-    nameEs: 'Prestamos FHLB',
+    nameEs: 'Préstamos FHLB',
     rateType: 'variable',
   },
   {
@@ -279,7 +279,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'equity',
     subcategory: 'ratio',
     name: 'Net Worth Ratio',
-    nameEs: 'Razon de Patrimonio',
+    nameEs: 'Razón de Patrimonio',
   },
 
   // ── Income ────────────────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'income',
     subcategory: 'interest',
     name: 'Interest on Loans',
-    nameEs: 'Intereses sobre Prestamos',
+    nameEs: 'Intereses sobre Préstamos',
   },
   {
     acctCode: 'ACCT_112',
@@ -346,14 +346,14 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'expense',
     subcategory: 'provision',
     name: 'Provision for Loan Losses',
-    nameEs: 'Provision para Prestamos Incobrables',
+    nameEs: 'Provisión para Préstamos Incobrables',
   },
   {
     acctCode: 'ACCT_210',
     category: 'expense',
     subcategory: 'operating',
     name: 'Employee Compensation',
-    nameEs: 'Compensacion de Empleados',
+    nameEs: 'Compensación de Empleados',
   },
   {
     acctCode: 'ACCT_220',
@@ -376,14 +376,14 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'asset',
     subcategory: 'ratio',
     name: 'Delinquency Ratio',
-    nameEs: 'Razon de Morosidad',
+    nameEs: 'Razón de Morosidad',
   },
   {
     acctCode: 'ACCT_672',
     category: 'asset',
     subcategory: 'ratio',
     name: 'Net Charge-Off Ratio',
-    nameEs: 'Razon de Castigos Netos',
+    nameEs: 'Razón de Castigos Netos',
   },
   {
     acctCode: 'ACCT_673',
@@ -397,14 +397,14 @@ export const FIELD_MAP: FieldMapping[] = [
     category: 'expense',
     subcategory: 'ratio',
     name: 'Operating Expense Ratio',
-    nameEs: 'Razon de Gastos Operativos',
+    nameEs: 'Razón de Gastos Operativos',
   },
   {
     acctCode: 'ACCT_550',
     category: 'asset',
     subcategory: 'ratio',
     name: 'Loans-to-Shares Ratio',
-    nameEs: 'Razon Prestamos/Acciones',
+    nameEs: 'Razón Préstamos/Acciones',
   },
 ];
 

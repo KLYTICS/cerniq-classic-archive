@@ -101,6 +101,56 @@ const ACCENTS = {
   Lineas: 'Líneas',
   Dias: 'Días',
   Region: 'Región',
+  // Second wave (2026-06-07): high-frequency terms surfaced by the first scan.
+  // Each bare form is unambiguous in a Spanish display context (the gate's
+  // scope) — not a valid unaccented Spanish word. "Provision"/"Region" are
+  // English words too, but the gate only reads *Es:/t()-es contexts where the
+  // Spanish form is the intended one, so the English `name:` field is untouched.
+  Provision: 'Provisión',
+  Compensacion: 'Compensación',
+  Vehiculo: 'Vehículo',
+  Vehiculos: 'Vehículos',
+  Institucion: 'Institución',
+  Exposicion: 'Exposición',
+  Deteccion: 'Detección',
+  Recuperacion: 'Recuperación',
+  Depreciacion: 'Depreciación',
+  Documentacion: 'Documentación',
+  Verificacion: 'Verificación',
+  Aprobacion: 'Aprobación',
+  Operacion: 'Operación',
+  Transaccion: 'Transacción',
+  Reduccion: 'Reducción',
+  Conexion: 'Conexión',
+  Comision: 'Comisión',
+  Adecuacion: 'Adecuación',
+  Economico: 'Económico',
+  Economica: 'Económica',
+  Estandar: 'Estándar',
+  Metrica: 'Métrica',
+  Metricas: 'Métricas',
+  Guia: 'Guía',
+  Guias: 'Guías',
+  Liquidos: 'Líquidos',
+  Estres: 'Estrés',
+  Anomalia: 'Anomalía',
+  Anomalias: 'Anomalías',
+  Publicos: 'Públicos',
+  Automaticamente: 'Automáticamente',
+  Despues: 'Después',
+  Huracan: 'Huracán',
+  Recesion: 'Recesión',
+  Garantia: 'Garantía',
+  Tasacion: 'Tasación',
+  Categoria: 'Categoría',
+  Categorias: 'Categorías',
+  Limites: 'Límites',
+  Ultimo: 'Último',
+  Ultima: 'Última',
+  Ultimos: 'Últimos',
+  Ultimas: 'Últimas',
+  Exportacion: 'Exportación',
+  Investigacion: 'Investigación',
 };
 
 // Build one case-insensitive whole-word matcher per bare form.
@@ -115,20 +165,22 @@ const MATCHERS = Object.keys(ACCENTS).map((bare) => ({
 // generator src/pipeline/pipeline.worker.ts is baselined for a focused,
 // render-reviewed pass; everything else was driven to 0 in this landing.
 const BASELINE = {
-  // Large/untested customer-facing PDF generators — deferred to a focused,
-  // render-reviewed pass (ES-2/ES-3 in SESSION_HANDOFF). Drive to 0 there.
-  'pipeline/pipeline.worker.ts': 65,
-  'expenses/ap-report.service.ts': 23,
-  'ncua/ncua-field-mapper.service.ts': 19,
-  'pipeline/alco-pack.service.ts': 14,
-  'exam-prep/evidence-package.service.ts': 4,
-  'portal/portal.controller.ts': 3,
-  'leads/lead-qualification.service.ts': 2,
-  'alm/quant/credit/credit-risk-portfolio.ts': 2,
-  'alm/compliance-calendar.service.ts': 2,
-  'alm/quant/credit/lgd-table.ts': 1,
-  'alm/csv-ingestion.service.ts': 1,
-  'alm/capital-adequacy-ratio.service.ts': 1,
+  // Remaining offenders after the 2026-06-07 cleanup landings. Counts reflect
+  // the expanded 73-term dictionary. Two classes left, both deferred:
+  //   • Large/untested customer-PDF generators (pipeline.worker, ap-report,
+  //     alco-pack) — need a render-reviewed pass (ES-2/ES-3).
+  //   • Files that also carry ñ-tildes / contextually-risky words (más, está)
+  //     the accent dictionary deliberately can't enforce (lead-qualification,
+  //     portal, evidence-package, lgd-table) — need manual proofreading.
+  // ncua-field-mapper, capital-adequacy, csv-ingestion, compliance-calendar,
+  // and credit-risk-portfolio were driven to 0 and removed from this list.
+  'pipeline/pipeline.worker.ts': 100,
+  'expenses/ap-report.service.ts': 34,
+  'pipeline/alco-pack.service.ts': 18,
+  'exam-prep/evidence-package.service.ts': 11,
+  'leads/lead-qualification.service.ts': 8,
+  'alm/quant/credit/lgd-table.ts': 8,
+  'portal/portal.controller.ts': 7,
 };
 
 // ─── Comment stripper (keeps string literals; drops // and /* */) ────────────
