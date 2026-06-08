@@ -14,8 +14,10 @@
 //   • data-privacy.service.ts — `.catch(() => [])` on an expense query:
 //     a GDPR/SAR export looks complete while silently missing rows.
 //   • cecl-vintage.service.ts — `catch { /* non-critical */ }` around the
-//     CECL allowance audit-log write: the allowance is computed but its
-//     audit record can vanish — a Rule 4 (append-only audit) chain hole.
+//     CECL allowance audit-log write: the allowance was computed but its
+//     audit record could silently vanish — a Rule 4 (append-only audit)
+//     chain hole. CLOSED 2026-06-07: the catch now logs
+//     `cecl_vintage.allowance_persist_failed` (best-effort, non-throwing).
 //
 // THE TWO HIGH-CONFIDENCE ANTI-PATTERNS THIS GATE CATCHES (comments
 // stripped first, so a comment that merely mentions one does not count):
@@ -87,12 +89,11 @@ export function countSwallows(content) {
 // the remediation: replace the swallow with a logged + tagged failure
 // (logger.warn/error + the gap surfaced to the caller), or rethrow.
 //
-// Locked 2026-06-07: 8 entries / 11 swallows. 0 unbaselined.
+// Locked 2026-06-07: 7 entries / 10 swallows. 0 unbaselined.
 const BASELINE = {
   'alm/excel-export.service.ts': 4, // 4× `.catch(() => null)`/`({items:[]})` → phantom blanks in the examiner workbook; log + stamp each failed source.
   'alm/data-privacy.service.ts': 1, // `.catch(() => [])` on an expense query → SAR/GDPR export silently incomplete; log + surface the gap.
   'alm/nim-attribution.service.ts': 1, // `.catch(() => ({demo}))` → fabricated NIM attribution on failure (also a D1 getDemo offender); fold into the D1 sweep.
-  'alm/cecl-vintage.service.ts': 1, // `catch { /* non-critical */ }` around the CECL allowance audit-log write → Rule 4 audit-chain hole; must log on failure.
   'alm/alm-advisor.service.ts': 1, // `catch {}` when the AuditLog table is absent — best-effort daily-limit counter; should at least logger.debug the absent-table branch.
   'alm/alm-enterprise.service.ts': 1, // `catch {}` at ~:970 whose comment claims an EVE fallback that ISN'T there — nothing runs; log + actually fall back, or surface a gap.
   'alm/reports/report-preflight.service.ts': 1, // `catch {}` silently skips an unregistered model — preflight should record the skipped model in its gap list.
@@ -146,7 +147,9 @@ export function classify(content, relPath) {
 // ─── Main ──────────────────────────────────────────────────────────────
 function main() {
   if (process.env.VERIFY_NO_SILENT_CATCH_SKIP === '1') {
-    console.log('verify-no-silent-catch: skipped (VERIFY_NO_SILENT_CATCH_SKIP=1)');
+    console.log(
+      'verify-no-silent-catch: skipped (VERIFY_NO_SILENT_CATCH_SKIP=1)',
+    );
     process.exit(0);
   }
   if (!existsSync(ALM_ROOT)) {
@@ -199,10 +202,18 @@ function main() {
       );
     }
     console.log('\n  Fix: do not swallow. On catch, either rethrow, or');
-    console.log('       this.logger.warn/error(...) AND surface the gap to the');
-    console.log("       caller (a DataGap / status: 'data_unavailable') so the");
-    console.log('       failure is visible, never a phantom zero. If a swallow is');
-    console.log('       genuinely best-effort, bump its count in BASELINE with a');
+    console.log(
+      '       this.logger.warn/error(...) AND surface the gap to the',
+    );
+    console.log(
+      "       caller (a DataGap / status: 'data_unavailable') so the",
+    );
+    console.log(
+      '       failure is visible, never a phantom zero. If a swallow is',
+    );
+    console.log(
+      '       genuinely best-effort, bump its count in BASELINE with a',
+    );
     console.log('       one-line reason.');
     failed = true;
   }
@@ -316,7 +327,9 @@ function selfTest() {
   if (bad.length === 0) pass++;
   else {
     fail++;
-    console.log(`✗ baseline has out-of-scope or non-positive entries: ${bad.map(([k]) => k).join(', ')}`);
+    console.log(
+      `✗ baseline has out-of-scope or non-positive entries: ${bad.map(([k]) => k).join(', ')}`,
+    );
   }
 
   console.log(`self-test: ${pass}/${pass + fail} case(s) pass`);

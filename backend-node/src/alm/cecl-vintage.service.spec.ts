@@ -264,4 +264,30 @@ describe('CECLVintageService', () => {
       expect(wp).toHaveProperty('r2');
     }
   });
+
+  // -- Rule 4 (append-only audit): a failed allowance persist is VISIBLE --
+  //    The write is best-effort — it must not crash the report — but it must
+  //    never silently vanish (that was the swallowed `catch {}` audit-chain
+  //    hole closed 2026-06-07). Assert it both logs AND still returns.
+  it('logs (never swallows) a failed allowance persist and still returns the report', async () => {
+    const svc = makeService(SEGMENTS, COHORTS);
+    (svc as any).prisma.ceclVintageAllowance.create.mockRejectedValue(
+      new Error('db down'),
+    );
+    const warnSpy = jest
+      .spyOn((svc as any).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    const result = await svc.runVintageAnalysis('inst_123', 'base');
+
+    // best-effort persist: the report must still compute and return ok
+    expect(result.status).toBe('ok');
+    expect(result.baseAllowance!).toBeGreaterThan(0);
+
+    // the failure must be surfaced — logged with the named event + tenant
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const logged = warnSpy.mock.calls[0][0] as any;
+    expect(logged.event).toBe('cecl_vintage.allowance_persist_failed');
+    expect(logged.institutionId).toBe('inst_123');
+  });
 });
