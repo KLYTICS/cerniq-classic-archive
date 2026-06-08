@@ -89,9 +89,10 @@ export function countSwallows(content) {
 // the remediation: replace the swallow with a logged + tagged failure
 // (logger.warn/error + the gap surfaced to the caller), or rethrow.
 //
-// Locked 2026-06-07: 7 entries / 10 swallows. 0 unbaselined.
+// Locked 2026-06-07: 6 entries / 6 swallows. 0 unbaselined.
+// (excel-export.service.ts cleared 2026-06-07: all 4 fetch `.catch`es now log
+//  + push a CRITICAL DEPENDENCY_REJECTED DataGap into the Data Gaps sheet.)
 const BASELINE = {
-  'alm/excel-export.service.ts': 4, // 4× `.catch(() => null)`/`({items:[]})` → phantom blanks in the examiner workbook; log + stamp each failed source.
   'alm/data-privacy.service.ts': 1, // `.catch(() => [])` on an expense query → SAR/GDPR export silently incomplete; log + surface the gap.
   'alm/nim-attribution.service.ts': 1, // `.catch(() => ({demo}))` → fabricated NIM attribution on failure (also a D1 getDemo offender); fold into the D1 sweep.
   'alm/alm-advisor.service.ts': 1, // `catch {}` when the AuditLog table is absent — best-effort daily-limit counter; should at least logger.debug the absent-table branch.

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AlmEnterpriseService } from './alm-enterprise.service';
-import { DataGap, mergeGaps } from './reports/data-gap';
+import { DataGap, dataGap, mergeGaps } from './reports/data-gap';
 
 /** Round to n decimal places with NaN guard */
 function round(value: number, decimals: number): number {
@@ -31,17 +31,66 @@ export class ExcelExportService {
   async exportToExcel(institutionId: string): Promise<Buffer> {
     this.logger.log(`Excel export requested for institution ${institutionId}`);
 
-    // Fetch all data in parallel
+    // Fetch failures land here so the workbook can SURFACE them (sheet 0)
+    // instead of rendering phantom blanks. A failed fetch is materially
+    // different from a legitimately-empty result: each source still degrades
+    // independently (one failure must not abort the whole workbook), but every
+    // failure is logged AND recorded as a CRITICAL data gap — never swallowed.
+    const fetchGaps: DataGap[] = [];
+
+    // Fetch all data in parallel. Each `.catch` logs + records the failure
+    // before falling back, so the resilient "partial workbook" behaviour is
+    // preserved without masking a fetch error as real (empty) output (D1).
     const [summary, cossec, balanceSheetData, niiSensitivity] =
       await Promise.all([
-        this.almEnterprise.getALMSummary(institutionId).catch(() => null),
-        this.almEnterprise.getCOSSECCompliance(institutionId).catch(() => null),
+        this.almEnterprise.getALMSummary(institutionId).catch((err) => {
+          this.recordFetchFailure(
+            fetchGaps,
+            institutionId,
+            'getALMSummary',
+            'summary',
+            'ALM summary unavailable (fetch error)',
+            err,
+          );
+          return null;
+        }),
+        this.almEnterprise.getCOSSECCompliance(institutionId).catch((err) => {
+          this.recordFetchFailure(
+            fetchGaps,
+            institutionId,
+            'getCOSSECCompliance',
+            'cossec',
+            'COSSEC compliance unavailable (fetch error)',
+            err,
+          );
+          return null;
+        }),
         this.almEnterprise
           .listBalanceSheetItems(institutionId, { page: 1, pageSize: 1000 })
-          .catch(() => ({ items: [] })),
+          .catch((err) => {
+            this.recordFetchFailure(
+              fetchGaps,
+              institutionId,
+              'listBalanceSheetItems',
+              'balanceSheet',
+              'Balance sheet unavailable (fetch error)',
+              err,
+            );
+            return { items: [] };
+          }),
         this.almEnterprise
           .calculateNIISensitivity(institutionId)
-          .catch(() => null),
+          .catch((err) => {
+            this.recordFetchFailure(
+              fetchGaps,
+              institutionId,
+              'calculateNIISensitivity',
+              'niiSensitivity',
+              'NII sensitivity unavailable (fetch error)',
+              err,
+            );
+            return null;
+          }),
       ]);
 
     // Build XML Spreadsheet 2003 workbook
@@ -51,9 +100,41 @@ export class ExcelExportService {
       cossec,
       balanceSheetData.items ?? [],
       niiSensitivity,
+      fetchGaps,
     );
 
     return Buffer.from(xml, 'utf-8');
+  }
+
+  /**
+   * Record a failed source fetch so it is VISIBLE, never a silent blank.
+   *
+   * Logs the failure (ops/audit trail) AND pushes a CRITICAL `DataGap` so the
+   * Data Gaps sheet — the first tab a reviewer opens — names the failure with
+   * `DEPENDENCY_REJECTED` and a human label ("ALM summary unavailable (fetch
+   * error)"). Without this, a fetch error would render as phantom blanks/zeros
+   * in that section and an examiner could not tell "missing data" from "fetch
+   * failed". That distinction is the whole point of the D1 gap contract.
+   */
+  private recordFetchFailure(
+    sink: DataGap[],
+    institutionId: string,
+    method: string,
+    field: string,
+    label: string,
+    err: unknown,
+  ): void {
+    const message = err instanceof Error ? err.message : String(err);
+    this.logger.warn(
+      `Excel export: ${method} failed for institution ${institutionId} — ${message}. Surfacing as a CRITICAL data gap.`,
+    );
+    sink.push(
+      dataGap(field, 'DEPENDENCY_REJECTED', {
+        severity: 'CRITICAL',
+        action: `${label} — the source fetch failed; retry the export and, if it persists, check the ALM service logs. Do not treat the blank section as real data.`,
+        context: { institutionId, method, error: message },
+      }),
+    );
   }
 
   // ─── SpreadsheetML Builder ──────────────────────────────────────
@@ -64,6 +145,7 @@ export class ExcelExportService {
     cossec: any,
     balanceSheetItems: any[],
     niiSensitivity: any,
+    fetchGaps: DataGap[] = [],
   ): string {
     const sheets: string[] = [];
 
@@ -72,7 +154,15 @@ export class ExcelExportService {
     // entries, the workbook should not be shipped to a board or regulator.
     // Other sheets render `DATA UNAVAILABLE` for the affected cells, but
     // this is the canonical manifest that names every missing input.
-    const allGaps: DataGap[] = mergeGaps(summary?.gaps, cossec?.gaps);
+    //
+    // `fetchGaps` lead the manifest: a source that FAILED to fetch (vs. one
+    // that returned legitimately-empty data) is the most fundamental problem,
+    // so it appears before the per-field gaps the sources reported themselves.
+    const allGaps: DataGap[] = mergeGaps(
+      fetchGaps,
+      summary?.gaps,
+      cossec?.gaps,
+    );
 
     sheets.push(this.buildGapsSheet(allGaps));
     sheets.push(this.buildExecutiveSummarySheet(summary, institutionId));
