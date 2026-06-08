@@ -660,7 +660,7 @@ export default function PeerBenchmarkingPage() {
   if (!selectedId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6">
-        <AlertTriangle className="h-10 w-10 text-amber-500" />
+        <AlertTriangle className="h-10 w-10 text-amber-500" aria-hidden />
         <p className="text-sm text-slate-400">{t.noInstitution}</p>
       </div>
     );

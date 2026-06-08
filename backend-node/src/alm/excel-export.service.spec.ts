@@ -207,6 +207,31 @@ describe('ExcelExportService', () => {
       expect(xml).toContain('</Workbook>');
     });
 
+    it('surfaces a failed source fetch in the Data Gaps sheet (no silent blank)', async () => {
+      // Regression lock for the no-silent-catch fix (2026-06-07): a FETCH that
+      // throws must be VISIBLE — logged with its source name + institutionId,
+      // AND surfaced as a CRITICAL, ship-blocking DataGap on sheet 0 — never a
+      // phantom-blank section an examiner could mistake for real (empty) data.
+      almEnterprise.getALMSummary.mockRejectedValue(new Error('DB down'));
+      const warn = jest
+        .spyOn((service as any).logger, 'warn')
+        .mockImplementation(() => undefined);
+
+      const xml = (await service.exportToExcel('inst_006')).toString('utf-8');
+
+      // (1) The failure is logged with the source name + institution id.
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'getALMSummary failed for institution inst_006',
+        ),
+      );
+      // (2) The Data Gaps sheet names the failure instead of going blank.
+      expect(xml).toContain('ALM summary unavailable (fetch error)');
+      expect(xml).toContain('DEPENDENCY_REJECTED');
+      expect(xml).toContain('CRITICAL');
+      expect(xml).toContain('Do NOT ship');
+    });
+
     it('should show placeholder message when no balance sheet items', async () => {
       almEnterprise.listBalanceSheetItems.mockResolvedValue({ items: [] });
       const result = await service.exportToExcel('inst_003');

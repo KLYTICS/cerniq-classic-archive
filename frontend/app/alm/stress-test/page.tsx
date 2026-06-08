@@ -165,7 +165,7 @@ export default function StressTestPage() {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center space-y-4">
-          <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto" />
+          <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto" aria-hidden />
           <p className="text-slate-400 text-sm">{t('stressTest.noInstitution')}</p>
         </div>
       </div>

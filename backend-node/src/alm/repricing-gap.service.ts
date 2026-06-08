@@ -1,5 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import type { BalanceSheetItem } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
+import * as Sentry from '@sentry/nestjs';
 
 // ─── OCIF CC-2022-03 Repricing Buckets ──────────────────────
 
@@ -35,11 +42,16 @@ export interface RepricingBucket {
 
 export interface RepricingGapResult {
   buckets: RepricingBucket[];
-  totalAssets: number;
-  totalLiabilities: number;
-  durationGap: number;
+  // Nullable per D1: with no balance sheet there is nothing to bucket, so the
+  // engine returns `null` + a gap rather than a fabricated demo book. `null` is
+  // structurally distinct from a real `0` an OCIF examiner could act on.
+  totalAssets: number | null;
+  totalLiabilities: number | null;
+  durationGap: number | null;
   analysisDate: string;
   policyLimitPct: number;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -52,82 +64,121 @@ export class RepricingGapService {
     institutionId: string,
     policyLimitPct: number = 15,
   ): Promise<RepricingGapResult> {
-    const items = await this.prisma.balanceSheetItem.findMany({
-      where: { institutionId },
-    });
+    try {
+      const items: BalanceSheetItem[] =
+        await this.prisma.balanceSheetItem.findMany({
+          where: { institutionId },
+        });
 
-    if (items.length === 0) return this.getDemoResult();
+      const assetItems = items.filter((i) => i.category === 'asset');
+      const liabilityItems = items.filter((i) => i.category === 'liability');
 
-    const totalAssets = items
-      .filter((i: any) => i.category === 'asset')
-      .reduce((s: number, i: any) => s + i.balance, 0);
-    const totalLiabilities = items
-      .filter((i: any) => i.category === 'liability')
-      .reduce((s: number, i: any) => s + i.balance, 0);
+      // D1 (never silent zeros): no asset/liability rows means there is nothing
+      // to bucket. Return an honest data_unavailable shell with a CRITICAL gap —
+      // NEVER the former $445M/$385M getDemoResult() fabrication, which read as a
+      // real, mildly asset-sensitive book on every empty institution.
+      if (assetItems.length === 0 && liabilityItems.length === 0) {
+        return this.dataUnavailableResult(policyLimitPct);
+      }
 
-    const assetDuration =
-      totalAssets > 0
-        ? items
-            .filter((i: any) => i.category === 'asset')
-            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
-          totalAssets
-        : 0;
-    const liabDuration =
-      totalLiabilities > 0
-        ? items
-            .filter((i: any) => i.category === 'liability')
-            .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
-          totalLiabilities
-        : 0;
+      const totalAssets = assetItems.reduce((s, i) => s + Number(i.balance), 0);
+      const totalLiabilities = liabilityItems.reduce(
+        (s, i) => s + Number(i.balance),
+        0,
+      );
 
-    let cumulativeGap = 0;
-    const buckets: RepricingBucket[] = BUCKETS.map((bucket) => {
-      const assets = items
-        .filter((i: any) => i.category === 'asset')
-        .filter(
-          (i: any) =>
-            this.getRepricingDays(i) >= bucket.minDays &&
-            this.getRepricingDays(i) <= bucket.maxDays,
-        )
-        .reduce((s: number, i: any) => s + i.balance, 0);
+      const assetDuration =
+        totalAssets > 0
+          ? assetItems.reduce(
+              (s, i) => s + Number(i.balance) * Number(i.duration),
+              0,
+            ) / totalAssets
+          : 0;
+      const liabDuration =
+        totalLiabilities > 0
+          ? liabilityItems.reduce(
+              (s, i) => s + Number(i.balance) * Number(i.duration),
+              0,
+            ) / totalLiabilities
+          : 0;
 
-      const liabilities = items
-        .filter((i: any) => i.category === 'liability')
-        .filter(
-          (i: any) =>
-            this.getRepricingDays(i) >= bucket.minDays &&
-            this.getRepricingDays(i) <= bucket.maxDays,
-        )
-        .reduce((s: number, i: any) => s + i.balance, 0);
+      let cumulativeGap = 0;
+      const buckets: RepricingBucket[] = BUCKETS.map((bucket) => {
+        const inBucket = (i: BalanceSheetItem) => {
+          const days = this.getRepricingDays(i);
+          return days >= bucket.minDays && days <= bucket.maxDays;
+        };
 
-      const gap = assets - liabilities;
-      cumulativeGap += gap;
-      const gapAsPctAssets = totalAssets > 0 ? (gap / totalAssets) * 100 : 0;
+        const assets = assetItems
+          .filter(inBucket)
+          .reduce((s, i) => s + Number(i.balance), 0);
+        const liabilities = liabilityItems
+          .filter(inBucket)
+          .reduce((s, i) => s + Number(i.balance), 0);
+
+        const gap = assets - liabilities;
+        cumulativeGap += gap;
+        const gapAsPctAssets = totalAssets > 0 ? (gap / totalAssets) * 100 : 0;
+
+        return {
+          ...bucket,
+          assets: Math.round(assets * 10) / 10,
+          liabilities: Math.round(liabilities * 10) / 10,
+          gap: Math.round(gap * 10) / 10,
+          cumulativeGap: Math.round(cumulativeGap * 10) / 10,
+          gapAsPctAssets: Math.round(gapAsPctAssets * 10) / 10,
+          isPolicyBreach: Math.abs(gapAsPctAssets) > policyLimitPct,
+        };
+      });
+
+      // D1: a one-sided balance sheet (assets loaded but not liabilities, or
+      // vice versa) yields a real but INCOMPLETE gap — the missing side reads as
+      // 0 across every bucket, overstating the gap. Render the result (the
+      // loaded side is real) but DISCLOSE the missing side as a WARNING gap
+      // rather than letting the silent zero stand.
+      const gaps: DataGap[] = [];
+      if (assetItems.length === 0) {
+        gaps.push(
+          dataGap('repricingGap.assets', 'COSSEC_INPUTS_INSUFFICIENT', {
+            severity: 'WARNING',
+            action:
+              'Cargue los activos del balance — sin el lado de activos la brecha de reprecio sobreestima la sensibilidad de los pasivos. / Load balance-sheet assets; without the asset side the repricing gap overstates liability sensitivity.',
+          }),
+        );
+      }
+      if (liabilityItems.length === 0) {
+        gaps.push(
+          dataGap('repricingGap.liabilities', 'COSSEC_INPUTS_INSUFFICIENT', {
+            severity: 'WARNING',
+            action:
+              'Cargue los pasivos del balance — sin el lado de pasivos la brecha de reprecio sobreestima la sensibilidad de los activos. / Load balance-sheet liabilities; without the liability side the repricing gap overstates asset sensitivity.',
+          }),
+        );
+      }
 
       return {
-        ...bucket,
-        assets: Math.round(assets * 10) / 10,
-        liabilities: Math.round(liabilities * 10) / 10,
-        gap: Math.round(gap * 10) / 10,
-        cumulativeGap: Math.round(cumulativeGap * 10) / 10,
-        gapAsPctAssets: Math.round(gapAsPctAssets * 10) / 10,
-        isPolicyBreach: Math.abs(gapAsPctAssets) > policyLimitPct,
+        buckets,
+        totalAssets: Math.round(totalAssets * 10) / 10,
+        totalLiabilities: Math.round(totalLiabilities * 10) / 10,
+        durationGap: Math.round((assetDuration - liabDuration) * 100) / 100,
+        analysisDate: new Date().toISOString(),
+        policyLimitPct,
+        status: 'ok',
+        ...(gaps.length > 0 && { gaps }),
       };
-    });
-
-    return {
-      buckets,
-      totalAssets: Math.round(totalAssets * 10) / 10,
-      totalLiabilities: Math.round(totalLiabilities * 10) / 10,
-      durationGap: Math.round((assetDuration - liabDuration) * 100) / 100,
-      analysisDate: new Date().toISOString(),
-      policyLimitPct,
-    };
+    } catch (error) {
+      const e = error as Error;
+      this.logger.error(`Computation failed: ${e.message}`, e.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
+    }
   }
 
   // ─── Private ──────────────────────────────────────────────
 
-  private getRepricingDays(item: any): number {
+  private getRepricingDays(item: BalanceSheetItem): number {
     // Variable-rate instruments reprice at their repricing frequency
     if (item.rateType === 'variable') {
       // If repriceDate is set, use days until that date
@@ -152,34 +203,29 @@ export class RepricingGapService {
     }
 
     // Use duration as proxy
-    return Math.round(item.duration * 365);
+    return Math.round(Number(item.duration) * 365);
   }
 
-  private getDemoResult(): RepricingGapResult {
-    let cumGap = 0;
-    const demoAssets = [45, 30, 25, 60, 120, 80, 85];
-    const demoLiabs = [95, 55, 40, 35, 85, 45, 30];
-
+  // D1: the honest empty-data shell. Replaces the former getDemoResult()
+  // fabrication ($445M assets / $385M liabilities / 2.1yr duration gap) that
+  // read as a real, mildly asset-sensitive book on every empty institution.
+  private dataUnavailableResult(policyLimitPct: number): RepricingGapResult {
     return {
-      buckets: BUCKETS.map((b, i) => {
-        const gap = demoAssets[i] - demoLiabs[i];
-        cumGap += gap;
-        const gapPct = (gap / 445) * 100;
-        return {
-          ...b,
-          assets: demoAssets[i],
-          liabilities: demoLiabs[i],
-          gap,
-          cumulativeGap: Math.round(cumGap * 10) / 10,
-          gapAsPctAssets: Math.round(gapPct * 10) / 10,
-          isPolicyBreach: Math.abs(gapPct) > 15,
-        };
-      }),
-      totalAssets: 445,
-      totalLiabilities: 385,
-      durationGap: 2.1,
+      buckets: [],
+      totalAssets: null,
+      totalLiabilities: null,
+      durationGap: null,
       analysisDate: new Date().toISOString(),
-      policyLimitPct: 15,
+      policyLimitPct,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('repricingGap.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue el balance de situación (activos y pasivos) para calcular la brecha de reprecio (repricing gap, OCIF CC-2022-03). / Load the balance sheet (assets and liabilities) to compute the repricing gap (OCIF CC-2022-03).',
+          context: { service: 'repricing-gap' },
+        }),
+      ],
     };
   }
 }

@@ -223,8 +223,15 @@ export class CECLVintageService {
           segmentBreakdown: segmentBreakdown as any,
         },
       });
-    } catch {
-      /* non-critical */
+    } catch (err) {
+      // Rule 4 (append-only audit): persisting the allowance record is
+      // best-effort — a failed write must NOT crash the report — but it
+      // must be VISIBLE, never a silent audit-chain hole. Log; do not rethrow.
+      this.logger.warn({
+        event: 'cecl_vintage.allowance_persist_failed',
+        institutionId,
+        err: String(err),
+      });
     }
 
     return {

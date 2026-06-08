@@ -27,12 +27,16 @@ CerniQ is a bilingual ALM (Asset-Liability Management) platform for Puerto Rico 
 eslint
 → verify:tenant-scope
 → verify:no-orphan-spec
+→ verify:no-focused-tests                 (no it.only / .skip in committed specs — silent-green guard)
 → verify:d1-no-silent-fallback            (CerniQ D1 — never silent zeros; no getDemo* fallback in src/alm)
+→ verify:no-silent-catch                  (CerniQ — no swallowed errors / empty catch in src/alm)
 → verify:auth-coverage                    (auth-guard coverage strict)
 → verify:rule-4-audit-immutable           (KLYTICS Rule 4 — audit_log* append-only)
 → verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
 → verify:rule-11-any-rationale            (KLYTICS Rule 11 — type-rationale on `any`)
 → verify:rule-12-crypto-randomness        (KLYTICS Rule 12 — crypto-grade randomness in security paths)
+→ verify:coverage-floor                   (meta — jest coverage floor only RAISES; enforces D24 #3)
+→ verify:gate-selftest                    (meta — runs every gate's --self-test in CI; enforces D24 #4)
 → tsc --noEmit
 ```
 Plus `prisma validate`, `jest` (coverage floor 86/70/81/86 statements/branches/functions/lines), `nest build`.
@@ -105,6 +109,16 @@ git commit --only frontend/scripts/verify-bundle-budget.mjs frontend/package.jso
 ```
 
 `git commit --only <paths>` re-asserts the file set at commit time; it survives index churn from peer activity between your `git add` and your `git commit`. **This is the canonical pattern on this repo.**
+
+**Caveat — `--only` is index-safe, not same-file-disk-safe.** `git commit --only <paths>` (and `commit -- <paths>`) re-reads the **working-tree content** of each named path *at commit time*. That defeats peers staging *other* files (modes 1–3 above), but it does **not** protect a hot shared file that a peer rewrites *on disk* in the gap between your last inspection and your commit — `--only` will capture the peer's freshly-written lines into your commit. Observed live: `41237e8` absorbed a peer's RC-1 §5 bullet because a peer wrote `docs/SESSION_HANDOFF.md` between a `git diff HEAD` check and the `git commit --only` (see the `chore(coord): stage-race attribution correction` entry in SESSION_HANDOFF §5). **Mitigation for hot docs** (`docs/SESSION_HANDOFF.md` especially): run the verify and the commit in the **same shell invocation**, gated on an exact added-line count, so a concurrent write aborts instead of silently landing:
+
+```sh
+ADDED=$(git diff HEAD -- docs/SESSION_HANDOFF.md | grep -cE '^\+- 2026')
+[ "$ADDED" = "1" ] && git commit --only docs/SESSION_HANDOFF.md -m "..." \
+  || echo "ABORT: concurrent write to the doc — re-inspect before committing"
+```
+
+**When the abort fires — the two-bullet deadlock + the surgical-stage escape.** The gate above is correct, but if *both* sessions have already written a §5 bullet to disk, *both* gates see `ADDED=2` and *both* abort — neither can `--only`-commit the doc without absorbing the other's bullet. `--only` cannot isolate one author's hunk (it re-reads the whole working-tree file) and interactive `git add -p` is unavailable in this harness. **Escape — stage a content-addressed blob of *your bullet only*:** rebuild the doc as `HEAD-doc + your-bullet` (omit the peer's), `BLOB=$(git hash-object -w /tmp/doc.mine)`, `git update-index --cacheinfo 100644,$BLOB,docs/SESSION_HANDOFF.md`, then plain `git commit` (index-based — **not** `--only`, which would re-read the disk file with both bullets). The peer's bullet stays untouched on disk; after your commit their gate sees `ADDED=1` and they're unblocked, with zero misattribution either way. Guard the build→commit window with a `HEAD`-unchanged check (rebuild from the new HEAD if a peer commits first — your insert then lands above theirs and both survive) **and** an exact staged-name-set assertion right before commit. `scripts/verify-clean-worktree.sh --staged-only` permits the staged≠worktree state (it only blocks volatile/generated paths), so the partial stage passes pre-commit. Observed live: the i18n-parity landing `ec8b43d` broke a deadlock against a concurrently-written `repricing-gap` §5 bullet exactly this way.
 
 **Coordination CLI** — `~/.claude/peers/bin/claude-peers`:
 - `status` — see active peer claims (project + paths + age)

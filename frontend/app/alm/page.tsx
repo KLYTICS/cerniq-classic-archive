@@ -187,7 +187,7 @@ export default function ALMCommandCenterPage() {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center" role="alert">
-          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" />
+          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" aria-hidden />
           <p className="mt-3 text-sm font-semibold text-rose-900">
             {locale === 'es' ? 'No se pudo cargar el resumen' : 'Could not load summary'}
           </p>

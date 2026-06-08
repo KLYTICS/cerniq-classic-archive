@@ -68,7 +68,6 @@
   "backend-node/src/alm/portfolio-var.service.ts": 1,
   "backend-node/src/alm/reports/report-artifact.service.ts": 2,
   "backend-node/src/alm/reports/reports.service.ts": 15,
-  "backend-node/src/alm/repricing-gap.service.ts": 15,
   "backend-node/src/alm/robust-optimizer.service.ts": 2,
   "backend-node/src/alm/scenarios/scenario-persistence.service.ts": 6,
   "backend-node/src/alm/sofr-monitor.service.ts": 5,
