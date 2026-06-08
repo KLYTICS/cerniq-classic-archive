@@ -412,11 +412,11 @@ export class ExamPrepScoringService {
       LIQUIDITY: { label: 'Liquidity', labelEs: 'Liquidez' },
       CAPITAL_ADEQUACY: {
         label: 'Capital Adequacy',
-        labelEs: 'Adecuacion de Capital',
+        labelEs: 'Adecuación de Capital',
       },
       CONCENTRATION: {
         label: 'Concentration Risk',
-        labelEs: 'Riesgo de Concentracion',
+        labelEs: 'Riesgo de Concentración',
       },
       GOVERNANCE: { label: 'Governance', labelEs: 'Gobernanza' },
       DATA_QUALITY: { label: 'Data Quality', labelEs: 'Calidad de Datos' },
@@ -424,7 +424,7 @@ export class ExamPrepScoringService {
       OPERATIONAL: { label: 'Operational Risk', labelEs: 'Riesgo Operacional' },
       INTEREST_RATE: {
         label: 'Interest Rate Risk',
-        labelEs: 'Riesgo de Tasa de Interes',
+        labelEs: 'Riesgo de Tasa de Interés',
       },
     };
     return labels[category] ?? { label: category, labelEs: category };

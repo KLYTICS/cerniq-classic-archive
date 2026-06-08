@@ -21,7 +21,7 @@ const NCUA_RATIOS: RegulatoryRatio[] = [
   {
     id: 1,
     name: 'Net Worth Ratio',
-    nameEs: 'Razon de Capital Neto',
+    nameEs: 'Razón de Capital Neto',
     category: 'capital',
     threshold: '>= 7%',
     thresholdDirection: 'gte',
@@ -30,7 +30,7 @@ const NCUA_RATIOS: RegulatoryRatio[] = [
   {
     id: 2,
     name: 'Delinquency Ratio',
-    nameEs: 'Razon de Morosidad',
+    nameEs: 'Razón de Morosidad',
     category: 'asset_quality',
     threshold: '<= 1.5%',
     thresholdDirection: 'lte',
@@ -48,7 +48,7 @@ const NCUA_RATIOS: RegulatoryRatio[] = [
   {
     id: 4,
     name: 'Operating Expense Ratio',
-    nameEs: 'Razon de Gastos Operativos',
+    nameEs: 'Razón de Gastos Operativos',
     category: 'earnings',
     threshold: '<= 75%',
     thresholdDirection: 'lte',
@@ -57,7 +57,7 @@ const NCUA_RATIOS: RegulatoryRatio[] = [
   {
     id: 5,
     name: 'Liquidity Ratio',
-    nameEs: 'Razon de Liquidez',
+    nameEs: 'Razón de Liquidez',
     category: 'liquidity',
     threshold: '>= 10%',
     thresholdDirection: 'gte',
@@ -66,7 +66,7 @@ const NCUA_RATIOS: RegulatoryRatio[] = [
   {
     id: 6,
     name: 'Loan-to-Share Ratio',
-    nameEs: 'Razon Prestamos/Depositos',
+    nameEs: 'Razón Préstamos/Depósitos',
     category: 'liquidity',
     threshold: '<= 90%',
     thresholdDirection: 'lte',
@@ -75,7 +75,7 @@ const NCUA_RATIOS: RegulatoryRatio[] = [
   {
     id: 7,
     name: 'Net Interest Margin',
-    nameEs: 'Margen de Interes Neto',
+    nameEs: 'Margen de Interés Neto',
     category: 'earnings',
     threshold: '>= 2.0%',
     thresholdDirection: 'gte',
