@@ -25,7 +25,7 @@
 //   This gate strips comments, then flags any src/alm file that still
 //   references a `getDemo*` identifier in code and is not on the baseline.
 //   New fabrication paths are blocked at CI; the baseline is the chip-away
-//   ledger of the 10 services that still need the sweep.
+//   ledger of the 5 services that still need the sweep.
 //
 // HONEST SCOPE (this gate is not magic — D1 demands we say so):
 //   • It catches the established `getDemo*` naming anti-pattern in src/alm.
@@ -79,7 +79,7 @@ function stripComments(content) {
 //   ALLOW — a deliberately-named, honestly-labeled demo endpoint. Not a
 //           silent fallback; permanent. Documented so review knows it's OK.
 //
-// Locked 2026-06-07: 10 TODO + 2 ALLOW = 12 files. 0 unbaselined violations.
+// Locked 2026-06-08: 5 TODO + 2 ALLOW = 7 files. 0 unbaselined violations.
 const BASELINE = {
   // ── ALLOW: honest, explicitly-labeled demo endpoints (permanent) ──
   'alm/alm.service.ts':
@@ -88,26 +88,19 @@ const BASELINE = {
     'ALLOW — @Get("demo-balance-sheet") / @Get("demo-analysis") are explicit demo routes that never masquerade as a real institution.',
 
   // ── TODO: services that still fabricate on empty/insufficient input ──
-  'alm/cvar-optimizer.service.ts':
-    'TODO D1 — optimize(): n===0 (no asset subcategories) → getDemoResult(alpha) fabricates weights/cvar/var.',
   'alm/nim-attribution.service.ts':
     'TODO D1 — computeAttribution(): items.length===0 → getDemoResult() fabricates NIM attribution. (Also a no-silent-catch baseline entry — the empty path is a .catch(()=>({demo})) swallow; fix D1 + swallow together.)',
-  'alm/forward-simulation.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult(horizon, paths) fabricates a forward simulation.',
-  'alm/frtb-es.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult() fabricates FRTB expected-shortfall.',
-  'alm/hmm-regime.service.ts':
-    'TODO D1 — observations.length<4 → getDemoResult() fabricates a regime classification.',
-  'alm/liquidity-stress-pack.service.ts':
-    'TODO D1 — items.length===0 → getDemoResults() fabricates the liquidity stress pack.',
-  'alm/network-intelligence.service.ts':
-    'TODO D1 — institutions.length===0 → getDemoResult() fabricates peer-network intelligence.',
-  'alm/optionality-suite.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult() fabricates portfolio optionality.',
-  'alm/pca-yield-curve.service.ts':
-    'TODO D1 — yieldChanges.length<10 → getDemoResult() fabricates PCA yield-curve factors.',
   'alm/sofr-monitor.service.ts':
     'TODO D1 — exposures.length===0 → getDemoResult(totalPortfolio) fabricates SOFR exposure.',
+  'alm/network-intelligence.service.ts':
+    'TODO D1 — institutions.length===0 → getDemoResult() fabricates peer-network intelligence. (Audit flag: getNetworkOverview() is cross-institution / not tenant-scoped — confirm intent when fixing.)',
+  // Threshold-driven + param-driven (controller feeds SYNTHETIC input): the
+  // getDemo* removal is the smaller problem — these need a real data source,
+  // not just a shell swap. Defer to a dedicated pass (see D1 ledger audit).
+  'alm/hmm-regime.service.ts':
+    'TODO D1 — observations.length<4 → getDemoResult() fabricates a regime classification. Param-driven; controller feeds synthetic observations.',
+  'alm/pca-yield-curve.service.ts':
+    'TODO D1 — yieldChanges.length<10 → getDemoResult() fabricates PCA yield-curve factors. Param-driven; controller feeds synthetic yield changes.',
 };
 
 // ─── Walker ──────────────────────────────────────────────────────────────
@@ -264,8 +257,8 @@ function selfTest() {
     },
     {
       name: 'baselined TODO offender → baselined',
-      content: `return this.getDemoResult(alpha);`,
-      rel: 'alm/cvar-optimizer.service.ts',
+      content: `return this.getDemoResult(totalPortfolio);`,
+      rel: 'alm/sofr-monitor.service.ts',
       expected: 'baselined',
     },
     {

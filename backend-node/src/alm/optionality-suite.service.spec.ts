@@ -1,55 +1,44 @@
 import { OptionalitySuiteService } from './optionality-suite.service';
 
 describe('OptionalitySuiteService', () => {
-  let service: OptionalitySuiteService;
-
-  beforeEach(() => {
-    const mockPrisma = {
-      balanceSheetItem: { findMany: jest.fn().mockResolvedValue([]) },
-    } as any;
-    const mockKRD = {} as any;
-    service = new OptionalitySuiteService(mockPrisma, mockKRD);
-  });
-
-  it('should return demo result when no items', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.portfolioModDuration).toBeCloseTo(4.2, 1);
-    expect(result.portfolioEffDuration).toBeCloseTo(3.6, 1);
-  });
-
-  it('effective duration should be less than modified duration', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.portfolioEffDuration).toBeLessThanOrEqual(
-      result.portfolioModDuration,
+  const mk = (items: unknown[]) =>
+    new OptionalitySuiteService(
+      {
+        balanceSheetItem: { findMany: jest.fn().mockResolvedValue(items) },
+      } as any,
+      {} as any,
     );
+
+  // ── D1: honest empty-data shell (never the 4.2yr-duration demo) ─
+
+  it('returns a data_unavailable shell with null metrics + CRITICAL gap when no items', async () => {
+    const result = await mk([]).analyzePortfolio('inst-1');
+
+    expect(result.status).toBe('data_unavailable');
+    expect(result.portfolioModDuration).toBeNull();
+    expect(result.portfolioEffDuration).toBeNull();
+    expect(result.portfolioConvexity).toBeNull();
+    expect(result.durationGap).toBeNull();
+    expect(result.negConvexityBalance).toBeNull();
+    expect(result.negConvexityPct).toBeNull();
+    expect(result.keyRiskTenor).toBeNull();
+    expect(result.instruments).toEqual([]);
+    expect(result.durationMismatchHeatmap).toEqual([]);
+    expect(result.convexityContributors).toEqual([]);
+
+    const critical = result.gaps?.find((g) => g.severity === 'CRITICAL');
+    expect(critical).toBeDefined();
+    expect(critical!.reason).toBe('EMPTY_BALANCE_SHEET');
+    expect(critical!.field).toBe('optionalitySuite.balanceSheet');
   });
 
-  it('should report negative convexity balance', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.negConvexityBalance).toBeGreaterThan(0);
-    expect(result.negConvexityPct).toBeGreaterThan(0);
-  });
+  // ── D1: real-data computation ──────────────────────────────────
 
-  it('duration gap should be defined', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.durationGap).toBeCloseTo(1.8, 1);
-  });
-
-  it('convexity contributors should have negative contributions', async () => {
-    const result = await service.analyzePortfolio('inst-1');
-    expect(result.convexityContributors.length).toBeGreaterThan(0);
-    for (const c of result.convexityContributors) {
-      expect(c.contribution).toBeLessThan(0);
-      expect(c.balance).toBeGreaterThan(0);
-    }
-  });
-
-  // ── Coverage boost: real balance sheet items ────────────────
   describe('analyzePortfolio with real items', () => {
     let serviceWithItems: OptionalitySuiteService;
 
     beforeEach(() => {
-      const items = [
+      serviceWithItems = mk([
         {
           id: '1',
           name: 'Residential Mortgages',
@@ -100,12 +89,16 @@ describe('OptionalitySuiteService', () => {
           rate: 0.015,
           rateType: 'fixed',
         },
-      ];
-      const mockPrisma = {
-        balanceSheetItem: { findMany: jest.fn().mockResolvedValue(items) },
-      } as any;
-      const mockKRD = {} as any;
-      serviceWithItems = new OptionalitySuiteService(mockPrisma, mockKRD);
+      ]);
+    });
+
+    it('returns status ok with no gaps and effDur ≤ modDur', async () => {
+      const result = await serviceWithItems.analyzePortfolio('inst-1');
+      expect(result.status).toBe('ok');
+      expect(result.gaps).toBeUndefined();
+      expect(result.portfolioEffDuration!).toBeLessThanOrEqual(
+        result.portfolioModDuration!,
+      );
     });
 
     it('classifies prepayable and callable instruments correctly', async () => {
@@ -159,14 +152,14 @@ describe('OptionalitySuiteService', () => {
     it('negConvexityPct is the pct of negatively convex assets vs total assets', async () => {
       const result = await serviceWithItems.analyzePortfolio('inst-1');
       // mortgage(100) + mbs(50) are neg convex; total assets = 100+50+80 = 230
-      expect(result.negConvexityBalance).toBeCloseTo(150, 0);
-      expect(result.negConvexityPct).toBeCloseTo((150 / 230) * 100, 0);
+      expect(result.negConvexityBalance!).toBeCloseTo(150, 0);
+      expect(result.negConvexityPct!).toBeCloseTo((150 / 230) * 100, 0);
     });
   });
 
   describe('classifyOptionType via variable rateType', () => {
     it('classifies variable-rate instruments as indexed', async () => {
-      const items = [
+      const svc = mk([
         {
           id: '1',
           name: 'SOFR Loan',
@@ -177,11 +170,7 @@ describe('OptionalitySuiteService', () => {
           rate: 0.04,
           rateType: 'variable',
         },
-      ];
-      const mockPrisma = {
-        balanceSheetItem: { findMany: jest.fn().mockResolvedValue(items) },
-      } as any;
-      const svc = new OptionalitySuiteService(mockPrisma, {} as any);
+      ]);
       const result = await svc.analyzePortfolio('inst-1');
       expect(result.instruments[0].optionType).toBe('indexed');
     });
