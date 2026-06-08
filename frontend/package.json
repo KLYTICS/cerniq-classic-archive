@@ -30,7 +30,7 @@
     "a11y:report": "node e2e/a11y-sweep/render-report.mjs"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.46.0",
+    "@sentry/nextjs": "^10.56.0",
     "@tanstack/react-query": "^5.100.10",
     "@types/dompurify": "^3.0.5",
     "@vercel/analytics": "^2.0.1",
