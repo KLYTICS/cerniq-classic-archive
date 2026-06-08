@@ -25,7 +25,7 @@
 //   This gate strips comments, then flags any src/alm file that still
 //   references a `getDemo*` identifier in code and is not on the baseline.
 //   New fabrication paths are blocked at CI; the baseline is the chip-away
-//   ledger of the 15 services that still need the sweep.
+//   ledger of the 14 services that still need the sweep.
 //
 // HONEST SCOPE (this gate is not magic — D1 demands we say so):
 //   • It catches the established `getDemo*` naming anti-pattern in src/alm.
@@ -79,7 +79,7 @@ function stripComments(content) {
 //   ALLOW — a deliberately-named, honestly-labeled demo endpoint. Not a
 //           silent fallback; permanent. Documented so review knows it's OK.
 //
-// Locked 2026-06-07: 15 TODO + 2 ALLOW = 17 files. 0 unbaselined violations.
+// Locked 2026-06-07: 14 TODO + 2 ALLOW = 16 files. 0 unbaselined violations.
 const BASELINE = {
   // ── ALLOW: honest, explicitly-labeled demo endpoints (permanent) ──
   'alm/alm.service.ts':
@@ -112,8 +112,6 @@ const BASELINE = {
     'TODO D1 — items.length===0 → getDemoResult() fabricates portfolio optionality.',
   'alm/pca-yield-curve.service.ts':
     'TODO D1 — yieldChanges.length<10 → getDemoResult() fabricates PCA yield-curve factors.',
-  'alm/repricing-gap.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult() fabricates the repricing gap.',
   'alm/sofr-monitor.service.ts':
     'TODO D1 — exposures.length===0 → getDemoResult(totalPortfolio) fabricates SOFR exposure.',
   'alm/wrong-way-risk.service.ts':
