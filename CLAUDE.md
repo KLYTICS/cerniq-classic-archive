@@ -35,6 +35,7 @@ eslint
 → verify:rule-9-stamping                  (KLYTICS Rule 9 — LLM prompt + cost provenance)
 → verify:rule-11-any-rationale            (KLYTICS Rule 11 — type-rationale on `any`)
 → verify:rule-12-crypto-randomness        (KLYTICS Rule 12 — crypto-grade randomness in security paths)
+→ verify:coverage-floor                   (meta — jest coverage floor only RAISES; enforces D24 #3)
 → verify:gate-selftest                    (meta — runs every gate's --self-test in CI; enforces D24 #4)
 → tsc --noEmit
 ```
