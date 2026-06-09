@@ -53,16 +53,19 @@ export class ProspectIntelligenceService {
     const liabilities = ncuaData.items.filter(
       (i) => i.category === 'liability',
     );
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const equity = totalAssets - totalLiabilities;
     const nwr = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
 
     const loans = assets.filter(
       (i) => !['cash', 'securities'].includes(i.subcategory),
     );
-    const totalLoans = loans.reduce((s, i) => s + i.balance, 0);
-    const totalShares = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalLoans = loans.reduce((s, i) => s + Number(i.balance), 0);
+    const totalShares = liabilities.reduce((s, i) => s + Number(i.balance), 0);
     const loanToShare = totalShares > 0 ? (totalLoans / totalShares) * 100 : 0;
 
     const assetIncome = assets.reduce((s, i) => s + i.balance * i.rate, 0);

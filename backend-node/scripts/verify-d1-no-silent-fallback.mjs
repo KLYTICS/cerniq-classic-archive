@@ -24,8 +24,9 @@
 //
 //   This gate strips comments, then flags any src/alm file that still
 //   references a `getDemo*` identifier in code and is not on the baseline.
-//   New fabrication paths are blocked at CI; the baseline is the chip-away
-//   ledger of the 14 services that still need the sweep.
+//   New fabrication paths are blocked at CI; the chip-away ledger is now at
+//   ZERO (every src/alm service has been swept), so the gate is a pure
+//   non-regression lock + the 2 ALLOW labeled-demo routes.
 //
 // HONEST SCOPE (this gate is not magic — D1 demands we say so):
 //   • It catches the established `getDemo*` naming anti-pattern in src/alm.
@@ -79,7 +80,10 @@ function stripComments(content) {
 //   ALLOW — a deliberately-named, honestly-labeled demo endpoint. Not a
 //           silent fallback; permanent. Documented so review knows it's OK.
 //
-// Locked 2026-06-07: 14 TODO + 2 ALLOW = 16 files. 0 unbaselined violations.
+// Locked 2026-06-08: 0 TODO + 2 ALLOW = 2 files. 0 unbaselined violations.
+// 🎉 The D1 chip-away ledger is at ZERO — every src/alm report producer now
+// returns an honest data_unavailable shell on empty/insufficient input. The
+// gate is now a pure non-regression lock + the 2 ALLOW (labeled-demo) routes.
 const BASELINE = {
   // ── ALLOW: honest, explicitly-labeled demo endpoints (permanent) ──
   'alm/alm.service.ts':
@@ -87,35 +91,12 @@ const BASELINE = {
   'alm/alm.controller.ts':
     'ALLOW — @Get("demo-balance-sheet") / @Get("demo-analysis") are explicit demo routes that never masquerade as a real institution.',
 
-  // ── TODO: services that still fabricate on empty/insufficient input ──
-  'alm/cvar-optimizer.service.ts':
-    'TODO D1 — optimize(): n===0 (no asset subcategories) → getDemoResult(alpha) fabricates weights/cvar/var.',
-  'alm/nim-attribution.service.ts':
-    'TODO D1 — computeAttribution(): items.length===0 → getDemoResult() fabricates NIM attribution.',
-  'alm/copula-credit.service.ts':
-    'TODO D1 — segments.length===0 → getDemoResult(copulaType) fabricates copula correlation.',
-  'alm/credit-conc-var.service.ts':
-    'TODO D1 — segments.length===0 || totalLoans===0 → getDemoResult() fabricates concentration VaR.',
-  'alm/credit-metrics.service.ts':
-    'TODO D1 — segments.length===0 → getDemoResult() fabricates CreditMetrics output.',
-  'alm/forward-simulation.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult(horizon, paths) fabricates a forward simulation.',
-  'alm/frtb-es.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult() fabricates FRTB expected-shortfall.',
-  'alm/hmm-regime.service.ts':
-    'TODO D1 — observations.length<4 → getDemoResult() fabricates a regime classification.',
-  'alm/liquidity-stress-pack.service.ts':
-    'TODO D1 — items.length===0 → getDemoResults() fabricates the liquidity stress pack.',
-  'alm/network-intelligence.service.ts':
-    'TODO D1 — institutions.length===0 → getDemoResult() fabricates peer-network intelligence.',
-  'alm/optionality-suite.service.ts':
-    'TODO D1 — items.length===0 → getDemoResult() fabricates portfolio optionality.',
-  'alm/pca-yield-curve.service.ts':
-    'TODO D1 — yieldChanges.length<10 → getDemoResult() fabricates PCA yield-curve factors.',
-  'alm/sofr-monitor.service.ts':
-    'TODO D1 — exposures.length===0 → getDemoResult(totalPortfolio) fabricates SOFR exposure.',
-  'alm/wrong-way-risk.service.ts':
-    'TODO D1 — segments.length===0 → getDemoResult() fabricates wrong-way-risk.',
+  // ── TODO: (empty) — the D1 chip-away ledger is at ZERO. Every src/alm
+  //    service now returns an honest data_unavailable shell on empty/insufficient
+  //    input (deposit-decay, repricing-gap, the 4 loan-segment-credit services,
+  //    the 5 balance-sheet readers, sofr-monitor, nim-attribution,
+  //    network-intelligence, hmm-regime, pca-yield-curve). The hmm/pca
+  //    controller endpoints that fed SYNTHETIC input were de-fabricated too.
 };
 
 // ─── Walker ──────────────────────────────────────────────────────────────
@@ -271,10 +252,10 @@ function selfTest() {
       expected: 'none',
     },
     {
-      name: 'baselined TODO offender → baselined',
-      content: `return this.getDemoResult(alpha);`,
-      rel: 'alm/cvar-optimizer.service.ts',
-      expected: 'baselined',
+      name: 'getDemo* in a now-fixed (non-baselined) alm service → violation (ledger at zero)',
+      content: `if (n === 0) return this.getDemoResult(alpha);`,
+      rel: 'alm/sofr-monitor.service.ts',
+      expected: 'violation',
     },
     {
       name: 'baselined ALLOW demo endpoint → baselined',

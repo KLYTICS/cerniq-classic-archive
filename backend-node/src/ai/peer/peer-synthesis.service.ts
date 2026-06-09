@@ -39,7 +39,7 @@ export class PeerSynthesisService {
           (i: any) => i.category === 'liability',
         );
         const totalA =
-          assets.reduce((s: any, i: any) => s + i.balance, 0) ||
+          assets.reduce((s: any, i: any) => s + Number(i.balance), 0) ||
           inst.totalAssets;
         const income = assets.reduce(
           (s: any, i: any) => s + i.balance * i.rate,

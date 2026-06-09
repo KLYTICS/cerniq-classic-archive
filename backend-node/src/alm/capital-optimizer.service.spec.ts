@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { CapitalOptimizerService } from './capital-optimizer.service';
 
 describe('CapitalOptimizerService', () => {
@@ -143,5 +144,59 @@ describe('CapitalOptimizerService', () => {
       );
       expect(totalDelta).toBeCloseTo(0, 1);
     });
+  });
+
+  // ── Prisma Decimal coercion (the production bug) ────────────
+  it('coerces Prisma Decimal balances — NWR is summed, not string-concatenated', async () => {
+    const D = (n: number) => new Prisma.Decimal(n);
+    const items = [
+      {
+        category: 'asset',
+        subcategory: 'cash_equivalents',
+        balance: D(30),
+        rate: D(0.02),
+      },
+      {
+        category: 'asset',
+        subcategory: 'investment_securities',
+        balance: D(50),
+        rate: D(0.042),
+      },
+      {
+        category: 'asset',
+        subcategory: 'consumer_loans',
+        balance: D(80),
+        rate: D(0.065),
+      },
+      {
+        category: 'asset',
+        subcategory: 'commercial_loans',
+        balance: D(60),
+        rate: D(0.075),
+      },
+      {
+        category: 'liability',
+        subcategory: 'savings_deposits',
+        balance: D(120),
+        rate: D(0.015),
+      },
+      {
+        category: 'liability',
+        subcategory: 'time_deposits',
+        balance: D(60),
+        rate: D(0.035),
+      },
+    ];
+    const svcDec = new CapitalOptimizerService({
+      balanceSheetItem: { findMany: jest.fn().mockResolvedValue(items) },
+    } as any);
+    const result = await svcDec.optimize('inst-dec');
+    // equity 40 / totalAssets 220 = 18.18%. With the string-concat bug,
+    // totalAssets would be "030508060" → NWR ≈ 100%. 18.2 proves summation.
+    const nwr = result.constraintSlacks.find((c) =>
+      c.constraint.includes('NWR'),
+    );
+    expect(nwr?.currentValue).toBeCloseTo(18.2, 1);
+    expect(result.projectedNIIGain).toBeGreaterThan(0);
   });
 });

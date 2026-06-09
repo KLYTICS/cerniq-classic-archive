@@ -59,7 +59,6 @@
   "backend-node/src/alm/monte-carlo.service.ts": 1,
   "backend-node/src/alm/ncua-5300.service.ts": 8,
   "backend-node/src/alm/ncua-rbc2.service.ts": 4,
-  "backend-node/src/alm/network-intelligence.service.ts": 1,
   "backend-node/src/alm/nim-attribution.service.ts": 10,
   "backend-node/src/alm/nim-optimizer.service.ts": 5,
   "backend-node/src/alm/oas-calculator.service.ts": 7,

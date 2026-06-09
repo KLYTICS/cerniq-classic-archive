@@ -1008,7 +1008,7 @@ export class PortalController {
         : [];
 
     const totalInstitutionAssets = institutions.reduce(
-      (sum: number, institution: any) => sum + institution.totalAssets,
+      (sum: number, institution: any) => sum + Number(institution.totalAssets),
       0,
     );
 
@@ -1169,11 +1169,14 @@ export class PortalController {
       (i) => i.subcategory === 'equity' || i.category === 'equity',
     );
 
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const totalEquity =
       equityItems.length > 0
-        ? equityItems.reduce((s, i) => s + i.balance, 0)
+        ? equityItems.reduce((s, i) => s + Number(i.balance), 0)
         : totalAssets - totalLiabilities;
 
     const weightedAssetDuration =
@@ -1202,8 +1205,11 @@ export class PortalController {
     const depositItems = liabilities.filter(
       (i) => i.subcategory === 'deposits',
     );
-    const totalLoans = loanItems.reduce((s, i) => s + i.balance, 0);
-    const totalDeposits = depositItems.reduce((s, i) => s + i.balance, 0);
+    const totalLoans = loanItems.reduce((s, i) => s + Number(i.balance), 0);
+    const totalDeposits = depositItems.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const loanToDeposit = totalDeposits > 0 ? totalLoans / totalDeposits : 0;
 
     const capitalAdequacy = totalAssets > 0 ? totalEquity / totalAssets : 0;
@@ -1368,7 +1374,7 @@ export class PortalController {
         total: 0,
         count: 0,
       };
-      existing.total += item.balance;
+      existing.total += Number(item.balance);
       existing.count += 1;
       groups.set(item.subcategory, existing);
     }

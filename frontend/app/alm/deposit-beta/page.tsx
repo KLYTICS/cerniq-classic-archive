@@ -8,8 +8,12 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface DepositBetaRow {
   readonly subcategory: string;
@@ -19,18 +23,19 @@ interface DepositBetaRow {
   readonly p75: number;
 }
 
-interface DepositBetaResult {
+interface DepositBetaResult extends AlmDataShell {
   readonly institutionBetas: readonly DepositBetaRow[];
+  // D1: null when there are no deposit products / rate history to calibrate.
   readonly niiImpact: {
     readonly withCalibrated: number;
     readonly withDefault: number;
     readonly difference: number;
-  };
+  } | null;
   readonly libraryStats: {
     readonly institutions: number;
     readonly dateRange: string;
     readonly categories: number;
-  };
+  } | null;
   readonly timeSeriesComparison: readonly {
     readonly period: string;
     readonly ffr: number;
@@ -43,8 +48,9 @@ interface DepositBetaResult {
 function validateDepositBeta(raw: unknown): DepositBetaResult {
   if (!raw || typeof raw !== 'object') throw new Error('Deposit Beta response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (null niiImpact + gaps[]); validate
+  // STRUCTURE only — `institutionBetas` is the array the content maps over.
   if (!Array.isArray(r.institutionBetas)) throw new Error('Deposit Beta: institutionBetas must be array');
-  if (!r.niiImpact || typeof r.niiImpact !== 'object') throw new Error('Deposit Beta: missing niiImpact');
   return r as unknown as DepositBetaResult;
 }
 
@@ -85,12 +91,13 @@ function betaColor(b: number): string {
 
 function DepositBetaContent({ data }: { data: DepositBetaResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
-    { key: 'nii_calibrated',    label: locale === 'es' ? 'NII Calibrado'    : 'NII Calibrated',  value: data.niiImpact.withCalibrated, unit: 'USD_M' },
-    { key: 'nii_default',       label: locale === 'es' ? 'NII Default'      : 'NII Default',     value: data.niiImpact.withDefault,    unit: 'USD_M' },
-    { key: 'nii_diff',          label: 'Δ NII',                                                  value: data.niiImpact.difference,     unit: 'USD_M' },
-    { key: 'pr_library',        label: locale === 'es' ? 'Biblioteca PR' : 'PR Library',         value: data.libraryStats.institutions, unit: 'count' },
+    { key: 'nii_calibrated',    label: locale === 'es' ? 'NII Calibrado'    : 'NII Calibrated',  value: data.niiImpact?.withCalibrated ?? null, unit: 'USD_M' },
+    { key: 'nii_default',       label: locale === 'es' ? 'NII Default'      : 'NII Default',     value: data.niiImpact?.withDefault ?? null,    unit: 'USD_M' },
+    { key: 'nii_diff',          label: 'Δ NII',                                                  value: data.niiImpact?.difference ?? null,     unit: 'USD_M' },
+    { key: 'pr_library',        label: locale === 'es' ? 'Biblioteca PR' : 'PR Library',         value: data.libraryStats?.institutions ?? null, unit: 'count' },
     { key: 'subcategory_count', label: locale === 'es' ? 'Subcategorías' : 'Subcategories',      value: data.institutionBetas.length,   unit: 'count' },
   ], [data, locale]);
 
@@ -120,13 +127,32 @@ function DepositBetaContent({ data }: { data: DepositBetaResult }) {
     },
   ], [locale]);
 
+  // D1: no deposit products / rate history to calibrate → honest neutral panel.
+  if (isDataUnavailable(data) || data.institutionBetas.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No deposit products are loaded. Load the deposit book (balances by product) to calibrate deposit betas against the Puerto Rico peer library.',
+          es: 'No hay productos de depósito cargados. Cargue la cartera de depósitos (saldos por producto) para calibrar las betas de depósito contra la biblioteca de pares de Puerto Rico.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
-      <div className="text-[11px] text-slate-500">
-        {data.libraryStats.dateRange} · {data.libraryStats.institutions} {locale === 'es' ? 'instituciones' : 'institutions'} · {data.libraryStats.categories} {locale === 'es' ? 'categorías' : 'categories'}
-      </div>
+      {data.libraryStats ? (
+        <div className="text-[11px] text-slate-500">
+          {data.libraryStats.dateRange} · {data.libraryStats.institutions} {locale === 'es' ? 'instituciones' : 'institutions'} · {data.libraryStats.categories} {locale === 'es' ? 'categorías' : 'categories'}
+        </div>
+      ) : null}
 
       {/* Beta vs benchmark bar chart */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">

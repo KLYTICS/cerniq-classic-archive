@@ -152,12 +152,12 @@ export class AnomalyDetectionService {
     const totalExpenses = expenses.length;
     const vendorMap = this.groupByVendor(expenses);
     const totalVendors = Object.keys(vendorMap).length;
-    const totalSpend = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalSpend = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
     let topVendorName = 'N/A';
     let topVendorPct = 0;
     for (const [vendor, items] of Object.entries(vendorMap)) {
-      const vendorSpend = items.reduce((s, e) => s + e.amount, 0);
+      const vendorSpend = items.reduce((s, e) => s + Number(e.amount), 0);
       const pct = totalSpend > 0 ? (vendorSpend / totalSpend) * 100 : 0;
       if (pct > topVendorPct) {
         topVendorPct = pct;
@@ -234,7 +234,9 @@ export class AnomalyDetectionService {
             severity: 'HIGH',
             affectedInvoiceIds: group.map((e) => e.id),
             affectedVendor: group[0].merchantName,
-            estimatedRecovery: group.slice(1).reduce((s, e) => s + e.amount, 0),
+            estimatedRecovery: group
+              .slice(1)
+              .reduce((s, e) => s + Number(e.amount), 0),
             explanation: `Exact duplicate: ${group.length} invoices with identical vendor, amount ($${group[0].amount.toFixed(2)}), and date.`,
             explanationEs: `Duplicado exacto: ${group.length} facturas con proveedor, monto ($${group[0].amount.toFixed(2)}) y fecha idénticos.`,
             detectedAt: new Date(),
@@ -364,7 +366,7 @@ export class AnomalyDetectionService {
           }
 
           if (windowItems.length >= 3) {
-            const sum = windowItems.reduce((s, e) => s + e.amount, 0);
+            const sum = windowItems.reduce((s, e) => s + Number(e.amount), 0);
             // Check if the sum is a round thousand (within $5 tolerance)
             if (
               sum >= 1000 &&
@@ -413,13 +415,13 @@ export class AnomalyDetectionService {
   ): Promise<AnomalyFinding[]> {
     try {
       const findings: AnomalyFinding[] = [];
-      const totalSpend = expenses.reduce((s, e) => s + e.amount, 0);
+      const totalSpend = expenses.reduce((s, e) => s + Number(e.amount), 0);
       if (totalSpend === 0) return findings;
 
       const vendorGroups = this.groupByVendor(expenses);
 
       for (const [vendor, items] of Object.entries(vendorGroups)) {
-        const vendorSpend = items.reduce((s, e) => s + e.amount, 0);
+        const vendorSpend = items.reduce((s, e) => s + Number(e.amount), 0);
         const pct = (vendorSpend / totalSpend) * 100;
 
         if (pct > 35) {
@@ -672,7 +674,7 @@ export class AnomalyDetectionService {
     for (const [, items] of Object.entries(vendorMap)) {
       const pct =
         totalSpend > 0
-          ? (items.reduce((s, e) => s + e.amount, 0) / totalSpend) * 100
+          ? (items.reduce((s, e) => s + Number(e.amount), 0) / totalSpend) * 100
           : 0;
       if (pct > maxPct) maxPct = pct;
     }

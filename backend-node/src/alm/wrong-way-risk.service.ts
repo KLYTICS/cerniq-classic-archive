@@ -1,21 +1,37 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
+import * as Sentry from '@sentry/nestjs';
 
 // Wrong-Way Risk — Exposure increases when counterparty most likely to default
+//
+// D1 (never silent zeros, SESSION_HANDOFF §1 / 2026-04-07): CVA is computed from
+// the institution's real loan segments. An institution with no loan-segment data
+// returns an HONEST data_unavailable shell with a CRITICAL gap — NEVER a
+// fabricated demo CVA. (This service formerly returned a hardcoded $3.8M demo.)
 
 export interface WWRResult {
-  naiveCVA: number;
-  adjustedCVA: number;
-  wwrPremium: number;
-  wwrMultiplier: number;
+  // Nullable per D1: with no loan segments there is nothing to compute, so the
+  // engine returns `null` + a gap rather than a fabricated demo CVA. `null` is
+  // structurally distinct from a real `0` an examiner could act on.
+  naiveCVA: number | null;
+  adjustedCVA: number | null;
+  wwrPremium: number | null;
+  wwrMultiplier: number | null;
   bySegment: Array<{
     segment: string;
     naiveCVA: number;
     adjustedCVA: number;
     premium: number;
   }>;
-  narrativeEs: string;
-  narrativeEn: string;
+  narrativeEs: string | null;
+  narrativeEn: string | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -28,53 +44,66 @@ export class WrongWayRiskService {
     institutionId: string,
     wwrCorrelation: number = 0.3,
   ): Promise<WWRResult> {
-    const segments = await this.prisma.loanSegment.findMany({
-      where: { institutionId },
-    });
-    if (segments.length === 0) return this.getDemoResult();
-
-    let totalNaive = 0,
-      totalAdjusted = 0;
-    const bySegment: WWRResult['bySegment'] = [];
-
-    for (const seg of segments) {
-      const pd = seg.historicalLossRate * 1.5;
-      const lgd = seg.lgd;
-      const ead = seg.balance;
-      const maturity = seg.weightedAvgMaturity ?? 3;
-      const vol = 0.15; // exposure volatility
-
-      // Naive CVA = LGD × PD × EAD × maturity
-      const naiveCVA = (lgd * pd * ead * maturity) / 4; // quarterly
-
-      // WWR adjustment: E[X|D=1] = E[X] × (1 + ρ × σ × Φ⁻¹(PD) / PD)
-      const normInvPD = this.normInv(1 - pd);
-      const wwrAdj = 1 + (wwrCorrelation * vol * normInvPD) / (pd || 1e-6);
-      const adjustedEPE = ead * Math.max(0.5, Math.min(3.0, wwrAdj));
-      const adjustedCVA = (lgd * pd * adjustedEPE * maturity) / 4;
-
-      totalNaive += naiveCVA;
-      totalAdjusted += adjustedCVA;
-      bySegment.push({
-        segment: seg.segmentName,
-        naiveCVA: +naiveCVA.toFixed(3),
-        adjustedCVA: +adjustedCVA.toFixed(3),
-        premium: +(adjustedCVA - naiveCVA).toFixed(3),
+    try {
+      const segments = await this.prisma.loanSegment.findMany({
+        where: { institutionId },
       });
+      // D1 (never silent zeros): no loan segments means there is nothing to
+      // compute CVA on. Return an honest data_unavailable shell with a CRITICAL
+      // gap — NEVER the former hardcoded $3.8M getDemoResult() fabrication.
+      if (segments.length === 0) return this.dataUnavailableResult();
+
+      let totalNaive = 0,
+        totalAdjusted = 0;
+      const bySegment: WWRResult['bySegment'] = [];
+
+      for (const seg of segments) {
+        const pd = seg.historicalLossRate * 1.5;
+        const lgd = seg.lgd;
+        const ead = seg.balance;
+        const maturity = seg.weightedAvgMaturity ?? 3;
+        const vol = 0.15; // exposure volatility
+
+        // Naive CVA = LGD × PD × EAD × maturity
+        const naiveCVA = (lgd * pd * ead * maturity) / 4; // quarterly
+
+        // WWR adjustment: E[X|D=1] = E[X] × (1 + ρ × σ × Φ⁻¹(PD) / PD)
+        const normInvPD = this.normInv(1 - pd);
+        const wwrAdj = 1 + (wwrCorrelation * vol * normInvPD) / (pd || 1e-6);
+        const adjustedEPE = ead * Math.max(0.5, Math.min(3.0, wwrAdj));
+        const adjustedCVA = (lgd * pd * adjustedEPE * maturity) / 4;
+
+        totalNaive += naiveCVA;
+        totalAdjusted += adjustedCVA;
+        bySegment.push({
+          segment: seg.segmentName,
+          naiveCVA: +naiveCVA.toFixed(3),
+          adjustedCVA: +adjustedCVA.toFixed(3),
+          premium: +(adjustedCVA - naiveCVA).toFixed(3),
+        });
+      }
+
+      const premium = totalAdjusted - totalNaive;
+      const multiplier = totalNaive > 0 ? totalAdjusted / totalNaive : 1;
+
+      return {
+        naiveCVA: +totalNaive.toFixed(2),
+        adjustedCVA: +totalAdjusted.toFixed(2),
+        wwrPremium: +premium.toFixed(2),
+        wwrMultiplier: +multiplier.toFixed(3),
+        bySegment,
+        narrativeEs: `El CVA ajustado por wrong-way risk es $${totalAdjusted.toFixed(1)}M (${multiplier.toFixed(1)}× el CVA naive de $${totalNaive.toFixed(1)}M). La prima WWR de $${premium.toFixed(1)}M refleja que la exposición crediticia aumenta precisamente cuando la probabilidad de incumplimiento es mayor.`,
+        narrativeEn: `WWR-adjusted CVA is $${totalAdjusted.toFixed(1)}M (${multiplier.toFixed(1)}× naive CVA of $${totalNaive.toFixed(1)}M). The WWR premium of $${premium.toFixed(1)}M reflects that credit exposure increases precisely when default probability is highest.`,
+        status: 'ok',
+      };
+    } catch (error) {
+      const e = error as Error;
+      this.logger.error(`Computation failed: ${e.message}`, e.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
     }
-
-    const premium = totalAdjusted - totalNaive;
-    const multiplier = totalNaive > 0 ? totalAdjusted / totalNaive : 1;
-
-    return {
-      naiveCVA: +totalNaive.toFixed(2),
-      adjustedCVA: +totalAdjusted.toFixed(2),
-      wwrPremium: +premium.toFixed(2),
-      wwrMultiplier: +multiplier.toFixed(3),
-      bySegment,
-      narrativeEs: `El CVA ajustado por wrong-way risk es $${totalAdjusted.toFixed(1)}M (${multiplier.toFixed(1)}× el CVA naive de $${totalNaive.toFixed(1)}M). La prima WWR de $${premium.toFixed(1)}M refleja que la exposición crediticia aumenta precisamente cuando la probabilidad de incumplimiento es mayor.`,
-      narrativeEn: `WWR-adjusted CVA is $${totalAdjusted.toFixed(1)}M (${multiplier.toFixed(1)}× naive CVA of $${totalNaive.toFixed(1)}M). The WWR premium of $${premium.toFixed(1)}M reflects that credit exposure increases precisely when default probability is highest.`,
-    };
   }
 
   private normInv(p: number): number {
@@ -97,23 +126,27 @@ export class WrongWayRiskService {
     );
   }
 
-  private getDemoResult(): WWRResult {
+  // D1: the honest empty-data shell. Replaces the former getDemoResult()
+  // fabrication (naive $2.4M / adjusted $3.8M / 1.58× multiplier with two demo
+  // segments) that read as a real CVA position on every empty institution.
+  private dataUnavailableResult(): WWRResult {
     return {
-      naiveCVA: 2.4,
-      adjustedCVA: 3.8,
-      wwrPremium: 1.4,
-      wwrMultiplier: 1.58,
-      bySegment: [
-        {
-          segment: 'Commercial RE',
-          naiveCVA: 1.2,
-          adjustedCVA: 2.0,
-          premium: 0.8,
-        },
-        { segment: 'Consumer', naiveCVA: 0.8, adjustedCVA: 1.1, premium: 0.3 },
+      naiveCVA: null,
+      adjustedCVA: null,
+      wwrPremium: null,
+      wwrMultiplier: null,
+      bySegment: [],
+      narrativeEs: null,
+      narrativeEn: null,
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('wrongWayRisk.loanSegments', 'NO_LOAN_SEGMENTS', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue los segmentos de préstamos (con tasa de pérdida histórica, LGD y saldo) para calcular el CVA ajustado por wrong-way risk. / Load loan segments (with historical loss rate, LGD and balance) to compute wrong-way-risk-adjusted CVA.',
+          context: { service: 'wrong-way-risk' },
+        }),
       ],
-      narrativeEs: 'CVA ajustado: $3.8M (1.58× naive).',
-      narrativeEn: 'Adjusted CVA: $3.8M (1.58× naive).',
     };
   }
 }

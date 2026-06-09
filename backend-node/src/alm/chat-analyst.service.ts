@@ -321,7 +321,7 @@ export class ChatAnalystService {
         const totalAssets =
           items
             .filter((i: any) => i.category === 'asset')
-            .reduce((s: any, i: any) => s + i.balance, 0) || 445;
+            .reduce((s: any, i: any) => s + Number(i.balance), 0) || 445;
         return {
           summary: `LCR: 115%. HQLA: $${(totalAssets * 0.15).toFixed(1)}M. Status: Compliant.`,
           data: { lcr: 115, hqla: totalAssets * 0.15, status: 'compliant' },

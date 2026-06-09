@@ -1901,14 +1901,13 @@ export class AlmController {
   @Get('market/macro-regime')
   @UseGuards(AuthTenantGuard)
   async getMacroRegime() {
-    // Generate observations from recent rate data (demo: synthetic)
-    const weeklyRates = Array.from(
-      { length: 26 },
-      (_, i) => 0.0475 + Math.sin(i * 0.3) * 0.005,
-    );
-    const observations =
-      this.hmmRegime.generateObservationsFromRates(weeklyRates);
-    return this.hmmRegime.detectRegime(observations);
+    // D1 (never silent zeros): the prior implementation fed a SYNTHETIC sine-wave
+    // rate series and presented the resulting "regime" as real. No real
+    // rate-history pipeline is wired yet, so report data_unavailable honestly
+    // rather than fabricate a macro regime — detectRegime([]) returns the honest
+    // insufficient-data shell. (Wire a real FED_FUNDS/Treasury time series from
+    // MarketDataSnapshot to light this up.)
+    return this.hmmRegime.detectRegime([]);
   }
 
   // ─── V9: Black-Litterman Portfolio ──────────────────────────────
@@ -1966,11 +1965,13 @@ export class AlmController {
   @Get(':institutionId/pca-factors')
   @UseGuards(AuthTenantGuard)
   async getPCAFactors(@Param('institutionId') _id: string) {
-    const baseRates = [
-      0.048, 0.0465, 0.044, 0.042, 0.041, 0.0405, 0.041, 0.042, 0.0455, 0.0465,
-    ];
-    const changes = this.pcaYieldCurve.generateSyntheticChanges(baseRates);
-    return this.pcaYieldCurve.computePCAFactors(changes);
+    // D1 (never silent zeros): the prior implementation fed SYNTHETIC yield
+    // changes generated from a hardcoded base curve and presented the resulting
+    // PCA factors as real. No real YieldCurve-history pipeline is wired yet, so
+    // report data_unavailable honestly rather than fabricate factor loadings —
+    // computePCAFactors([]) returns the honest insufficient-data shell. (Wire a
+    // real per-institution YieldCurve time series to light this up.)
+    return this.pcaYieldCurve.computePCAFactors([]);
   }
 
   // ─── V9: FRTB Expected Shortfall ──────────────────────────────

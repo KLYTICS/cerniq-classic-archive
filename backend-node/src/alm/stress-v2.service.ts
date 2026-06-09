@@ -91,11 +91,11 @@ export class StressV2Service {
     const totalAssets =
       items
         .filter((i: any) => i.category === 'asset')
-        .reduce((s: number, i: any) => s + i.balance, 0) || 445;
+        .reduce((s: number, i: any) => s + Number(i.balance), 0) || 445;
     const totalLiabilities =
       items
         .filter((i: any) => i.category === 'liability')
-        .reduce((s: number, i: any) => s + i.balance, 0) || 385;
+        .reduce((s: number, i: any) => s + Number(i.balance), 0) || 385;
     const equity = totalAssets - totalLiabilities;
     const baseNII =
       items

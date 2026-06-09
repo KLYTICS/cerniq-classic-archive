@@ -186,8 +186,11 @@ export class LiquidityAdvancedService {
     // Add equity estimate (total assets - total liabilities)
     const totalAssets = items
       .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+      .reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const equity = Math.max(totalAssets - totalLiabilities, 0);
     if (equity > 0) {
       asfBreakdown.push({
@@ -254,8 +257,9 @@ export class LiquidityAdvancedService {
     const monthlyProjections: DepositFlightSimulation['monthlyProjections'] =
       [];
     let hqla =
-      totalHQLA || tierResults.reduce((s, t) => s + t.balance, 0) * 0.15;
-    let totalDeposits = tierResults.reduce((s, t) => s + t.balance, 0);
+      totalHQLA ||
+      tierResults.reduce((s, t) => s + Number(t.balance), 0) * 0.15;
+    let totalDeposits = tierResults.reduce((s, t) => s + Number(t.balance), 0);
     let cumulativeOutflow = 0;
     let survivalHorizonMonths = horizon;
 
@@ -335,7 +339,10 @@ export class LiquidityAdvancedService {
 
   private getDefaultTiers(items: any[]): any[] {
     const liabilities = items.filter((i) => i.category === 'liability');
-    const totalDeposits = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalDeposits = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
 
     return [
       {

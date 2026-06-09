@@ -70,7 +70,7 @@ export class ConcentrationService {
 
       const assets = items.filter((i: any) => i.category === 'asset');
       const totalAssets = assets.reduce(
-        (s: number, i: any) => s + i.balance,
+        (s: number, i: any) => s + Number(i.balance),
         0,
       );
 
@@ -87,7 +87,7 @@ export class ConcentrationService {
         const sector = this.normalizeSectorName(item.subcategory);
         sectorBalances.set(
           sector,
-          (sectorBalances.get(sector) ?? 0) + item.balance,
+          (sectorBalances.get(sector) ?? 0) + Number(item.balance),
         );
       }
 

@@ -9,7 +9,11 @@ import { Play, RefreshCw } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 /**
  * Monte Carlo — Vasicek short-rate path simulation with user-tunable
@@ -41,18 +45,19 @@ interface MCDistribution {
   readonly std: number;
 }
 
-interface MonteCarloResult {
+interface MonteCarloResult extends AlmDataShell {
   readonly paths: number;
   readonly quarters: number;
-  readonly vasicekParams: VasicekParams;
-  readonly meanNII: number;
-  readonly stdNII: number;
-  readonly var95NII: number;
-  readonly cvar99NII: number;
+  // D1: null when there is no balance sheet to simulate NII paths over.
+  readonly vasicekParams: VasicekParams | null;
+  readonly meanNII: number | null;
+  readonly stdNII: number | null;
+  readonly var95NII: number | null;
+  readonly cvar99NII: number | null;
   readonly meanEVE?: number;
   readonly var95EVE?: number;
   readonly fanChart: readonly MCFanPoint[];
-  readonly distribution: MCDistribution;
+  readonly distribution: MCDistribution | null;
 }
 
 interface RunBody {
@@ -66,7 +71,8 @@ interface RunBody {
 function validateMC(raw: unknown): MonteCarloResult {
   if (!raw || typeof raw !== 'object') throw new Error('Monte Carlo response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.meanNII !== 'number') throw new Error('MC: missing meanNII');
+  // D1: accept the data_unavailable shell (null meanNII + gaps[]); validate
+  // STRUCTURE only — `fanChart` is the array the content maps over.
   if (!Array.isArray(r.fanChart)) throw new Error('MC: fanChart must be array');
   return r as unknown as MonteCarloResult;
 }
@@ -111,6 +117,7 @@ interface ContentProps {
 
 function MCContent({ data }: ContentProps) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'paths',      label: locale === 'es' ? 'Senderos'       : 'Paths',          value: data.paths,      unit: 'count' },
@@ -118,13 +125,30 @@ function MCContent({ data }: ContentProps) {
     { key: 'std_nii',    label: locale === 'es' ? 'Desv. Estándar' : 'Std Deviation',  value: data.stdNII,     unit: 'USD_M' },
     { key: 'var_95',     label: 'VaR 95%',  value: data.var95NII,  unit: 'USD_M' },
     { key: 'cvar_99',    label: 'CVaR 99%', value: data.cvar99NII, unit: 'USD_M' },
-    { key: 'kappa',      value: data.vasicekParams.kappa },
-    { key: 'theta',      value: data.vasicekParams.theta, unit: 'ratio' },
-    { key: 'sigma',      value: data.vasicekParams.sigma, unit: 'ratio' },
+    { key: 'kappa',      value: data.vasicekParams?.kappa ?? null },
+    { key: 'theta',      value: data.vasicekParams?.theta ?? null, unit: 'ratio' },
+    { key: 'sigma',      value: data.vasicekParams?.sigma ?? null, unit: 'ratio' },
   ], [data, locale]);
+
+  // D1: no balance sheet to simulate NII paths over → honest neutral panel.
+  if (isDataUnavailable(data) || data.fanChart.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'The Monte Carlo simulation needs a loaded balance sheet to project NII paths. Load assets and liabilities to run the Vasicek short-rate simulation.',
+          es: 'La simulación Monte Carlo requiere un balance de situación cargado para proyectar las trayectorias de NII. Cargue activos y pasivos para correr la simulación Vasicek de tasa corta.',
+        }}
+      />
+    );
+  }
 
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Fan chart */}
@@ -152,38 +176,40 @@ function MCContent({ data }: ContentProps) {
       </section>
 
       {/* Distribution histogram */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          {locale === 'es'
-            ? `Distribución NII — ${data.paths.toLocaleString()} Senderos`
-            : `NII Distribution — ${data.paths.toLocaleString()} Paths`}
-        </p>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={data.distribution.buckets as MCDistribution['buckets']}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="min" tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
-            <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-              {data.distribution.buckets.map((b) => (
-                <Cell
-                  key={b.min}
-                  fill={
-                    b.min < data.var95NII ? '#fca5a5' :
-                    b.min < data.meanNII  ? '#fcd34d' :
-                    '#86efac'
-                  }
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="mt-2 flex justify-center gap-6 text-[10px] text-slate-500">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-300" /> {locale === 'es' ? '< VaR 95%' : '< VaR 95%'}</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-yellow-300" /> {locale === 'es' ? '< Media' : '< Mean'}</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-300" /> {locale === 'es' ? '> Media' : '> Mean'}</span>
-        </div>
-      </section>
+      {data.distribution && data.distribution.buckets.length > 0 ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {locale === 'es'
+              ? `Distribución NII — ${data.paths.toLocaleString()} Senderos`
+              : `NII Distribution — ${data.paths.toLocaleString()} Paths`}
+          </p>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={data.distribution.buckets as MCDistribution['buckets']}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="min" tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+              <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                {data.distribution.buckets.map((b) => (
+                  <Cell
+                    key={b.min}
+                    fill={
+                      b.min < (data.var95NII ?? 0) ? '#fca5a5' :
+                      b.min < (data.meanNII ?? 0)  ? '#fcd34d' :
+                      '#86efac'
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-2 flex justify-center gap-6 text-[10px] text-slate-500">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-300" /> {locale === 'es' ? '< VaR 95%' : '< VaR 95%'}</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-yellow-300" /> {locale === 'es' ? '< Media' : '< Mean'}</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-300" /> {locale === 'es' ? '> Media' : '> Mean'}</span>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

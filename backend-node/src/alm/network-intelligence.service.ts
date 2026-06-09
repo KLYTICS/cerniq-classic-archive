@@ -1,7 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
+import * as Sentry from '@sentry/nestjs';
 
 // ─── Types ───────────────────────────────────────────────────
+//
+// D1 (never silent zeros, SESSION_HANDOFF §1 / 2026-04-07): the peer-network
+// view is built from the real cooperativa population. With no institutions it
+// returns an HONEST data_unavailable shell. With real institutions it reports
+// only what is computable from loaded data (counts, total assets, the
+// institution list, average NWR, real NWR outliers); the indicators that need
+// per-institution CAMEL/NIM/LCR scoring or a systemic/contagion model that are
+// NOT yet wired are returned `null` with a disclosed gap — NEVER the former
+// hardcoded avgCAMEL 2.1 / systemicRiskScore 35 / PREPA-bond contagion demo.
 
 export interface NetworkInstitution {
   id: string;
@@ -16,18 +31,21 @@ export interface NetworkInstitution {
 export interface NetworkAggregates {
   totalInstitutions: number;
   totalSystemAssets: number;
-  avgCAMEL: number;
-  avgNIM: number;
-  avgLCR: number;
-  avgNWR: number;
-  systemicRiskScore: number; // 0-100
+  // Nullable per D1: these need per-institution CAMEL/NIM/LCR scoring or a
+  // systemic-risk model that are not yet wired — `null` + a gap, never a
+  // hardcoded constant a regulator would read as a measured network average.
+  avgCAMEL: number | null;
+  avgNIM: number | null;
+  avgLCR: number | null;
+  avgNWR: number | null;
+  systemicRiskScore: number | null; // 0-100
   riskDistribution: {
     rating1: number;
     rating2: number;
     rating3: number;
     rating4: number;
     rating5: number;
-  };
+  } | null;
 }
 
 export interface NetworkIntelligenceResult {
@@ -46,6 +64,8 @@ export interface NetworkIntelligenceResult {
     affectedInstitutions: number;
     severity: string;
   }>;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -55,16 +75,24 @@ export class NetworkIntelligenceService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getNetworkOverview(): Promise<NetworkIntelligenceResult> {
-    const institutions = await this.prisma.institution.findMany({
-      include: { balanceSheetItems: true },
-      orderBy: { totalAssets: 'desc' },
-      take: 100,
-    });
+    try {
+      const institutions = await this.prisma.institution.findMany({
+        include: { balanceSheetItems: true },
+        orderBy: { totalAssets: 'desc' },
+        take: 100,
+      });
 
-    if (institutions.length === 0) return this.getDemoResult();
+      // D1 (never silent zeros): no institutions means there is nothing to
+      // analyze. Return an honest data_unavailable shell with a CRITICAL gap —
+      // NEVER the former 15-cooperativa / 94-institution demo network.
+      if (institutions.length === 0) return this.dataUnavailableResult();
 
-    const networkInstitutions: NetworkInstitution[] = institutions.map(
-      (inst: (typeof institutions)[number]) => {
+      // Per-institution NWR (the one metric computable from loaded balance
+      // sheets). `null` when an institution has no asset data.
+      const perInst: Array<{
+        inst: (typeof institutions)[number];
+        nwr: number | null;
+      }> = institutions.map((inst: (typeof institutions)[number]) => {
         const assets = inst.balanceSheetItems.filter(
           (i: (typeof inst.balanceSheetItems)[number]) =>
             i.category === 'asset',
@@ -75,167 +103,138 @@ export class NetworkIntelligenceService {
         );
         const totalA =
           assets.reduce(
-            (s: number, i: (typeof assets)[number]) => s + i.balance,
+            (s: number, i: (typeof assets)[number]) => s + Number(i.balance),
             0,
           ) || inst.totalAssets;
         const totalL = liabilities.reduce(
-          (s: number, i: (typeof liabilities)[number]) => s + i.balance,
+          (s: number, i: (typeof liabilities)[number]) => s + Number(i.balance),
           0,
         );
-        const nwr = totalA > 0 ? ((totalA - totalL) / totalA) * 100 : 9;
+        const nwr = totalA > 0 ? ((totalA - totalL) / totalA) * 100 : null;
+        return { inst, nwr };
+      });
 
-        return {
-          id: inst.id,
-          name: inst.name,
-          totalAssets: inst.totalAssets,
-          type: inst.type,
-          camelComposite: null, // would compute per institution in production
-          riskLevel:
-            nwr >= 8
-              ? ('low' as const)
-              : nwr >= 6
-                ? ('medium' as const)
-                : ('high' as const),
-          topRisk: nwr < 7 ? 'Capital adequacy' : 'Interest rate sensitivity',
-        };
-      },
-    );
+      const networkInstitutions: NetworkInstitution[] = perInst.map(
+        ({ inst, nwr }) => {
+          const n = nwr ?? 9;
+          return {
+            id: inst.id,
+            name: inst.name,
+            totalAssets: inst.totalAssets,
+            type: inst.type,
+            camelComposite: null, // CAMEL not computed per institution (not wired)
+            riskLevel:
+              n >= 8
+                ? ('low' as const)
+                : n >= 6
+                  ? ('medium' as const)
+                  : ('high' as const),
+            topRisk: n < 7 ? 'Capital adequacy' : 'Interest rate sensitivity',
+          };
+        },
+      );
 
-    const totalSystemAssets = networkInstitutions.reduce(
-      (s, i) => s + i.totalAssets,
-      0,
-    );
+      const totalSystemAssets = networkInstitutions.reduce(
+        (s, i) => s + Number(i.totalAssets),
+        0,
+      );
 
-    return {
-      aggregates: {
-        totalInstitutions: networkInstitutions.length,
-        totalSystemAssets,
-        avgCAMEL: 2.1,
-        avgNIM: 3.6,
-        avgLCR: 118,
-        avgNWR: 9.2,
-        systemicRiskScore: 35,
-        riskDistribution: {
-          rating1: Math.round(networkInstitutions.length * 0.15),
-          rating2: Math.round(networkInstitutions.length * 0.45),
-          rating3: Math.round(networkInstitutions.length * 0.25),
-          rating4: Math.round(networkInstitutions.length * 0.1),
-          rating5: Math.round(networkInstitutions.length * 0.05),
+      // avgNWR + NWR outliers from the real per-institution values.
+      const nwrValues = perInst
+        .map((p) => p.nwr)
+        .filter((n): n is number => n !== null);
+      const avgNWR =
+        nwrValues.length > 0
+          ? +(nwrValues.reduce((s, n) => s + n, 0) / nwrValues.length).toFixed(
+              1,
+            )
+          : null;
+      const sortedNwr = [...nwrValues].sort((a, b) => a - b);
+      const medianNwr = sortedNwr.length
+        ? sortedNwr[Math.floor(sortedNwr.length / 2)]
+        : null;
+      const outliers =
+        medianNwr !== null
+          ? perInst
+              .filter((p) => p.nwr !== null && p.nwr < medianNwr - 1.5)
+              .map((p) => ({
+                institution: p.inst.name,
+                metric: 'NWR',
+                value: +p.nwr!.toFixed(1),
+                peerMedian: +medianNwr.toFixed(1),
+                deviation: `${(p.nwr! - medianNwr).toFixed(1)}pp vs median`,
+              }))
+          : [];
+
+      // D1: disclose the network indicators that are NOT computable from loaded
+      // data (vs. silently emitting hardcoded constants).
+      const gaps: DataGap[] = [
+        dataGap('networkIntelligence.aggregates', 'INDICATOR_NOT_WIRED', {
+          severity: 'WARNING',
+          action:
+            'Los promedios de red CAMEL/NIM/LCR, el puntaje de riesgo sistémico y la distribución por calificación requieren puntuación CAMEL/NIM/LCR por institución que aún no está cableada — se reportan como null. / Network CAMEL/NIM/LCR averages, the systemic-risk score and the rating distribution require per-institution CAMEL/NIM/LCR scoring that is not yet wired — reported as null.',
+        }),
+        dataGap('networkIntelligence.contagionRisks', 'INDICATOR_NOT_WIRED', {
+          severity: 'WARNING',
+          action:
+            'El análisis de contagio (exposiciones compartidas entre cooperativas) requiere un modelo de red que aún no está cableado. / Contagion analysis (shared exposures across cooperativas) requires a network model that is not yet wired.',
+        }),
+      ];
+
+      return {
+        aggregates: {
+          totalInstitutions: networkInstitutions.length,
+          totalSystemAssets,
+          avgCAMEL: null,
+          avgNIM: null,
+          avgLCR: null,
+          avgNWR,
+          systemicRiskScore: null,
+          riskDistribution: null,
         },
-      },
-      institutions: networkInstitutions,
-      outliers: [
-        {
-          institution: networkInstitutions[0]?.name ?? 'Institution A',
-          metric: 'NWR',
-          value: 6.2,
-          peerMedian: 9.2,
-          deviation: '-3.0pp below median',
-        },
-      ],
-      contagionRisks: [
-        {
-          risk: 'PREPA bond exposure across 12 cooperativas totaling $45M',
-          riskEs: 'Exposición bonos PREPA en 12 cooperativas totalizando $45M',
-          affectedInstitutions: 12,
-          severity: 'MEDIUM',
-        },
-        {
-          risk: 'Top employer (pharma plant) deposits concentrated in 3 cooperativas',
-          riskEs:
-            'Depósitos del empleador principal (planta farmacéutica) concentrados en 3 cooperativas',
-          affectedInstitutions: 3,
-          severity: 'HIGH',
-        },
-      ],
-    };
+        institutions: networkInstitutions,
+        outliers,
+        contagionRisks: [],
+        status: 'ok',
+        gaps,
+      };
+    } catch (error) {
+      const e = error as Error;
+      this.logger.error(`Computation failed: ${e.message}`, e.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
+    }
   }
 
-  private getDemoResult(): NetworkIntelligenceResult {
-    const demoInstitutions: NetworkInstitution[] = Array.from(
-      { length: 15 },
-      (_, i) => ({
-        id: `demo-${i}`,
-        name: `Cooperativa ${['Oriental', 'Bayamón', 'Caguas', 'Ponce', 'Mayagüez', 'Arecibo', 'Humacao', 'Aguadilla', 'San Juan', 'Carolina', 'Guaynabo', 'Cayey', 'Fajardo', 'Isabela', 'Yauco'][i]}`,
-        totalAssets: [
-          450, 380, 320, 280, 250, 220, 190, 170, 160, 145, 130, 110, 95, 80,
-          65,
-        ][i],
-        type: 'cooperativa',
-        camelComposite: [2, 2, 1, 2, 3, 2, 2, 3, 2, 2, 3, 2, 4, 2, 3][i],
-        riskLevel: ([2, 2, 1, 2, 3, 2, 2, 3, 2, 2, 3, 2, 4, 2, 3][i] <= 2
-          ? 'low'
-          : [2, 2, 1, 2, 3, 2, 2, 3, 2, 2, 3, 2, 4, 2, 3][i] <= 3
-            ? 'medium'
-            : 'high') as any,
-        topRisk: [
-          'IRR sensitivity',
-          'CRE concentration',
-          'Liquidity',
-          'IRR sensitivity',
-          'Capital',
-          'IRR',
-          'Credit quality',
-          'Capital',
-          'IRR',
-          'Liquidity',
-          'Credit',
-          'IRR',
-          'Capital',
-          'Liquidity',
-          'Credit',
-        ][i],
-      }),
-    );
-
+  // D1: the honest empty-data shell. Replaces the former getDemoResult() — a
+  // fabricated 15-cooperativa network with a 94-institution count, hardcoded
+  // PREPA-bond / pharma-employer contagion risks, and demo CAMEL/NIM/LCR
+  // averages — that read as a real systemic view on an empty database.
+  private dataUnavailableResult(): NetworkIntelligenceResult {
     return {
       aggregates: {
-        totalInstitutions: 94,
-        totalSystemAssets: 18500,
-        avgCAMEL: 2.1,
-        avgNIM: 3.6,
-        avgLCR: 118,
-        avgNWR: 9.2,
-        systemicRiskScore: 35,
-        riskDistribution: {
-          rating1: 14,
-          rating2: 42,
-          rating3: 24,
-          rating4: 10,
-          rating5: 4,
-        },
+        totalInstitutions: 0,
+        totalSystemAssets: 0,
+        avgCAMEL: null,
+        avgNIM: null,
+        avgLCR: null,
+        avgNWR: null,
+        systemicRiskScore: null,
+        riskDistribution: null,
       },
-      institutions: demoInstitutions,
-      outliers: [
-        {
-          institution: 'Cooperativa Fajardo',
-          metric: 'NWR',
-          value: 6.2,
-          peerMedian: 9.2,
-          deviation: '-3.0pp below median',
-        },
-        {
-          institution: 'Cooperativa Yauco',
-          metric: 'LCR',
-          value: 88,
-          peerMedian: 118,
-          deviation: '-30pp below median',
-        },
-      ],
-      contagionRisks: [
-        {
-          risk: 'PREPA bond exposure across 12 cooperativas totaling $45M',
-          riskEs: 'Exposición bonos PREPA en 12 cooperativas totalizando $45M',
-          affectedInstitutions: 12,
-          severity: 'MEDIUM',
-        },
-        {
-          risk: 'Top employer deposits concentrated in 3 cooperativas',
-          riskEs:
-            'Depósitos del empleador principal concentrados en 3 cooperativas',
-          affectedInstitutions: 3,
-          severity: 'HIGH',
-        },
+      institutions: [],
+      outliers: [],
+      contagionRisks: [],
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('networkIntelligence.institutions', 'MISSING_INSTITUTION', {
+          severity: 'CRITICAL',
+          action:
+            'No hay instituciones cargadas para el análisis de red de cooperativas. Cargue instituciones con sus balances. / No institutions are loaded for the cooperativa network analysis. Load institutions with their balance sheets.',
+          context: { service: 'network-intelligence' },
+        }),
       ],
     };
   }

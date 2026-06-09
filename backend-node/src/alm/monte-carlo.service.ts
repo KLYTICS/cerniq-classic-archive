@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -15,15 +16,15 @@ export interface MonteCarloResult {
   paths: number;
   quarters: number;
   vasicekParams: VasicekParams;
-  meanNII: number;
-  stdNII: number;
-  var95NII: number; // 5th percentile (worst-case)
-  cvar99NII: number; // expected value of worst 1%
-  meanEVE: number;
-  var95EVE: number;
-  cvar99EVE: number; // expected value of worst 1% EVE change
+  meanNII: number | null;
+  stdNII: number | null;
+  var95NII: number | null; // 5th percentile (worst-case)
+  cvar99NII: number | null; // expected value of worst 1%
+  meanEVE: number | null;
+  var95EVE: number | null;
+  cvar99EVE: number | null; // expected value of worst 1% EVE change
   convergenceMet: boolean; // whether Monte Carlo standard error is acceptable
-  standardError: number; // standard error of the mean NII estimate
+  standardError: number | null; // standard error of the mean NII estimate
   fanChart: Array<{
     quarter: string;
     p5: number;
@@ -34,9 +35,13 @@ export interface MonteCarloResult {
   }>;
   distribution: {
     buckets: Array<{ min: number; max: number; count: number }>;
-    mean: number;
-    std: number;
+    mean: number | null;
+    std: number | null;
   };
+  /** D1: 'ok' = computed from a real balance sheet; 'data_unavailable' = empty input (all metrics null). */
+  status: 'ok' | 'data_unavailable';
+  /** Gap manifest (D1). CRITICAL EMPTY_BALANCE_SHEET when status is data_unavailable. */
+  gaps?: DataGap[];
 }
 
 /**
@@ -112,6 +117,16 @@ export class MonteCarloService {
       `Monte Carlo: ${paths} paths x ${quarters}Q for institution ${institutionId}`,
     );
 
+    // ── Honest minimum (D1): no balance sheet → data_unavailable shell. ──
+    // Never fabricate NII/EVE/VaR. The deleted demo path returned a phantom
+    // $3.2M/quarter NII for institutions with no loaded balance sheet.
+    if (items.length === 0) {
+      this.logger.warn(
+        `Monte Carlo data_unavailable for institution ${institutionId}: EMPTY_BALANCE_SHEET.`,
+      );
+      return this.dataUnavailableResult(paths, quarters, params, institutionId);
+    }
+
     // Generate rate paths (Vasicek discretization with antithetic variates).
     // Antithetic sampling pairs each path with its mirror (negated Brownian
     // increments). This induces negative covariance between paired payoffs,
@@ -123,11 +138,14 @@ export class MonteCarloService {
     const ratePaths = this.generateVasicekPaths(params, dt, quarters, paths);
 
     // Build a typed balance sheet for EVE revaluation
+    // `balance`/`duration` are Prisma Decimal objects — coerce with Number()
+    // before use. (A raw Number.isFinite(decimal) is always false, which
+    // silently zeroed every real balance in the previous implementation.)
     const balanceSheet = items.map((item: any) => ({
       isAsset: item.category === 'asset',
-      balance: Number.isFinite(item.balance) ? item.balance : 0,
-      duration: Number.isFinite(item.duration) ? item.duration : undefined,
-      convexity: Number.isFinite(item.convexity) ? item.convexity : undefined,
+      balance: this.num(item.balance),
+      duration: this.numOrUndef(item.duration),
+      convexity: this.numOrUndef(item.convexity),
     }));
 
     // Compute NII for each path using Kahan summation for numerical stability
@@ -256,6 +274,7 @@ export class MonteCarloService {
         p95: +f.p95.toFixed(3),
       })),
       distribution: { buckets, mean: +mean.toFixed(3), std: +std.toFixed(3) },
+      status: 'ok',
     };
   }
 
@@ -325,25 +344,24 @@ export class MonteCarloService {
     // Guard against NaN/Infinity rate inputs
     const safeRate = Number.isFinite(rate) ? rate : DEFAULT_PARAMS.r0;
 
-    if (items.length === 0) {
-      // Demo: generate realistic NII based on rate level
-      const baseNII = 3.2; // $3.2M quarterly
-      const rateSensitivity = 0.5; // 50% asset-sensitive
-      const rateChange = safeRate - DEFAULT_PARAMS.r0;
-      return baseNII + baseNII * rateChange * rateSensitivity;
-    }
-
+    // Empty input is handled upstream (runSimulation returns a
+    // data_unavailable shell); computeQuarterNII only runs with real items.
     let nii = 0;
     for (const item of items) {
       const isAsset = item.category === 'asset';
-      const balance = Number.isFinite(item.balance) ? item.balance : 0;
-      const baseRate = Number.isFinite(item.rate) ? item.rate : 0;
+      // Prisma Decimal fields — coerce with Number() before arithmetic.
+      const balance = this.num(item.balance);
+      const baseRate = this.num(item.rate);
+      const fallbackBeta = isAsset
+        ? 1.0
+        : this.getDefaultBeta(item.subcategory);
       const beta =
-        item.depositBeta ??
-        (isAsset ? 1.0 : this.getDefaultBeta(item.subcategory));
+        item.depositBeta != null
+          ? this.num(item.depositBeta, fallbackBeta)
+          : fallbackBeta;
 
       // Variable-rate reprices immediately; fixed-rate reprices at maturity
-      const duration = Number.isFinite(item.duration) ? item.duration : 0;
+      const duration = this.num(item.duration);
       const repricingQuarter =
         item.rateType === 'variable' ? 0 : Math.floor(duration * 4);
       const hasRepriced = quarter >= repricingQuarter;
@@ -361,6 +379,55 @@ export class MonteCarloService {
     }
 
     return nii;
+  }
+
+  /** Coerce a Prisma Decimal (or number) to a finite number, else `fallback`. */
+  private num(x: unknown, fallback = 0): number {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  /** Coerce to a finite number, or `undefined` when missing/non-finite. */
+  private numOrUndef(x: unknown): number | undefined {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  /**
+   * D1 honest-minimum shell: empty balance sheet → every metric null + a
+   * CRITICAL EMPTY_BALANCE_SHEET gap. Never a fabricated $3.2M NII.
+   */
+  private dataUnavailableResult(
+    paths: number,
+    quarters: number,
+    params: VasicekParams,
+    institutionId: string,
+  ): MonteCarloResult {
+    return {
+      paths,
+      quarters,
+      vasicekParams: params,
+      meanNII: null,
+      stdNII: null,
+      var95NII: null,
+      cvar99NII: null,
+      meanEVE: null,
+      var95EVE: null,
+      cvar99EVE: null,
+      convergenceMet: false,
+      standardError: null,
+      fanChart: [],
+      distribution: { buckets: [], mean: null, std: null },
+      status: 'data_unavailable',
+      gaps: [
+        dataGap('monteCarlo', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Upload the institution’s balance sheet to run the Monte Carlo NII/EVE simulation.',
+          context: { institutionId },
+        }),
+      ],
+    };
   }
 
   private getDefaultBeta(subcategory: string): number {

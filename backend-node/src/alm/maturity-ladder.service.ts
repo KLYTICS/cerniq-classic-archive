@@ -100,8 +100,8 @@ export class MaturityLadderService {
         new Date(asset.maturityDate),
       );
       const bucketIdx = this.findBucket(daysToMaturity);
-      buckets[bucketIdx].assetTotal += asset.balance;
-      totalAssets += asset.balance;
+      buckets[bucketIdx].assetTotal += Number(asset.balance);
+      totalAssets += Number(asset.balance);
     }
 
     // Assign liabilities to buckets
@@ -112,8 +112,8 @@ export class MaturityLadderService {
         new Date(liability.maturityDate),
       );
       const bucketIdx = this.findBucket(daysToMaturity);
-      buckets[bucketIdx].liabilityTotal += liability.balance;
-      totalLiabilities += liability.balance;
+      buckets[bucketIdx].liabilityTotal += Number(liability.balance);
+      totalLiabilities += Number(liability.balance);
     }
 
     // Compute gaps and cumulative gaps

@@ -119,7 +119,10 @@ export class OASCalculatorService {
         });
       }
 
-      const totalBalance = instruments.reduce((s, i) => s + i.balance, 0);
+      const totalBalance = instruments.reduce(
+        (s, i) => s + Number(i.balance),
+        0,
+      );
       const portfolioOAS =
         totalBalance > 0
           ? instruments.reduce((s, i) => s + i.oas * i.balance, 0) /

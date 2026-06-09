@@ -136,8 +136,11 @@ export class KeyRateDurationService {
     // Portfolio aggregates
     const assets = instruments.filter((i) => i.category === 'asset');
     const liabilities = instruments.filter((i) => i.category === 'liability');
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
 
     const portfolioModDur =
       totalAssets > 0
@@ -181,7 +184,7 @@ export class KeyRateDurationService {
 
     const negConvExposure = instruments
       .filter((i) => i.convexity < 0)
-      .reduce((s, i) => s + i.balance, 0);
+      .reduce((s, i) => s + Number(i.balance), 0);
 
     return {
       instruments,

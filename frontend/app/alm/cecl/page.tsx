@@ -11,10 +11,13 @@ import { useTranslation } from '@/lib/i18n';
 import { useALM } from '@/components/alm/ALMProvider';
 import { AlmPage } from '@/components/alm/AlmPage';
 import { AlmPageSkeleton } from '@/components/alm/AlmPageSkeleton';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { useAlmEndpoint, formatAlmError } from '@/hooks/useAlmEndpoint';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
 import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 import {
   validateCooperativaCecl,
@@ -61,10 +64,11 @@ interface CECLMacroScenarios {
   readonly weighted: number;
 }
 
-interface CECLSummary {
-  readonly totalBalance: number;
-  readonly totalAllowance: number;
-  readonly weightedCoverageRatio: number;
+interface CECLSummary extends AlmDataShell {
+  // D1: null when there are no CECL-eligible loan segments to allowance.
+  readonly totalBalance: number | null;
+  readonly totalAllowance: number | null;
+  readonly weightedCoverageRatio: number | null;
   readonly methodology: string;
   readonly segments: readonly CECLSegmentResult[];
   readonly macroScenarioBreakdown?: CECLMacroScenarios;
@@ -110,8 +114,8 @@ const SEGMENT_COLORS = ['#06b6d4', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444', '
 function validateCecl(raw: unknown): CECLSummary {
   if (!raw || typeof raw !== 'object') throw new Error('CECL response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.totalBalance !== 'number') throw new Error('CECL: missing totalBalance');
-  if (typeof r.totalAllowance !== 'number') throw new Error('CECL: missing totalAllowance');
+  // D1: accept the data_unavailable shell (null/zero-sentinel totals + gaps[]);
+  // validate STRUCTURE only — `segments` is the array the content maps over.
   if (!Array.isArray(r.segments)) throw new Error('CECL: segments must be an array');
   return r as unknown as CECLSummary;
 }
@@ -192,6 +196,7 @@ function CeclContent({ analysis, methodology }: ContentProps) {
     getDemo: getDemoForecast,
   });
   const forecast = forecastState.status === 'success' ? forecastState.data : null;
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(analysis.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'total_balance',    label: locale === 'es' ? 'Balance Total'     : 'Total Balance',     value: analysis.totalBalance,  unit: 'USD_M' },
@@ -230,8 +235,26 @@ function CeclContent({ analysis, methodology }: ContentProps) {
     { id: 'cov',  header: locale === 'es' ? 'Cobertura' : 'Coverage',      kind: 'number', accessor: (r) => r.coverageRatio,      unit: 'ratio' },
   ], [locale]);
 
+  // D1: no CECL-eligible loan segments → honest neutral panel + gaps, never the
+  // $0.0M zero-sentinel summary or the fabricated demo allowance.
+  if (isDataUnavailable(analysis) || analysis.segments.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={analysis.gaps}
+        message={{
+          en: 'No CECL-eligible loan segments are loaded. Load the loan book (balances by segment) to compute the lifetime expected-credit-loss allowance.',
+          es: 'No hay segmentos de préstamos elegibles para CECL. Cargue la cartera de préstamos (saldos por segmento) para calcular la provisión por pérdida crediticia esperada de por vida.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {analysis.macroScenarioBreakdown ? (

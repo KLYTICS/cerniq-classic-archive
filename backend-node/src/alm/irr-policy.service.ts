@@ -206,7 +206,7 @@ export class IRRPolicyService {
     // Compute actual metrics from balance sheet
     const totalAssets = items
       .filter((i: any) => i.category === 'asset')
-      .reduce((s: number, i: any) => s + i.balance, 0);
+      .reduce((s: number, i: any) => s + Number(i.balance), 0);
     const assetDuration =
       items
         .filter((i: any) => i.category === 'asset')
@@ -218,7 +218,7 @@ export class IRRPolicyService {
         .reduce((s: number, i: any) => s + i.balance * i.duration, 0) /
       (items
         .filter((i: any) => i.category === 'liability')
-        .reduce((s: number, i: any) => s + i.balance, 0) || 1);
+        .reduce((s: number, i: any) => s + Number(i.balance), 0) || 1);
     const durationGap = assetDuration - liabDuration;
 
     // Simplified EVE/NII estimates

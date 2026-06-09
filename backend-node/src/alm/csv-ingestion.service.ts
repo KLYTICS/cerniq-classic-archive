@@ -271,7 +271,7 @@ export class CSVIngestionService {
           field: 'duration',
           value: String(rawDuration),
           message: `Duration must be between 0 and 600 months (got ${rawDuration})`,
-          messageEs: `La duracion debe estar entre 0 y 600 meses (recibido ${rawDuration})`,
+          messageEs: `La duración debe estar entre 0 y 600 meses (recibido ${rawDuration})`,
         });
         continue;
       }
@@ -294,10 +294,10 @@ export class CSVIngestionService {
 
     const totalAssets = items
       .filter((i) => i.category === 'asset')
-      .reduce((s, i) => s + i.balance, 0);
+      .reduce((s, i) => s + Number(i.balance), 0);
     const totalLiabilities = items
       .filter((i) => i.category === 'liability')
-      .reduce((s, i) => s + i.balance, 0);
+      .reduce((s, i) => s + Number(i.balance), 0);
 
     // Sanity check: equity should be positive
     if (items.length > 0 && totalAssets < totalLiabilities) {

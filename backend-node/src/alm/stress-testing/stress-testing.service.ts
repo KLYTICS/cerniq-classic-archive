@@ -225,19 +225,19 @@ export class StressTestingService {
     );
 
     const totalFloatingAssets = floatingAssets.reduce(
-      (s: number, a: any) => s + a.balance,
+      (s: number, a: any) => s + Number(a.balance),
       0,
     );
     const totalFloatingLiabilities = floatingLiabilities.reduce(
-      (s: number, l: any) => s + l.balance,
+      (s: number, l: any) => s + Number(l.balance),
       0,
     );
     const totalFixedAssets = fixedAssets.reduce(
-      (s: number, a: any) => s + a.balance,
+      (s: number, a: any) => s + Number(a.balance),
       0,
     );
     const totalFixedLiabilities = fixedLiabilities.reduce(
-      (s: number, l: any) => s + l.balance,
+      (s: number, l: any) => s + Number(l.balance),
       0,
     );
 

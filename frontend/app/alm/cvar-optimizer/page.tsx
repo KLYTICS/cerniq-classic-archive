@@ -8,8 +8,12 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface FrontierPoint {
   readonly risk: number;
@@ -23,21 +27,23 @@ interface WeightRow {
   readonly optimal: number;
 }
 
-interface CVaRResult {
-  readonly optimalReturn: number;
-  readonly optimalCVaR: number;
-  readonly optimalSharpe: number;
+interface CVaRResult extends AlmDataShell {
+  // D1: null when there is no investable portfolio to optimize against.
+  readonly optimalReturn: number | null;
+  readonly optimalCVaR: number | null;
+  readonly optimalSharpe: number | null;
   readonly confidenceLevel: number;
   readonly frontier: readonly FrontierPoint[];
-  readonly currentPortfolio: { readonly risk: number; readonly ret: number };
-  readonly optimalPortfolio: { readonly risk: number; readonly ret: number };
+  readonly currentPortfolio: { readonly risk: number; readonly ret: number } | null;
+  readonly optimalPortfolio: { readonly risk: number; readonly ret: number } | null;
   readonly weights: readonly WeightRow[];
 }
 
 function validateCVaR(raw: unknown): CVaRResult {
   if (!raw || typeof raw !== 'object') throw new Error('CVaR response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.optimalReturn !== 'number') throw new Error('CVaR: missing optimalReturn');
+  // D1: accept the data_unavailable shell (null optimalReturn + gaps[]);
+  // validate STRUCTURE only — the arrays the content maps over.
   if (!Array.isArray(r.frontier)) throw new Error('CVaR: frontier must be array');
   if (!Array.isArray(r.weights)) throw new Error('CVaR: weights must be array');
   return r as unknown as CVaRResult;
@@ -70,15 +76,16 @@ function getDemo(): CVaRResult {
 
 function CVaRContent({ data }: { data: CVaRResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'optimal_return',  label: locale === 'es' ? 'Retorno Óptimo'   : 'Optimal Return', value: data.optimalReturn, unit: 'ratio' },
     { key: 'optimal_cvar',    label: `CVaR ${data.confidenceLevel}%`,     value: data.optimalCVaR,   unit: 'ratio' },
     { key: 'optimal_sharpe',  label: 'Sharpe',                            value: data.optimalSharpe, unit: 'x' },
-    { key: 'current_return',  label: locale === 'es' ? 'Retorno Actual'   : 'Current Return', value: data.currentPortfolio.ret, unit: 'ratio' },
-    { key: 'current_cvar',    label: locale === 'es' ? 'Riesgo Actual'    : 'Current Risk', value: data.currentPortfolio.risk, unit: 'ratio' },
+    { key: 'current_return',  label: locale === 'es' ? 'Retorno Actual'   : 'Current Return', value: data.currentPortfolio?.ret ?? null, unit: 'ratio' },
+    { key: 'current_cvar',    label: locale === 'es' ? 'Riesgo Actual'    : 'Current Risk', value: data.currentPortfolio?.risk ?? null, unit: 'ratio' },
     { key: 'improvement',     label: locale === 'es' ? 'Mejora Retorno'   : 'Return Uplift',
-      value: (data.optimalPortfolio.ret - data.currentPortfolio.ret) * 10000, unit: 'bps' },
+      value: data.optimalPortfolio && data.currentPortfolio ? (data.optimalPortfolio.ret - data.currentPortfolio.ret) * 10000 : null, unit: 'bps' },
   ], [data, locale]);
 
   const columns = useMemo<readonly DataTableColumn<WeightRow>[]>(() => [
@@ -88,8 +95,25 @@ function CVaRContent({ data }: { data: CVaRResult }) {
     { id: 'delta',   header: 'Δ', kind: 'delta', accessor: (r) => (r.optimal - r.current) * 10000, unit: 'bps' },
   ], [locale]);
 
+  // D1: no investable portfolio to optimize → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.frontier.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'CVaR optimization needs an investable portfolio with a loss-scenario set. Load the securities portfolio to compute the efficient frontier.',
+          es: 'La optimización CVaR requiere una cartera invertible con un conjunto de escenarios de pérdida. Cargue la cartera de valores para calcular la frontera eficiente.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Efficient frontier */}
@@ -119,8 +143,8 @@ function CVaRContent({ data }: { data: CVaRResult }) {
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Scatter name={locale === 'es' ? 'Frontera' : 'Frontier'} data={data.frontier as FrontierPoint[]} fill="#8b5cf6" />
-            <Scatter name={locale === 'es' ? 'Actual'   : 'Current'} data={[data.currentPortfolio]} fill="#dc2626" />
-            <Scatter name={locale === 'es' ? 'Óptimo'   : 'Optimal'} data={[data.optimalPortfolio]} fill="#059669" />
+            <Scatter name={locale === 'es' ? 'Actual'   : 'Current'} data={data.currentPortfolio ? [data.currentPortfolio] : []} fill="#dc2626" />
+            <Scatter name={locale === 'es' ? 'Óptimo'   : 'Optimal'} data={data.optimalPortfolio ? [data.optimalPortfolio] : []} fill="#059669" />
           </ScatterChart>
         </ResponsiveContainer>
       </section>

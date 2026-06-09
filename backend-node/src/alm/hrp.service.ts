@@ -35,7 +35,7 @@ export class HRPService {
       if (!bySub.has(item.subcategory))
         bySub.set(item.subcategory, { balance: 0, rate: 0, vol: 0 });
       const e = bySub.get(item.subcategory)!;
-      e.balance += item.balance;
+      e.balance += Number(item.balance);
       e.rate += item.rate * item.balance;
     }
 

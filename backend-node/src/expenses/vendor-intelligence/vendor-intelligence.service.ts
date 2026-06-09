@@ -122,12 +122,12 @@ export class VendorIntelligenceService {
       }
     }
 
-    const totalSpend = expenses.reduce((s, e) => s + e.amount, 0);
+    const totalSpend = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
     const reports: VendorReport[] = [];
 
     for (const [, { originalName, items }] of vendorMap) {
-      const quarterlyTotal = items.reduce((s, e) => s + e.amount, 0);
+      const quarterlyTotal = items.reduce((s, e) => s + Number(e.amount), 0);
       const latestTransactionDate = items.reduce(
         (latest, e) =>
           e.transactionDate > latest ? e.transactionDate : latest,

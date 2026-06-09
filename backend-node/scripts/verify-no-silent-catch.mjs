@@ -89,12 +89,14 @@ export function countSwallows(content) {
 // the remediation: replace the swallow with a logged + tagged failure
 // (logger.warn/error + the gap surfaced to the caller), or rethrow.
 //
-// Locked 2026-06-07: 6 entries / 6 swallows. 0 unbaselined.
+// Locked 2026-06-08: 5 entries / 5 swallows. 0 unbaselined.
 // (excel-export.service.ts cleared 2026-06-07: all 4 fetch `.catch`es now log
-//  + push a CRITICAL DEPENDENCY_REJECTED DataGap into the Data Gaps sheet.)
+//  + push a CRITICAL DEPENDENCY_REJECTED DataGap into the Data Gaps sheet.
+//  nim-attribution.service.ts cleared 2026-06-08: the `.catch(() => ({demo}))`
+//  swallow WAS the getDemoResult() body — deleting it for the D1 sweep removed
+//  the swallow, the infinite recursion it hid, and the fabrication together.)
 const BASELINE = {
   'alm/data-privacy.service.ts': 1, // `.catch(() => [])` on an expense query → SAR/GDPR export silently incomplete; log + surface the gap.
-  'alm/nim-attribution.service.ts': 1, // `.catch(() => ({demo}))` → fabricated NIM attribution on failure (also a D1 getDemo offender); fold into the D1 sweep.
   'alm/alm-advisor.service.ts': 1, // `catch {}` when the AuditLog table is absent — best-effort daily-limit counter; should at least logger.debug the absent-table branch.
   'alm/alm-enterprise.service.ts': 1, // `catch {}` at ~:970 whose comment claims an EVE fallback that ISN'T there — nothing runs; log + actually fall back, or surface a gap.
   'alm/reports/report-preflight.service.ts': 1, // `catch {}` silently skips an unregistered model — preflight should record the skipped model in its gap list.

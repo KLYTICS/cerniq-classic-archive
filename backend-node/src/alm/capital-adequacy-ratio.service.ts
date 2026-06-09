@@ -70,7 +70,7 @@ export class CapitalAdequacyRatioService {
       { shock: 'Base case', shockEs: 'Caso base', lossPct: 0 },
       {
         shock: 'Mild stress (-50bps NIM)',
-        shockEs: 'Estres leve (-50pbs NIM)',
+        shockEs: 'Estrés leve (-50pbs NIM)',
         lossPct: 0.5,
       },
       {
@@ -80,12 +80,12 @@ export class CapitalAdequacyRatioService {
       },
       {
         shock: 'Severe (-200bps + credit)',
-        shockEs: 'Severo (-200pbs + credito)',
+        shockEs: 'Severo (-200pbs + crédito)',
         lossPct: 2.5,
       },
       {
         shock: 'Hurricane + recession',
-        shockEs: 'Huracan + recesion',
+        shockEs: 'Huracán + recesión',
         lossPct: 4.0,
       },
     ].map((s) => {

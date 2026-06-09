@@ -267,6 +267,6 @@ function dataUnavailableResult(): CreditRiskPortfolioResult {
     interpretation:
       'No loan portfolio data available for credit risk analysis.',
     interpretationEs:
-      'No hay datos de cartera de prestamos para analisis de riesgo crediticio.',
+      'No hay datos de cartera de préstamos para análisis de riesgo crediticio.',
   };
 }

@@ -62,7 +62,7 @@ export class CostOfFundsService {
     let maxRate = 0;
 
     for (const source of fundingSources) {
-      totalFunding += source.balance;
+      totalFunding += Number(source.balance);
       totalInterestCost += source.balance * source.rate;
       if (source.rate > maxRate) {
         maxRate = source.rate;
@@ -89,7 +89,7 @@ export class CostOfFundsService {
         });
       }
       const entry = typeMap.get(source.type)!;
-      entry.totalBalance += source.balance;
+      entry.totalBalance += Number(source.balance);
       entry.totalInterest += source.balance * source.rate;
       entry.count++;
     }

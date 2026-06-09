@@ -134,7 +134,7 @@ export class DepositDecayService {
         return this.dataUnavailableResult();
       }
 
-      const totalBalance = products.reduce((s, p) => s + p.balance, 0);
+      const totalBalance = products.reduce((s, p) => s + Number(p.balance), 0);
       const portfolioWeightedLife =
         products.reduce((s, p) => s + p.balance * p.behavioralMaturity, 0) /
         totalBalance;
@@ -144,7 +144,7 @@ export class DepositDecayService {
       // Core deposits = those with behavioral maturity > 1 year.
       const coreBalance = products
         .filter((p) => p.behavioralMaturity > 1)
-        .reduce((s, p) => s + p.balance, 0);
+        .reduce((s, p) => s + Number(p.balance), 0);
       const stableCorePct = (coreBalance / totalBalance) * 100;
 
       return {

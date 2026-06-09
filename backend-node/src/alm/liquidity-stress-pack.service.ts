@@ -1,7 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { DataGap, dataGap } from './reports/data-gap';
+import * as Sentry from '@sentry/nestjs';
 
 // ─── COSSEC 5 Standard Scenarios ─────────────────────────────
+//
+// D1 (never silent zeros, SESSION_HANDOFF §1 / 2026-04-07): each scenario's
+// liquidity outcome is computed from the institution's real balance sheet +
+// liquidity position. An institution with no balance-sheet data returns the 5
+// COSSEC scenarios (a fixed regulatory catalog) each marked data_unavailable —
+// computed fields null + a CRITICAL gap — NEVER a fabricated demo result.
+// (Formerly returned 5 hardcoded demo scenario outcomes.)
 
 const COSSEC_SCENARIOS = [
   {
@@ -94,15 +107,19 @@ export interface StressPackResult {
   scenarioId: string;
   scenarioName: string;
   scenarioNameEs: string;
-  daysOfLiquidity: number;
-  lcr: number;
-  hqlaCoverage: number;
-  availableLiquid: number;
-  netOutflow: number;
-  surplus: number;
-  regulatoryStatus: 'PASS' | 'WATCH' | 'FAIL';
-  narrative: string;
-  narrativeEs: string;
+  // Nullable per D1: with no balance sheet there is nothing to compute, so each
+  // scenario returns `null` + a gap rather than a fabricated demo outcome.
+  daysOfLiquidity: number | null;
+  lcr: number | null;
+  hqlaCoverage: number | null;
+  availableLiquid: number | null;
+  netOutflow: number | null;
+  surplus: number | null;
+  regulatoryStatus: 'PASS' | 'WATCH' | 'FAIL' | null;
+  narrative: string | null;
+  narrativeEs: string | null;
+  status: 'ok' | 'data_unavailable';
+  gaps?: DataGap[];
 }
 
 @Injectable()
@@ -112,36 +129,48 @@ export class LiquidityStressPackService {
   constructor(private readonly prisma: PrismaService) {}
 
   async runAllScenarios(institutionId: string): Promise<StressPackResult[]> {
-    const items = await this.prisma.balanceSheetItem.findMany({
-      where: { institutionId },
-    });
-    const liquidityPos = await this.prisma.liquidityPosition.findFirst({
-      where: { institutionId },
-      orderBy: { date: 'desc' },
-    });
+    try {
+      const items = await this.prisma.balanceSheetItem.findMany({
+        where: { institutionId },
+      });
+      const liquidityPos = await this.prisma.liquidityPosition.findFirst({
+        where: { institutionId },
+        orderBy: { date: 'desc' },
+      });
 
-    if (items.length === 0) return this.getDemoResults();
+      // D1 (never silent zeros): no balance sheet means there is nothing to
+      // stress. Return the COSSEC scenario catalog with each result marked
+      // data_unavailable — NEVER the former hardcoded getDemoResults().
+      if (items.length === 0) return this.dataUnavailableResults();
 
-    const totalAssets = items
-      .filter((i: any) => i.category === 'asset')
-      .reduce((s: number, i: any) => s + i.balance, 0);
-    const totalDeposits = items
-      .filter((i: any) => i.category === 'liability')
-      .reduce((s: number, i: any) => s + i.balance, 0);
-    const hqla =
-      (liquidityPos?.hqlaLevel1 ?? 0) + (liquidityPos?.hqlaLevel2 ?? 0) ||
-      totalAssets * 0.15;
-    const topMemberConcentration = totalDeposits * 0.15; // approximate top 10 = 15%
+      const totalAssets = items
+        .filter((i: any) => i.category === 'asset')
+        .reduce((s: number, i: any) => s + Number(i.balance), 0);
+      const totalDeposits = items
+        .filter((i: any) => i.category === 'liability')
+        .reduce((s: number, i: any) => s + Number(i.balance), 0);
+      const hqla =
+        (liquidityPos?.hqlaLevel1 ?? 0) + (liquidityPos?.hqlaLevel2 ?? 0) ||
+        totalAssets * 0.15;
+      const topMemberConcentration = totalDeposits * 0.15; // approximate top 10 = 15%
 
-    return COSSEC_SCENARIOS.map((scenario) =>
-      this.runSingleScenario(
-        scenario,
-        totalAssets,
-        totalDeposits,
-        hqla,
-        topMemberConcentration,
-      ),
-    );
+      return COSSEC_SCENARIOS.map((scenario) =>
+        this.runSingleScenario(
+          scenario,
+          totalAssets,
+          totalDeposits,
+          hqla,
+          topMemberConcentration,
+        ),
+      );
+    } catch (error) {
+      const e = error as Error;
+      this.logger.error(`Computation failed: ${e.message}`, e.stack);
+      Sentry.captureException(error);
+      throw new InternalServerErrorException(
+        'Computation failed. Please try again.',
+      );
+    }
   }
 
   async runScenario(
@@ -214,23 +243,39 @@ export class LiquidityStressPackService {
       regulatoryStatus: status,
       narrative,
       narrativeEs,
+      status: 'ok',
     };
   }
 
-  private getDemoResults(): StressPackResult[] {
-    return COSSEC_SCENARIOS.map((s, i) => ({
+  // D1: the honest empty-data shell. Replaces the former getDemoResults()
+  // fabrication (5 hardcoded scenario outcomes with demo LCRs/surpluses) that
+  // read as a real liquidity stress pack on every empty institution. The 5
+  // COSSEC scenarios are a fixed regulatory catalog (their id/name/nameEs are
+  // reference data, not fabricated); every COMPUTED field is null + a CRITICAL
+  // gap so the report renders explicit DATA UNAVAILABLE markers.
+  private dataUnavailableResults(): StressPackResult[] {
+    return COSSEC_SCENARIOS.map((s) => ({
       scenarioId: s.id,
       scenarioName: s.name,
       scenarioNameEs: s.nameEs,
-      daysOfLiquidity: [8, 42, 65, 3, 12][i],
-      lcr: [62, 85, 135, 28, 48][i],
-      hqlaCoverage: [62, 85, 135, 28, 48][i],
-      availableLiquid: [45, 52, 52, 20, 35][i],
-      netOutflow: [72, 61, 38.5, 72, 72][i],
-      surplus: [-27, -9, 13.5, -52, -37][i],
-      regulatoryStatus: (['FAIL', 'WATCH', 'PASS', 'FAIL', 'FAIL'] as const)[i],
-      narrative: `Under ${s.name}, days of liquidity: ${[8, 42, 65, 3, 12][i]}.`,
-      narrativeEs: `Bajo ${s.nameEs}, días de liquidez: ${[8, 42, 65, 3, 12][i]}.`,
+      daysOfLiquidity: null,
+      lcr: null,
+      hqlaCoverage: null,
+      availableLiquid: null,
+      netOutflow: null,
+      surplus: null,
+      regulatoryStatus: null,
+      narrative: null,
+      narrativeEs: null,
+      status: 'data_unavailable' as const,
+      gaps: [
+        dataGap('liquidityStressPack.balanceSheet', 'EMPTY_BALANCE_SHEET', {
+          severity: 'CRITICAL',
+          action:
+            'Cargue el balance de situación y la posición de liquidez para correr los 5 escenarios de estrés COSSEC. / Load the balance sheet and liquidity position to run the 5 COSSEC liquidity stress scenarios.',
+          context: { service: 'liquidity-stress-pack', scenarioId: s.id },
+        }),
+      ],
     }));
   }
 }

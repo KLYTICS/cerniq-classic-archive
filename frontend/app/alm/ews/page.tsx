@@ -5,7 +5,11 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 type AlertLevel = 'green' | 'yellow' | 'red';
 type OverallLevel = 'GREEN' | 'YELLOW' | 'RED';
@@ -22,14 +26,15 @@ interface EWSIndicator {
   readonly contribution: number;
 }
 
-interface EWSResult {
-  readonly compositeScore: number;
-  readonly alertLevel: OverallLevel;
+interface EWSResult extends AlmDataShell {
+  // D1: null when there is no asset-quality history to score.
+  readonly compositeScore: number | null;
+  readonly alertLevel: OverallLevel | null;
   readonly indicators: readonly EWSIndicator[];
   readonly topDeteriorating: readonly EWSIndicator[];
-  readonly peerAlert: string;
-  readonly peerAlertEs: string;
-  readonly anomalyScore: number;
+  readonly peerAlert: string | null;
+  readonly peerAlertEs: string | null;
+  readonly anomalyScore: number | null;
 }
 
 const ALERT_STYLES: Record<OverallLevel, { bg: string; text: string; border: string; ring: string }> = {
@@ -37,6 +42,11 @@ const ALERT_STYLES: Record<OverallLevel, { bg: string; text: string; border: str
   YELLOW: { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   ring: '#d97706' },
   RED:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    ring: '#dc2626' },
 };
+
+const NEUTRAL_ALERT = { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', ring: '#94a3b8' };
+function alertStyle(level: OverallLevel | null) {
+  return level ? ALERT_STYLES[level] : NEUTRAL_ALERT;
+}
 
 const INDICATOR_COLORS: Record<AlertLevel, string> = {
   green:  'bg-emerald-50 border-emerald-200 text-emerald-800',
@@ -47,7 +57,8 @@ const INDICATOR_COLORS: Record<AlertLevel, string> = {
 function validateEWS(raw: unknown): EWSResult {
   if (!raw || typeof raw !== 'object') throw new Error('EWS response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.compositeScore !== 'number') throw new Error('EWS: missing compositeScore');
+  // D1: accept the data_unavailable shell (null compositeScore + gaps[]);
+  // validate STRUCTURE only — `indicators` is the array the content maps over.
   if (!Array.isArray(r.indicators)) throw new Error('EWS: indicators must be array');
   return r as unknown as EWSResult;
 }
@@ -81,7 +92,7 @@ function getDemo(): EWSResult {
 
 function EWSContent({ data }: { data: EWSResult }) {
   const { locale } = useTranslation();
-  const style = ALERT_STYLES[data.alertLevel];
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'composite_score', label: locale === 'es' ? 'Compuesto EWS' : 'EWS Composite', value: data.compositeScore, unit: 'count' },
@@ -92,8 +103,29 @@ function EWSContent({ data }: { data: EWSResult }) {
     { key: 'red_indicators',  label: 'RED',                                                value: data.indicators.filter((i) => i.alertLevel === 'red').length,    unit: 'count' },
   ], [data, locale]);
 
+  // D1: no asset-quality history to score → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.indicators.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'The early-warning system needs asset-quality history (delinquency, NPL, charge-offs). Load the loan performance data to compute the composite score.',
+          es: 'El sistema de alerta temprana requiere historial de calidad de activos (morosidad, NPL, castigos). Cargue los datos de desempeño de préstamos para calcular la puntuación compuesta.',
+        }}
+      />
+    );
+  }
+
+  const style = alertStyle(data.alertLevel);
+  const composite = data.compositeScore ?? 0;
+  const anomaly = data.anomalyScore ?? 0;
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Composite gauge + anomaly + peer alert */}
@@ -109,16 +141,16 @@ function EWSContent({ data }: { data: EWSResult }) {
                 fill="none"
                 stroke={style.ring}
                 strokeWidth="2.5"
-                strokeDasharray={`${data.compositeScore} ${100 - data.compositeScore}`}
+                strokeDasharray={`${composite} ${100 - composite}`}
                 strokeLinecap="round"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`font-mono text-3xl font-bold tabular-nums ${style.text}`}>{data.compositeScore}</span>
+              <span className={`font-mono text-3xl font-bold tabular-nums ${style.text}`}>{composite}</span>
               <span className="text-[10px] text-slate-500">/100</span>
             </div>
           </div>
-          <p className={`text-sm font-bold ${style.text}`}>{data.alertLevel}</p>
+          <p className={`text-sm font-bold ${style.text}`}>{data.alertLevel ?? '—'}</p>
           <p className="mt-1 text-[10px] text-slate-500">
             {locale === 'es' ? 'Puntuación Compuesta EWS' : 'EWS Composite Score'}
           </p>
@@ -129,20 +161,20 @@ function EWSContent({ data }: { data: EWSResult }) {
             {locale === 'es' ? 'Anomalía (Isolation Forest)' : 'Anomaly (Isolation Forest)'}
           </p>
           <p className={`font-mono text-3xl font-bold tabular-nums ${
-            data.anomalyScore > 0.75 ? 'text-rose-700' :
-            data.anomalyScore > 0.60 ? 'text-amber-700' :
+            anomaly > 0.75 ? 'text-rose-700' :
+            anomaly > 0.60 ? 'text-amber-700' :
                                         'text-emerald-700'
           }`}>
-            {data.anomalyScore.toFixed(2)}
+            {anomaly.toFixed(2)}
           </p>
           <div className="mt-3 h-2 rounded-full bg-slate-100">
             <div
               className={`h-2 rounded-full ${
-                data.anomalyScore > 0.75 ? 'bg-rose-500' :
-                data.anomalyScore > 0.60 ? 'bg-amber-500' :
+                anomaly > 0.75 ? 'bg-rose-500' :
+                anomaly > 0.60 ? 'bg-amber-500' :
                                             'bg-emerald-500'
               }`}
-              style={{ width: `${Math.max(0, Math.min(100, data.anomalyScore * 100))}%` }}
+              style={{ width: `${Math.max(0, Math.min(100, anomaly * 100))}%` }}
             />
           </div>
           <div className="mt-1 flex justify-between text-[9px] text-slate-400">

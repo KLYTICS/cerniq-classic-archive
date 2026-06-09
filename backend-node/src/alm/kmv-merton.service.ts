@@ -35,7 +35,7 @@ export class KMVMertonService {
     const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
     const totalAssets =
-      assetItems.reduce((s: number, i: any) => s + i.balance, 0) ||
+      assetItems.reduce((s: number, i: any) => s + Number(i.balance), 0) ||
       inst?.totalAssets ||
       0;
 
@@ -48,7 +48,7 @@ export class KMVMertonService {
     }
 
     const totalLiabilities = liabilityItems.reduce(
-      (s: number, i: any) => s + i.balance,
+      (s: number, i: any) => s + Number(i.balance),
       0,
     );
 

@@ -34,13 +34,18 @@ function validateAlerts(raw: unknown): AlertsResponse {
   return raw as AlertsResponse;
 }
 
-function getDemo(): AlertsResponse {
-  return [
-    { id: '1', severity: 'HIGH',   alertTextEs: 'COSSEC publica nueva circular sobre requisitos de liquidez para cooperativas con activos > $200M. LCR mínimo 110% desde enero 2027.', alertTextEn: 'COSSEC publishes new circular on liquidity requirements for cooperativas > $200M assets. Min LCR 110% effective Jan 2027.', affectedItems: ['liquidity', 'capital'], recommendedAction: 'Review current LCR position and model impact of 110% threshold.', readAt: null, dismissedAt: null, createdAt: new Date(Date.now() -  86400000).toISOString() },
-    { id: '2', severity: 'MEDIUM', alertTextEs: 'OCIF actualiza guía de riesgo de tasa de interés (CC-2026-02). Nuevos requisitos para reportes de brecha de repricing trimestrales.', alertTextEn: 'OCIF updates IRR guidance (CC-2026-02). New quarterly repricing gap report format required.', affectedItems: ['interest_rate', 'repricing_gap'], recommendedAction: 'Ensure quarterly repricing gap report meets updated format.', readAt: null, dismissedAt: null, createdAt: new Date(Date.now() - 172800000).toISOString() },
-    { id: '3', severity: 'LOW',    alertTextEs: 'NCUA publica Letter 26-CU-04 sobre mejores prácticas en gestión de riesgo de concentración.', alertTextEn: 'NCUA publishes LCU 26-CU-04 on concentration risk best practices.', affectedItems: ['concentration'], recommendedAction: 'Review concentration limits against NCUA guidance.', readAt: new Date().toISOString(), dismissedAt: null, createdAt: new Date(Date.now() - 604800000).toISOString() },
-  ];
-}
+/**
+ * D1 (never silent zeros, SESSION_HANDOFF §1): NO `getDemo` fallback is
+ * supplied. This is a regulatory-publication feed — an examiner/board reader
+ * must never see a fabricated "sample" COSSEC/OCIF/NCUA alert. The backend
+ * `GET /api/alm/{id}/alerts` returns the institution's real `InstitutionAlert`
+ * rows (an array). An empty array is an HONEST "no pending alerts" state — NOT
+ * data_unavailable — and renders the neutral empty panel below. A genuine
+ * network / 5xx error renders <AlmPage>'s error screen (Retry), never a
+ * fabricated sample. The former getDemo() invented 3 circular/guidance alerts
+ * with relative dates that a reader took as their cooperativa's real feed.
+ * Removed 2026-06-08.
+ */
 
 function AlertsContent({ data }: { data: AlertsResponse }) {
   const { locale } = useTranslation();
@@ -146,7 +151,6 @@ export default function AlertsPage() {
       slug="alerts"
       iconTint="rose"
       validate={validateAlerts}
-      getDemo={getDemo}
     >
       {(data) => <AlertsContent data={data} />}
     </AlmPage>

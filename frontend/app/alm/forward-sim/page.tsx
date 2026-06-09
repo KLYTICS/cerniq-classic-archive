@@ -5,7 +5,11 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface ForwardQuarter {
   readonly quarter: string;
@@ -19,9 +23,10 @@ interface ForwardQuarter {
   readonly totalLiabilities: number;
 }
 
-interface ForwardSimResult {
-  readonly config: { readonly horizon: number; readonly ratePaths: readonly string[] };
+interface ForwardSimResult extends AlmDataShell {
+  readonly config: { readonly horizon: number; readonly ratePaths: readonly string[] } | null;
   readonly quarters: readonly ForwardQuarter[];
+  // D1: null when there is no balance sheet to project forward.
   readonly summary: {
     readonly baseNIIYear1: number;
     readonly baseNIIYear3: number;
@@ -29,7 +34,7 @@ interface ForwardSimResult {
     readonly down100NIIYear3: number;
     readonly worstCaseNWR: number;
     readonly worstCaseLCR: number;
-  };
+  } | null;
 }
 
 const PATH_COLORS: Readonly<Record<string, string>> = {
@@ -47,8 +52,9 @@ const PATH_LABELS: Readonly<Record<string, { readonly en: string; readonly es: s
 function validateForwardSim(raw: unknown): ForwardSimResult {
   if (!raw || typeof raw !== 'object') throw new Error('Forward sim response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (null summary + gaps[]); validate
+  // STRUCTURE only — `quarters` is the array the content maps over.
   if (!Array.isArray(r.quarters)) throw new Error('Forward sim: quarters must be array');
-  if (!r.summary || typeof r.summary !== 'object') throw new Error('Forward sim: missing summary');
   return r as unknown as ForwardSimResult;
 }
 
@@ -85,20 +91,21 @@ type Metric = 'NII' | 'LCR' | 'NWR';
 function ForwardSimContent({ data }: { data: ForwardSimResult }) {
   const { locale } = useTranslation();
   const [metric, setMetric] = useState<Metric>('NII');
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
-    { key: 'base_nii_y1',    label: locale === 'es' ? 'NII Base Año 1' : 'Base NII Y1',    value: data.summary.baseNIIYear1,   unit: 'USD_M' },
-    { key: 'base_nii_y3',    label: locale === 'es' ? 'NII Base Año 3' : 'Base NII Y3',    value: data.summary.baseNIIYear3,   unit: 'USD_M' },
-    { key: 'up200_nii_y3',   label: '+200 NII Y3',                                          value: data.summary.up200NIIYear3,  unit: 'USD_M' },
-    { key: 'down100_nii_y3', label: '-100 NII Y3',                                          value: data.summary.down100NIIYear3, unit: 'USD_M' },
-    { key: 'worst_nwr',      label: locale === 'es' ? 'Peor NWR' : 'Worst NWR',            value: data.summary.worstCaseNWR,    unit: '%' },
-    { key: 'worst_lcr',      label: locale === 'es' ? 'Peor LCR' : 'Worst LCR',            value: data.summary.worstCaseLCR,    unit: '%' },
+    { key: 'base_nii_y1',    label: locale === 'es' ? 'NII Base Año 1' : 'Base NII Y1',    value: data.summary?.baseNIIYear1 ?? null,   unit: 'USD_M' },
+    { key: 'base_nii_y3',    label: locale === 'es' ? 'NII Base Año 3' : 'Base NII Y3',    value: data.summary?.baseNIIYear3 ?? null,   unit: 'USD_M' },
+    { key: 'up200_nii_y3',   label: '+200 NII Y3',                                          value: data.summary?.up200NIIYear3 ?? null,  unit: 'USD_M' },
+    { key: 'down100_nii_y3', label: '-100 NII Y3',                                          value: data.summary?.down100NIIYear3 ?? null, unit: 'USD_M' },
+    { key: 'worst_nwr',      label: locale === 'es' ? 'Peor NWR' : 'Worst NWR',            value: data.summary?.worstCaseNWR ?? null,    unit: '%' },
+    { key: 'worst_lcr',      label: locale === 'es' ? 'Peor LCR' : 'Worst LCR',            value: data.summary?.worstCaseLCR ?? null,    unit: '%' },
   ], [data, locale]);
 
   // Build chart data: one entry per base quarter with path-specific keys.
   const chartData = useMemo(() => {
     const baseQuarters = data.quarters.filter((q) => q.ratePath === 'base');
-    const paths = data.config.ratePaths;
+    const paths = data.config?.ratePaths ?? [];
     return baseQuarters.map((bq) => {
       const entry: Record<string, string | number> = { quarter: bq.quarter };
       for (const path of paths) {
@@ -112,8 +119,25 @@ function ForwardSimContent({ data }: { data: ForwardSimResult }) {
     });
   }, [data]);
 
+  // D1: no balance sheet to project forward → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.quarters.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'Forward simulation needs a loaded balance sheet to project NII/LCR/NWR across rate paths. Load assets and liabilities to run the 12-quarter projection.',
+          es: 'La simulación prospectiva requiere un balance de situación para proyectar NII/LCR/NWR bajo las trayectorias de tasa. Cargue activos y pasivos para correr la proyección de 12 trimestres.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Metric selector */}
@@ -153,7 +177,7 @@ function ForwardSimContent({ data }: { data: ForwardSimResult }) {
             {metric === 'LCR' ? (
               <ReferenceLine y={100} stroke="#dc2626" strokeDasharray="8 4" strokeWidth={1} label={{ value: '100% min', position: 'insideTopRight', style: { fontSize: 10, fill: '#dc2626' } }} />
             ) : null}
-            {data.config.ratePaths.map((path) => (
+            {(data.config?.ratePaths ?? []).map((path) => (
               <Line
                 key={path}
                 type="monotone"

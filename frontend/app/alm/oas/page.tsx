@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { useALM } from '@/components/alm/ALMProvider';
 import AlmSelectionRequired from '@/components/alm/AlmSelectionRequired';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
+import { AlmSampleDataBanner } from '@/components/alm/AlmSampleDataBanner';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, Layers } from 'lucide-react';
@@ -14,10 +19,13 @@ interface OASResult {
   effectiveDuration: number; effectiveConvexity: number; modifiedDuration: number;
 }
 
-interface OASPortfolio {
+interface OASPortfolio extends AlmDataShell {
   instruments: OASResult[];
-  portfolioOAS: number; portfolioEffDuration: number; portfolioEffConvexity: number;
-  totalOptionCost: number; totalBalance: number;
+  // D1 (never silent zeros): null when no balance-sheet instruments are loaded —
+  // the backend oas-calculator.service emits a data_unavailable shell (these
+  // five null + a CRITICAL gap) rather than a fabricated portfolio OAS.
+  portfolioOAS: number | null; portfolioEffDuration: number | null; portfolioEffConvexity: number | null;
+  totalOptionCost: number | null; totalBalance: number | null;
 }
 
 export default function OASPage() {
@@ -25,19 +33,66 @@ export default function OASPage() {
   const { locale } = useTranslation();
   const [data, setData] = useState<OASPortfolio | null>(null);
   const [loading, setLoading] = useState(true);
+  // D1: labeled network/500 fallback only — a data_unavailable shell never
+  // takes this path.
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     if (!selectedId) return;
     (async () => {
       setLoading(true);
-      try { setData(await apiClient.getOASPortfolio(selectedId)); }
-      catch { setData(getDemoData()); }
-      finally { setLoading(false); }
+      try {
+        // A data_unavailable shell arrives as a 200-OK (not a thrown error).
+        setData(await apiClient.getOASPortfolio(selectedId));
+        setIsDemo(false);
+      } catch {
+        setData(getDemoData());
+        setIsDemo(true);
+      } finally { setLoading(false); }
     })();
   }, [selectedId]);
 
   if (!selectedId) return <AlmSelectionRequired moduleLabel="OAS Analysis" />;
   if (loading || !data) return <div className="flex-1 flex items-center justify-center p-6"><div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600" /></div>;
+
+  return <OASContent data={data} isDemo={isDemo} locale={locale} />;
+}
+
+function OASContent({ data, isDemo, locale }: { data: OASPortfolio; isDemo: boolean; locale: string }) {
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
+
+  const header = (
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50">
+        <Layers className="h-4 w-4 text-indigo-700" />
+      </div>
+      <div>
+        <h1 className="text-lg font-bold text-slate-950">
+          {locale === 'es' ? 'Análisis OAS — Spread Ajustado por Opciones' : 'OAS Analysis — Option-Adjusted Spreads'}
+        </h1>
+        <p className="text-xs text-slate-500">
+          {locale === 'es' ? 'Árbol binomial BDT, duración/convexidad efectiva, costo de opcionalidad' : 'BDT binomial tree, effective duration/convexity, optionality cost'}
+        </p>
+      </div>
+    </div>
+  );
+
+  // D1: no balance-sheet instruments loaded → honest neutral panel + the
+  // CRITICAL gap, never a fabricated OAS portfolio.
+  if (isDataUnavailable(data)) {
+    return (
+      <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+        {header}
+        <AlmDataUnavailable
+          gaps={data.gaps}
+          message={{
+            en: 'No balance-sheet instruments are loaded. Load the securities and loan book to compute option-adjusted spreads, effective duration and convexity.',
+            es: 'No hay instrumentos del balance cargados. Cargue la cartera de valores y préstamos para calcular el diferencial ajustado por opción (OAS), la duración y la convexidad efectivas.',
+          }}
+        />
+      </div>
+    );
+  }
 
   const spreadChart = data.instruments.map(i => ({
     name: i.instrumentName,
@@ -49,27 +104,20 @@ export default function OASPage() {
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50">
-          <Layers className="h-4 w-4 text-indigo-700" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-slate-950">
-            {locale === 'es' ? 'Análisis OAS — Spread Ajustado por Opciones' : 'OAS Analysis — Option-Adjusted Spreads'}
-          </h1>
-          <p className="text-xs text-slate-500">
-            {locale === 'es' ? 'Árbol binomial BDT, duración/convexidad efectiva, costo de opcionalidad' : 'BDT binomial tree, effective duration/convexity, optionality cost'}
-          </p>
-        </div>
-      </div>
+      {isDemo ? <AlmSampleDataBanner /> : null}
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
+      {header}
 
       {/* Portfolio KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KPI label={locale === 'es' ? 'OAS Portfolio' : 'Portfolio OAS'} value={`${data.portfolioOAS.toFixed(1)} bps`} accent />
-        <KPI label={locale === 'es' ? 'Duración Efectiva' : 'Eff. Duration'} value={`${data.portfolioEffDuration.toFixed(2)} yr`} />
-        <KPI label={locale === 'es' ? 'Convexidad Efectiva' : 'Eff. Convexity'} value={data.portfolioEffConvexity.toFixed(2)} warn={data.portfolioEffConvexity < -1} />
-        <KPI label={locale === 'es' ? 'Costo Opcionalidad' : 'Total Option Cost'} value={`$${data.totalOptionCost.toFixed(2)}M`} />
-        <KPI label={locale === 'es' ? 'Balance Total' : 'Total Balance'} value={`$${data.totalBalance.toFixed(1)}M`} />
+        <KPI label={locale === 'es' ? 'OAS Portfolio' : 'Portfolio OAS'} value={data.portfolioOAS != null ? `${data.portfolioOAS.toFixed(1)} bps` : '—'} accent />
+        <KPI label={locale === 'es' ? 'Duración Efectiva' : 'Eff. Duration'} value={data.portfolioEffDuration != null ? `${data.portfolioEffDuration.toFixed(2)} yr` : '—'} />
+        <KPI label={locale === 'es' ? 'Convexidad Efectiva' : 'Eff. Convexity'} value={data.portfolioEffConvexity != null ? data.portfolioEffConvexity.toFixed(2) : '—'} warn={(data.portfolioEffConvexity ?? 0) < -1} />
+        <KPI label={locale === 'es' ? 'Costo Opcionalidad' : 'Total Option Cost'} value={data.totalOptionCost != null ? `$${data.totalOptionCost.toFixed(2)}M` : '—'} />
+        <KPI label={locale === 'es' ? 'Balance Total' : 'Total Balance'} value={data.totalBalance != null ? `$${data.totalBalance.toFixed(1)}M` : '—'} />
       </div>
 
       {/* Spread Comparison Chart */}
@@ -168,5 +216,6 @@ function getDemoData(): OASPortfolio {
       { instrumentId: 'd5', instrumentName: 'PR Muni GO Bond', category: 'asset', balance: 10, nominalSpread: 250, zSpread: 245, oas: 240, optionCost: 5, effectiveDuration: 6.2, effectiveConvexity: 0.5, modifiedDuration: 6.5 },
     ],
     portfolioOAS: 58.3, portfolioEffDuration: 4.6, portfolioEffConvexity: -1.1, totalOptionCost: 2.85, totalBalance: 105,
+    status: 'ok',
   };
 }

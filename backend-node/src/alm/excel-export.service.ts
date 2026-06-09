@@ -490,7 +490,7 @@ export class ExcelExportService {
       rows.push(this.xmlRow([this.xmlStringCell('--- ASSETS ---', 'title')]));
       let totalAssets = 0;
       for (const item of assets) {
-        totalAssets += item.balance ?? 0;
+        totalAssets += Number(item.balance ?? 0);
         rows.push(
           this.xmlRow([
             this.xmlStringCell(item.category ?? ''),
@@ -521,7 +521,7 @@ export class ExcelExportService {
       );
       let totalLiabilities = 0;
       for (const item of liabilities) {
-        totalLiabilities += item.balance ?? 0;
+        totalLiabilities += Number(item.balance ?? 0);
         rows.push(
           this.xmlRow([
             this.xmlStringCell(item.category ?? ''),

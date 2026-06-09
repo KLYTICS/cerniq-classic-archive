@@ -5,8 +5,12 @@ import { Treemap, ResponsiveContainer } from 'recharts';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface HRPChild {
   readonly name: string;
@@ -25,11 +29,12 @@ interface HRPFlatWeight {
   readonly weight: number;
 }
 
-interface HRPResult {
-  readonly totalAssets: number;
-  readonly clusterCount: number;
-  readonly diversificationRatio: number;
-  readonly maxDrawdown: number;
+interface HRPResult extends AlmDataShell {
+  // D1: null when there is no asset portfolio to cluster.
+  readonly totalAssets: number | null;
+  readonly clusterCount: number | null;
+  readonly diversificationRatio: number | null;
+  readonly maxDrawdown: number | null;
   readonly clusters: readonly HRPCluster[];
   readonly flatWeights: readonly HRPFlatWeight[];
 }
@@ -77,6 +82,7 @@ function getDemo(): HRPResult {
 
 function HRPContent({ data }: { data: HRPResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'cluster_count',       label: locale === 'es' ? 'Clústeres'         : 'Clusters',              value: data.clusterCount,          unit: 'count' },
@@ -115,8 +121,25 @@ function HRPContent({ data }: { data: HRPResult }) {
     },
   ], [locale]);
 
+  // D1: no asset portfolio to cluster → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.flatWeights.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'Hierarchical Risk Parity needs an asset portfolio with a return history to cluster. Load the securities portfolio to compute the HRP allocation.',
+          es: 'La Paridad de Riesgo Jerárquica requiere una cartera de activos con historial de retornos para agrupar. Cargue la cartera de valores para calcular la asignación HRP.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Treemap */}

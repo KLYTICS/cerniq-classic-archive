@@ -9,7 +9,11 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 /**
  * Liquidity — migrated to the AlmPage shell.
@@ -17,27 +21,33 @@ import { MetricStrip, type MetricStripItem } from '@/components/density/MetricSt
  * Primary LCR / HQLA / Net Outflows panel. The original dark-themed page
  * was inconsistent with the rest of the post-density modules; this version
  * matches the white-background palette used by var/cecl/stress-v2.
+ *
+ * D1 (never silent zeros): the backend `LCRSummary` returns null lcr/hqla/
+ * netOutflows/buffer + `status:'data_unavailable'` + a gaps[] manifest when
+ * there is no liquidity position loaded. `validateLiquidity` accepts that
+ * shell (never throws on a null numeric), and the content renders the honest
+ * `<AlmDataUnavailable>` panel instead of the page's fabricated `getDemo`
+ * sample (which now survives only as the labeled network/500 fallback).
  */
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
-interface LiquidityPosition {
-  readonly lcr: number;
-  readonly hqla: number;
-  readonly netOutflows: number;
-  readonly status: 'compliant' | 'warning' | 'breach';
-  readonly buffer: number;
+interface LiquidityPosition extends AlmDataShell {
+  readonly lcr: number | null;
+  readonly hqla: number | null;
+  readonly netOutflows: number | null;
+  readonly status: 'compliant' | 'warning' | 'breach' | 'data_unavailable';
+  readonly buffer: number | null;
 }
 
 // ─── Validation + demo ──────────────────────────────────────────────────────
 
 function validateLiquidity(raw: unknown): LiquidityPosition {
   if (!raw || typeof raw !== 'object') throw new Error('Liquidity response must be an object');
-  const r = raw as Record<string, unknown>;
-  if (typeof r.lcr !== 'number') throw new Error('Liquidity: missing lcr');
-  if (typeof r.hqla !== 'number') throw new Error('Liquidity: missing hqla');
-  if (typeof r.netOutflows !== 'number') throw new Error('Liquidity: missing netOutflows');
-  return r as unknown as LiquidityPosition;
+  // D1: a data_unavailable shell (null numerics + gaps[]) is a VALID 200
+  // response, not a schema error — never throw on a null numeric, or the
+  // honest gap would be mis-routed into the getDemo sample fallback.
+  return raw as unknown as LiquidityPosition;
 }
 
 function getDemo(): LiquidityPosition {
@@ -173,6 +183,7 @@ function CashFlowWaterfall({ hqla, netOutflows, locale }: WaterfallProps) {
 
 function LiquidityContent({ data }: { data: LiquidityPosition }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'lcr',          value: data.lcr,         unit: '%' },
@@ -181,6 +192,28 @@ function LiquidityContent({ data }: { data: LiquidityPosition }) {
     { key: 'buffer',       label: locale === 'es' ? 'Búfer sobre Mín.' : 'Buffer over Min', value: data.buffer, unit: '%' },
   ], [data, locale]);
 
+  // D1: no liquidity position loaded → honest neutral panel + gap manifest,
+  // never a fabricated LCR. The null guards also narrow the numerics to
+  // `number` for the gauge / HQLA / waterfall panels below (which compute on
+  // them and would crash on null).
+  if (
+    isDataUnavailable(data) ||
+    data.lcr == null ||
+    data.hqla == null ||
+    data.netOutflows == null ||
+    data.buffer == null
+  ) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No liquidity position is loaded. Load HQLA and the 30-day net cash-flow schedule to compute the LCR.',
+          es: 'No hay una posición de liquidez cargada. Cargue los HQLA y el flujo de caja neto a 30 días para calcular el LCR.',
+        }}
+      />
+    );
+  }
+
   const statusTone =
     data.status === 'compliant' ? { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: locale === 'es' ? 'Cumple' : 'Compliant' } :
     data.status === 'warning'   ? { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   label: locale === 'es' ? 'Advertencia' : 'Warning' } :
@@ -188,6 +221,10 @@ function LiquidityContent({ data }: { data: LiquidityPosition }) {
 
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Basel III compliance banner */}
