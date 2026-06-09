@@ -105,6 +105,14 @@ describe('RiskService', () => {
       });
       expect(result.mean).toBeGreaterThan(0);
     });
+
+    it('is reproducible — identical request yields identical VaR (SR 11-7)', async () => {
+      const a = await service.runMonteCarloSimulation(baseRequest);
+      const b = await service.runMonteCarloSimulation(baseRequest);
+      expect(a.var).toBe(b.var);
+      expect(a.cvar).toBe(b.cvar);
+      expect(a.median).toBe(b.median);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -320,7 +328,7 @@ describe('RiskService', () => {
       jest.clearAllMocks();
     });
 
-    it('should return comprehensive risk metrics', async () => {
+    it('returns data_unavailable for return-history metrics — never fabricates VaR/beta', async () => {
       mockPortfolioService.getPortfolio.mockResolvedValue({
         totalValue: 1_000_000,
         positions: [
@@ -332,11 +340,18 @@ describe('RiskService', () => {
       const result = await service.getPortfolioRisk('port-1', 'user-1');
 
       expect(result.portfolioId).toBe('port-1');
-      expect(result.totalValue).toBe(1_000_000);
-      expect(result.var95).toBeGreaterThan(0);
-      expect(result.cvar95).toBeGreaterThanOrEqual(result.var95);
-      expect(result.volatility).toBeGreaterThan(0);
-      expect(typeof result.sharpeRatio).toBe('number');
+      expect(result.totalValue).toBe(1_000_000); // real
+      expect(result.status).toBe('data_unavailable');
+      // No fabrication — these need an unwired return-history / market source.
+      expect(result.var95).toBeNull();
+      expect(result.cvar95).toBeNull();
+      expect(result.volatility).toBeNull();
+      expect(result.sharpeRatio).toBeNull();
+      expect(result.beta).toBeNull();
+      expect(result.maxDrawdown).toBeNull();
+      // Real (if crude) function of the actual position count.
+      expect(result.diversificationRatio).toBeCloseTo(Math.sqrt(2), 5);
+      expect((result.disclosures ?? []).length).toBeGreaterThan(0);
     });
 
     it('should throw for empty portfolio', async () => {
