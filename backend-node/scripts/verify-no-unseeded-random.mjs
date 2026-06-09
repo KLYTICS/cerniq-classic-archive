@@ -99,7 +99,9 @@ export function countRandom(content) {
 //  paths now run over a SYNTHETIC distribution, honestly relabelled `simulated`
 //  + disclosed via DataGaps — no longer mislabelled empirical history.)
 const BASELINE = {
-  'alm/cvar-optimizer.service.ts': 3, // CVaR sampling + Box-Muller draws from Math.random() → non-reproducible "optimal" allocation; seed the PRNG. (peer-active lane coop-d1-bs-batch — they may clear this.)
+  // cvar-optimizer.service.ts CLEARED 2026-06-08 (was 3): CVaR sampling +
+  // Box-Muller now draw from a seeded xorshift32 + Box-Muller stream keyed by an
+  // FNV-1a hash of the institution id → reproducible "optimal" allocation.
   'alm/reports/reports.service.ts': 1, // report-ID suffix, NOT a financial metric — non-reproducible id; prefer crypto.randomUUID() (Rule-12-adjacent). Low priority.
 };
 

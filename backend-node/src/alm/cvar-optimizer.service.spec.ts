@@ -105,4 +105,86 @@ describe('CVaROptimizerService', () => {
       expect(result.scenarioCount).toBe(500);
     });
   });
+
+  // ── Reproducibility (SR 11-7 model governance) ─────────────────
+
+  describe('reproducibility + Decimal coercion', () => {
+    const realItems = [
+      { category: 'asset', subcategory: 'cash', balance: 20, rate: 0.02 },
+      {
+        category: 'asset',
+        subcategory: 'securities',
+        balance: 40,
+        rate: 0.045,
+      },
+      {
+        category: 'asset',
+        subcategory: 'consumer_loans',
+        balance: 60,
+        rate: 0.065,
+      },
+      { category: 'asset', subcategory: 'mortgage', balance: 30, rate: 0.055 },
+    ];
+
+    it('is reproducible — same institution + data → byte-identical result', async () => {
+      // The "optimal" allocation an examiner reads MUST reproduce. Two fresh
+      // services, same inputs → identical scenarios, weights, CVaR, frontier.
+      const a = await mk(realItems).optimize('inst-det');
+      const b = await mk(realItems).optimize('inst-det');
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    });
+
+    it('seeds by institution — a different id yields a different seeded scenario draw', async () => {
+      // The PRNG stream is keyed by the institution id, so the CVaR/VaR pair
+      // (driven by the scenario draws) differs across institutions.
+      const x = await mk(realItems).optimize('inst-X');
+      const y = await mk(realItems).optimize('inst-Y');
+      expect(x.cvar).not.toBe(y.cvar);
+    });
+
+    it('coerces Prisma Decimal balances when aggregating a subcategory (no string-concat corruption)', async () => {
+      // Prisma Decimal.valueOf() returns a STRING; the old `e.balance += item.balance`
+      // therefore concatenated ("0"+"20"+"10" = "02010" → 2010) instead of summing
+      // (30), corrupting every downstream return. Number()-coercion fixes it.
+      const dec = (n: number) => ({
+        valueOf: () => String(n),
+        toString: () => String(n),
+      });
+      const r = await mk([
+        {
+          category: 'asset',
+          subcategory: 'loans',
+          balance: dec(20),
+          rate: dec(0.05),
+        },
+        {
+          category: 'asset',
+          subcategory: 'loans',
+          balance: dec(10),
+          rate: dec(0.05),
+        },
+      ]).optimize('inst-dec');
+
+      expect(r.status).toBe('ok');
+      expect(r.assetNames).toEqual(['loans']);
+      // Aggregated return = (0.05·20 + 0.05·10) / (20 + 10) = 0.05.
+      // The string-concat bug would make balance 2010 → return ≈ 0.00075.
+      expect(r.expectedReturn!).toBeCloseTo(0.05, 3);
+    });
+
+    it('skips a corrupt (non-finite) balance instead of fabricating a 0 move', async () => {
+      const r = await mk([
+        { category: 'asset', subcategory: 'cash', balance: NaN, rate: 0.02 },
+        {
+          category: 'asset',
+          subcategory: 'securities',
+          balance: 40,
+          rate: 0.045,
+        },
+      ]).optimize('inst-nan');
+      // Only the finite 'securities' row survives → one asset, status ok.
+      expect(r.status).toBe('ok');
+      expect(r.assetNames).toEqual(['securities']);
+    });
+  });
 });
