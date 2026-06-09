@@ -7,8 +7,12 @@ import { Check, AlertTriangle, X } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { label } from '@/lib/alm/labels';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 /**
  * VaR Suite — flagship reference using the AlmPage shell.
@@ -18,37 +22,60 @@ import { DataTable, type DataTableColumn } from '@/components/density/DataTable'
  * concerns here are:
  *
  *   - Domain types + runtime shape guard (validate)
- *   - Demo factory (opt-in fallback)
+ *   - Demo factory (opt-in fallback — network/500 ONLY, per the quant-page policy)
  *   - The content render prop (MetricStrip + DataTable + chart + Kupiec)
  *   - Controls (confidence + horizon selects)
+ *
+ * D1 (never silent zeros, SESSION_HANDOFF §1): the backend
+ * `PortfolioVaRService.computeVaRSuite` returns honest *shells* on thin input,
+ * NOT fabricated numbers, and they arrive as a 200-OK so `validate` must accept
+ * them (never throw on a null numeric — that would mis-route the honest gap into
+ * the demo fallback and resurrect the phantom $445M book at the UI layer):
+ *
+ *   • Empty balance sheet → `status:'data_unavailable'`, every numeric null, a
+ *     CRITICAL gap. The content area swaps to <AlmDataUnavailable>.
+ *   • No empirical MarketDataSnapshot history (the common case) → `status:'ok'`
+ *     with the REAL parametric VaR rendered, the historical + Monte Carlo methods
+ *     and the Kupiec backtest withheld (null), and WARNING gaps. The content
+ *     renders the live parametric figures, `—` for the withheld methods, and a
+ *     <DataGapBanner> disclosing what is missing.
+ *   • ≥1y of empirical history → all three methods + an out-of-sample backtest,
+ *     no gaps.
+ *
+ * The labeled <AlmPage> "Sample data" demo survives ONLY as the genuine
+ * network/500 fallback (var is a `quant` registry category, not regulatory).
  *
  * To migrate another module, copy this file, swap slug + types + demo, and
  * adjust the content renderer. Total migration is usually <150 LoC.
  */
 
 // ─── Domain types ────────────────────────────────────────────────────────────
+// Numerics are `number | null`: the backend nulls each field whose input is
+// unavailable (D1), never a synthetic 0. Mirrors portfolio-var.service.ts.
 
 interface VaRResult {
   readonly method: 'historical' | 'parametric' | 'montecarlo';
   readonly confidenceLevel: number;
   readonly horizon: number;
-  readonly var: number;
-  readonly cvar: number;
-  readonly varPct: number;
-  readonly portfolioValue: number;
+  readonly var: number | null;
+  readonly cvar: number | null;
+  readonly varPct: number | null;
+  readonly portfolioValue: number | null;
+  readonly status?: 'ok' | 'data_unavailable';
 }
 
 interface BacktestResult {
   readonly testDays: number;
-  readonly exceptions: number;
-  readonly exceptionRate: number;
-  readonly expectedExceptions: number;
-  readonly kupiecLR: number;
-  readonly kupiecPValue: number;
-  readonly trafficLight: 'GREEN' | 'AMBER' | 'RED';
+  readonly exceptions: number | null;
+  readonly exceptionRate: number | null;
+  readonly expectedExceptions: number | null;
+  readonly kupiecLR: number | null;
+  readonly kupiecPValue: number | null;
+  readonly trafficLight: 'GREEN' | 'AMBER' | 'RED' | null;
+  readonly status?: 'ok' | 'data_unavailable';
 }
 
-interface VaRSuite {
+interface VaRSuite extends AlmDataShell {
   readonly historical: VaRResult;
   readonly parametric: VaRResult;
   readonly montecarlo: VaRResult;
@@ -71,27 +98,27 @@ const TRAFFIC_STYLES = {
 
 // ─── Runtime validation + demo factory ──────────────────────────────────────
 
-function isVaRResult(v: unknown): v is VaRResult {
-  if (!v || typeof v !== 'object') return false;
-  const r = v as Record<string, unknown>;
-  return (
-    typeof r.var === 'number' &&
-    typeof r.cvar === 'number' &&
-    typeof r.varPct === 'number' &&
-    typeof r.portfolioValue === 'number'
-  );
+function isObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object';
 }
 
+/**
+ * STRUCTURAL-only validation (D1). The data_unavailable / partial-ok shells are
+ * valid 200-OK responses with null numerics — we MUST accept them and let the
+ * content area render <AlmDataUnavailable> / the gap banner. Throw only when the
+ * envelope itself is malformed (not an object, or a method/backtest slot that
+ * isn't an object), never on a null numeric — throwing would mis-route the
+ * honest gap into the demo fallback and resurrect a fabricated $445M book.
+ */
 function validateVaRSuite(raw: unknown): VaRSuite {
-  if (!raw || typeof raw !== 'object') throw new Error('VaR response must be an object');
-  const r = raw as Record<string, unknown>;
-  if (!isVaRResult(r.historical) || !isVaRResult(r.parametric) || !isVaRResult(r.montecarlo)) {
+  if (!isObject(raw)) throw new Error('VaR response must be an object');
+  if (!isObject(raw.historical) || !isObject(raw.parametric) || !isObject(raw.montecarlo)) {
     throw new Error('VaR response missing one of historical/parametric/montecarlo');
   }
-  if (!r.backtestResult || typeof r.backtestResult !== 'object') {
+  if (!isObject(raw.backtestResult)) {
     throw new Error('VaR response missing backtestResult');
   }
-  return r as unknown as VaRSuite;
+  return raw as unknown as VaRSuite;
 }
 
 function makeDemoData(conf: 95 | 99, hor: 1 | 10): VaRSuite {
@@ -99,10 +126,11 @@ function makeDemoData(conf: 95 | 99, hor: 1 | 10): VaRSuite {
   const cScale = conf === 99 ? 1.4 : 1;
   const round = (n: number) => +n.toFixed(2);
   return {
-    historical: { method: 'historical', confidenceLevel: conf / 100, horizon: hor, var: round(9.3 * scale * cScale), cvar: round(12.1 * scale * cScale), varPct: 2.09, portfolioValue: 445 },
-    parametric: { method: 'parametric', confidenceLevel: conf / 100, horizon: hor, var: round(8.7 * scale * cScale), cvar: round(10.8 * scale * cScale), varPct: 1.96, portfolioValue: 445 },
-    montecarlo: { method: 'montecarlo', confidenceLevel: conf / 100, horizon: hor, var: round(9.5 * scale * cScale), cvar: round(12.8 * scale * cScale), varPct: 2.13, portfolioValue: 445 },
-    backtestResult: { testDays: 250, exceptions: 3, exceptionRate: 0.012, expectedExceptions: conf === 99 ? 2.5 : 12.5, kupiecLR: 1.85, kupiecPValue: 0.10, trafficLight: 'GREEN' },
+    historical: { method: 'historical', confidenceLevel: conf / 100, horizon: hor, var: round(9.3 * scale * cScale), cvar: round(12.1 * scale * cScale), varPct: 2.09, portfolioValue: 445, status: 'ok' },
+    parametric: { method: 'parametric', confidenceLevel: conf / 100, horizon: hor, var: round(8.7 * scale * cScale), cvar: round(10.8 * scale * cScale), varPct: 1.96, portfolioValue: 445, status: 'ok' },
+    montecarlo: { method: 'montecarlo', confidenceLevel: conf / 100, horizon: hor, var: round(9.5 * scale * cScale), cvar: round(12.8 * scale * cScale), varPct: 2.13, portfolioValue: 445, status: 'ok' },
+    backtestResult: { testDays: 250, exceptions: 3, exceptionRate: 0.012, expectedExceptions: conf === 99 ? 2.5 : 12.5, kupiecLR: 1.85, kupiecPValue: 0.10, trafficLight: 'GREEN', status: 'ok' },
+    status: 'ok',
   };
 }
 
@@ -121,6 +149,7 @@ interface MethodRow {
 
 function VaRContent({ data, confidence }: ContentProps) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const methodRows = useMemo<readonly MethodRow[]>(
     () => [
@@ -132,10 +161,24 @@ function VaRContent({ data, confidence }: ContentProps) {
   );
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => {
-    const winnerVar  = Math.max(data.historical.var,  data.parametric.var,  data.montecarlo.var);
-    const winnerCvar = Math.max(data.historical.cvar, data.parametric.cvar, data.montecarlo.cvar);
+    // D1 null-safety: a withheld method's `var`/`cvar` is `null`, never 0. Filter
+    // before Math.max — `Math.max(null, 8.7)` coerces null→0 and would silently
+    // report a fabricated figure as the max. With every method withheld the max
+    // is `null` and the strip renders `—`.
+    const present = (xs: readonly (number | null)[]) =>
+      xs.filter((x): x is number => x != null);
+    const vars  = present([data.historical.var,  data.parametric.var,  data.montecarlo.var]);
+    const cvars = present([data.historical.cvar, data.parametric.cvar, data.montecarlo.cvar]);
+    const winnerVar  = vars.length  ? Math.max(...vars)  : null;
+    const winnerCvar = cvars.length ? Math.max(...cvars) : null;
+    // Portfolio value is identical across whichever methods ran; take the first
+    // non-null (parametric survives the no-history path).
+    const portfolioValue =
+      data.historical.portfolioValue ??
+      data.parametric.portfolioValue ??
+      data.montecarlo.portfolioValue;
     return [
-      { key: 'portfolio_value',     label: locale === 'es' ? 'Valor Portafolio' : 'Portfolio Value', unit: 'USD_M', value: data.historical.portfolioValue },
+      { key: 'portfolio_value',     label: locale === 'es' ? 'Valor Portafolio' : 'Portfolio Value', unit: 'USD_M', value: portfolioValue },
       { key: 'var',                 label: `${label('var',  locale)} (max)`, value: winnerVar,  unit: 'USD_M' },
       { key: 'cvar',                label: `${label('cvar', locale)} (max)`, value: winnerCvar, unit: 'USD_M' },
       { key: 'exceptions',          value: data.backtestResult.exceptions,         unit: 'count' },
@@ -177,12 +220,39 @@ function VaRContent({ data, confidence }: ContentProps) {
     [methodRows],
   );
 
+  // D1: empty balance sheet → the backend returned a data_unavailable shell
+  // (every numeric null + a CRITICAL gap). Swap the whole content area for the
+  // neutral panel + gap manifest. NEVER fall through to the fabricated $445M
+  // demo — that path is reserved for genuine network/500 errors (handled by
+  // <AlmPage>'s getDemo, not here).
+  if (isDataUnavailable(data)) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No asset balance sheet is loaded. Upload the institution’s assets (balances + durations) to compute Value-at-Risk across the historical, parametric, and Monte Carlo methods.',
+          es: 'No hay balance de activos cargado. Cargue los activos de la institución (saldos + duraciones) para calcular el Valor en Riesgo por los métodos histórico, paramétrico y Monte Carlo.',
+        }}
+      />
+    );
+  }
+
   const bt = data.backtestResult;
-  const tl = TRAFFIC_STYLES[bt.trafficLight];
-  const TrafficIcon = tl.Icon;
+  // The Kupiec traffic light only exists when the out-of-sample backtest ran
+  // (≥500 daily observations). On the common no-history path it is `null` and
+  // `TRAFFIC_STYLES[null]` is undefined — render a neutral "withheld" card
+  // instead of crashing or showing a fabricated GREEN.
+  const tl = bt.trafficLight ? TRAFFIC_STYLES[bt.trafficLight] : null;
 
   return (
     <>
+      {/* D1 partial-ok: real parametric VaR rendered with `—` for the withheld
+          historical/Monte Carlo methods; this banner discloses what is missing
+          (STALE_SNAPSHOT / INDICATOR_NOT_WIRED WARNING gaps). */}
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       <section>
@@ -215,25 +285,38 @@ function VaRContent({ data, confidence }: ContentProps) {
         </ResponsiveContainer>
       </section>
 
-      <section className={`rounded-xl border p-4 ${tl.bg} ${tl.border}`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-slate-950">
-              {locale === 'es' ? 'Backtest Kupiec — Semáforo Basel' : 'Kupiec Backtest — Basel Traffic Light'}
-            </p>
-            <p className="mt-1 text-xs text-slate-600">
-              {bt.exceptions} {locale === 'es' ? 'excepciones en' : 'exceptions in'} {bt.testDays} {locale === 'es' ? 'días' : 'days'}
-              {' '}({locale === 'es' ? 'esperado' : 'expected'}: {bt.expectedExceptions.toFixed(1)})
-              {' | '}LR: {bt.kupiecLR.toFixed(2)}
-              {' | '}p: {bt.kupiecPValue}
-            </p>
+      {tl ? (
+        <section className={`rounded-xl border p-4 ${tl.bg} ${tl.border}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-950">
+                {locale === 'es' ? 'Backtest Kupiec — Semáforo Basel' : 'Kupiec Backtest — Basel Traffic Light'}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                {bt.exceptions ?? '—'} {locale === 'es' ? 'excepciones en' : 'exceptions in'} {bt.testDays} {locale === 'es' ? 'días' : 'days'}
+                {' '}({locale === 'es' ? 'esperado' : 'expected'}: {bt.expectedExceptions != null ? bt.expectedExceptions.toFixed(1) : '—'})
+                {' | '}LR: {bt.kupiecLR != null ? bt.kupiecLR.toFixed(2) : '—'}
+                {' | '}p: {bt.kupiecPValue ?? '—'}
+              </p>
+            </div>
+            <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${tl.bg} ${tl.text} ${tl.border}`}>
+              <tl.Icon className="h-4 w-4" />
+              {bt.trafficLight}
+            </div>
           </div>
-          <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${tl.bg} ${tl.text} ${tl.border}`}>
-            <TrafficIcon className="h-4 w-4" />
-            {bt.trafficLight}
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4" role="status" aria-live="polite">
+          <p className="text-sm font-bold text-slate-700">
+            {locale === 'es' ? 'Backtest Kupiec — Semáforo Basel' : 'Kupiec Backtest — Basel Traffic Light'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {locale === 'es'
+              ? 'Backtest retenido — historial de mercado insuficiente para una prueba fuera de muestra. Vea las brechas de datos arriba.'
+              : 'Backtest withheld — insufficient market history for an out-of-sample test. See the data gaps above.'}
+          </p>
+        </section>
+      )}
     </>
   );
 }
