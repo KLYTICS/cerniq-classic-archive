@@ -6,8 +6,12 @@ import { Check, X } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface CreditRiskSegment {
   readonly segmentName: string;
@@ -22,27 +26,29 @@ interface CreditRiskSegment {
   readonly ecPct: number;
 }
 
-interface CreditRiskPortfolio {
+interface CreditRiskPortfolio extends AlmDataShell {
   readonly segments: readonly CreditRiskSegment[];
-  readonly totalEAD: number;
-  readonly totalEL: number;
-  readonly totalUL: number;
-  readonly totalEC: number;
-  readonly portfolioElPct: number;
-  readonly portfolioEcPct: number;
+  // D1: null when there are no loan segments to compute portfolio credit risk.
+  readonly totalEAD: number | null;
+  readonly totalEL: number | null;
+  readonly totalUL: number | null;
+  readonly totalEC: number | null;
+  readonly portfolioElPct: number | null;
+  readonly portfolioEcPct: number | null;
   readonly capitalAdequacy: {
     readonly actualCapital: number;
     readonly requiredEconomicCapital: number;
     readonly capitalSurplus: number;
     readonly isAdequate: boolean;
-  };
+  } | null;
 }
 
 function validateCreditRisk(raw: unknown): CreditRiskPortfolio {
   if (!raw || typeof raw !== 'object') throw new Error('Credit risk response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (null totals + null capitalAdequacy +
+  // gaps[]); validate STRUCTURE only — `segments` is the array the content maps.
   if (!Array.isArray(r.segments)) throw new Error('Credit risk: segments must be array');
-  if (!r.capitalAdequacy) throw new Error('Credit risk: missing capitalAdequacy');
   return r as unknown as CreditRiskPortfolio;
 }
 
@@ -65,6 +71,7 @@ function getDemo(): CreditRiskPortfolio {
 function CreditRiskContent({ data }: { data: CreditRiskPortfolio }) {
   const { locale } = useTranslation();
   const ca = data.capitalAdequacy;
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'ead',          label: 'EAD', value: data.totalEAD, unit: 'USD_M' },
@@ -104,8 +111,26 @@ function CreditRiskContent({ data }: { data: CreditRiskPortfolio }) {
     },
   ], [locale]);
 
+  // D1: no loan segments to model → honest neutral panel + gaps (also narrows
+  // `ca` to non-null for the capital-adequacy banner below).
+  if (isDataUnavailable(data) || data.segments.length === 0 || ca == null) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No loan segments are loaded. Load the loan portfolio (balances, PD, LGD) to compute expected loss, economic capital, and capital adequacy.',
+          es: 'No hay segmentos de préstamos cargados. Cargue la cartera de préstamos (saldos, PD, LGD) para calcular la pérdida esperada, el capital económico y la suficiencia de capital.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Capital adequacy banner */}

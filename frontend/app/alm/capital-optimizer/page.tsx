@@ -9,8 +9,12 @@ import { Play, RefreshCw } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 type Aggressiveness = 'conservative' | 'moderate' | 'aggressive';
 
@@ -32,10 +36,11 @@ interface ConstraintSlack {
   readonly binding: boolean;
 }
 
-interface OptimizationResult {
+interface OptimizationResult extends AlmDataShell {
   readonly deltaAllocations: readonly DeltaAllocation[];
-  readonly projectedNIIGain: number;
-  readonly projectedNIIGainPct: number;
+  // D1: null when there is no balance sheet to optimize against.
+  readonly projectedNIIGain: number | null;
+  readonly projectedNIIGainPct: number | null;
   readonly constraintSlacks: readonly ConstraintSlack[];
   readonly aggressivenessLevel: string;
   readonly narrative: string;
@@ -45,7 +50,8 @@ interface OptimizationResult {
 function validateOpt(raw: unknown): OptimizationResult {
   if (!raw || typeof raw !== 'object') throw new Error('Capital optimizer response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.projectedNIIGain !== 'number') throw new Error('Capital opt: missing projectedNIIGain');
+  // D1: accept the data_unavailable shell (null projectedNIIGain + gaps[]);
+  // validate STRUCTURE only — the arrays the content maps over.
   if (!Array.isArray(r.deltaAllocations)) throw new Error('Capital opt: deltaAllocations must be array');
   if (!Array.isArray(r.constraintSlacks)) throw new Error('Capital opt: constraintSlacks must be array');
   return r as unknown as OptimizationResult;
@@ -75,6 +81,7 @@ function getDemo(agg: Aggressiveness): OptimizationResult {
 
 function OptContent({ data }: { data: OptimizationResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'projected_nii_gain',     label: locale === 'es' ? 'Ganancia NII'    : 'NII Gain',         value: data.projectedNIIGain,     unit: 'USD_M' },
@@ -133,8 +140,25 @@ function OptContent({ data }: { data: OptimizationResult }) {
     },
   ], [locale]);
 
+  // D1: no balance sheet to optimize against → honest neutral panel + gaps.
+  if (isDataUnavailable(data)) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'Capital optimization needs a loaded balance sheet. Load assets and liabilities to compute the reallocation that maximizes NII within the regulatory constraints.',
+          es: 'La optimización de capital requiere un balance de situación. Cargue activos y pasivos para calcular la reasignación que maximiza el NII dentro de las restricciones regulatorias.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Narrative banner */}

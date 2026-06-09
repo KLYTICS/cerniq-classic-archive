@@ -8,8 +8,12 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface FRTBRiskClass {
   readonly name: string;
@@ -24,11 +28,12 @@ interface FRTBLiquidityHorizon {
   readonly capital: number;
 }
 
-interface FRTBResult {
-  readonly imcc: number;
-  readonly ses: number;
-  readonly drc: number;
-  readonly totalCapital: number;
+interface FRTBResult extends AlmDataShell {
+  // D1: null when there is no trading book to compute FRTB-IMA capital.
+  readonly imcc: number | null;
+  readonly ses: number | null;
+  readonly drc: number | null;
+  readonly totalCapital: number | null;
   readonly riskClasses: readonly FRTBRiskClass[];
   readonly liquidityHorizons: readonly FRTBLiquidityHorizon[];
 }
@@ -36,9 +41,8 @@ interface FRTBResult {
 function validateFRTB(raw: unknown): FRTBResult {
   if (!raw || typeof raw !== 'object') throw new Error('FRTB response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.imcc !== 'number') throw new Error('FRTB: missing imcc');
-  if (typeof r.ses !== 'number') throw new Error('FRTB: missing ses');
-  if (typeof r.drc !== 'number') throw new Error('FRTB: missing drc');
+  // D1: accept the data_unavailable shell (null capital + gaps[]); validate
+  // STRUCTURE only — `riskClasses` is the array the content maps over.
   if (!Array.isArray(r.riskClasses)) throw new Error('FRTB: riskClasses must be array');
   return r as unknown as FRTBResult;
 }
@@ -68,6 +72,7 @@ function getDemo(): FRTBResult {
 
 function FRTBContent({ data }: { data: FRTBResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'imcc',          label: 'IMCC',                                     value: data.imcc,         unit: 'USD_M' },
@@ -91,8 +96,25 @@ function FRTBContent({ data }: { data: FRTBResult }) {
     { id: 'capital', header: locale === 'es' ? 'Capital'    : 'Capital', kind: 'number', accessor: (r) => r.capital, unit: 'USD_M' },
   ], [locale]);
 
+  // D1: no trading book to compute FRTB-IMA capital → honest neutral panel.
+  if (isDataUnavailable(data) || data.riskClasses.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'FRTB-IMA capital needs a trading book with risk-factor sensitivities. Load the trading portfolio to compute the IMCC, SES, and DRC charges.',
+          es: 'El capital FRTB-IMA requiere un libro de negociación con sensibilidades por factor de riesgo. Cargue la cartera de negociación para calcular los cargos IMCC, SES y DRC.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Stacked bar by risk class */}

@@ -4,25 +4,30 @@ import { useMemo } from 'react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
-type Quartile = 'top_quartile' | 'above_median' | 'below_median' | 'bottom_quartile';
+type Quartile = 'top_quartile' | 'above_median' | 'below_median' | 'bottom_quartile' | 'data_unavailable';
 
 interface PeerMetric {
   readonly metricName: string;
   readonly metricNameEs: string;
-  readonly institutionValue: number;
+  // D1: null when the institution has not loaded the input for this metric.
+  readonly institutionValue: number | null;
   readonly peerMin: number;
   readonly peerP25: number;
   readonly peerMedian: number;
   readonly peerP75: number;
   readonly peerMax: number;
-  readonly percentileRank: number;
+  readonly percentileRank: number | null;
   readonly status: Quartile;
 }
 
-interface PeerResult {
+interface PeerResult extends AlmDataShell {
   readonly institutionId: string;
   readonly peerGroupName: string;
   readonly peerGroupNameEs: string;
@@ -36,11 +41,15 @@ const QUARTILE_STYLES: Record<Quartile, { bg: string; text: string; border: stri
   above_median:    { bg: 'bg-cyan-50',    text: 'text-cyan-700',    border: 'border-cyan-200',    label: { en: 'Above Median',    es: 'Sobre la Mediana' }, dot: 'bg-cyan-500' },
   below_median:    { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   label: { en: 'Below Median',    es: 'Bajo la Mediana' },  dot: 'bg-amber-500' },
   bottom_quartile: { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    label: { en: 'Bottom Quartile', es: 'Cuartil Inferior' }, dot: 'bg-rose-500' },
+  // D1: a metric with no institution input is a neutral gray dot — never ranked.
+  data_unavailable:{ bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   label: { en: 'Data Pending',    es: 'Datos Pendientes' }, dot: 'bg-slate-400' },
 };
 
 function validatePeer(raw: unknown): PeerResult {
   if (!raw || typeof raw !== 'object') throw new Error('Peer analytics response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (empty metrics + gaps[]); validate
+  // STRUCTURE only — `metrics` is the array the content maps over.
   if (!Array.isArray(r.metrics)) throw new Error('Peer analytics: metrics must be array');
   return r as unknown as PeerResult;
 }
@@ -65,6 +74,7 @@ function getDemo(): PeerResult {
 
 function PeerContent({ data }: { data: PeerResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'peer_count',      label: locale === 'es' ? 'Pares'          : 'Peers',             value: data.peerCount, unit: 'count' },
@@ -83,7 +93,7 @@ function PeerContent({ data }: { data: PeerResult }) {
     },
     { id: 'value',  header: locale === 'es' ? 'Institución' : 'Institution', kind: 'custom',
       accessor: (r) => r.institutionValue,
-      render: (r) => <span className="font-mono text-xs font-bold tabular-nums text-slate-900">{r.institutionValue}</span>,
+      render: (r) => <span className="font-mono text-xs font-bold tabular-nums text-slate-900">{r.institutionValue ?? '—'}</span>,
     },
     { id: 'p25',    header: 'P25',    kind: 'custom', accessor: (r) => r.peerP25,
       render: (r) => <span className="font-mono text-[10px] tabular-nums text-slate-400">{r.peerP25}</span>,
@@ -95,10 +105,10 @@ function PeerContent({ data }: { data: PeerResult }) {
       render: (r) => <span className="font-mono text-[10px] tabular-nums text-slate-400">{r.peerP75}</span>,
     },
     { id: 'gap',    header: locale === 'es' ? 'Brecha' : 'Gap', kind: 'delta',
-      accessor: (r) => r.institutionValue - r.peerMedian, unit: 'x' },
+      accessor: (r) => r.institutionValue != null ? r.institutionValue - r.peerMedian : null, unit: 'x' },
     { id: 'rank',   header: locale === 'es' ? 'Percentil' : 'Rank', kind: 'custom',
       accessor: (r) => r.percentileRank,
-      render: (r) => <span className="font-mono text-xs tabular-nums text-slate-700">P{r.percentileRank}</span>,
+      render: (r) => <span className="font-mono text-xs tabular-nums text-slate-700">{r.percentileRank != null ? `P${r.percentileRank}` : '—'}</span>,
     },
     { id: 'quartile', header: locale === 'es' ? 'Cuartil' : 'Quartile', kind: 'custom',
       accessor: (r) => r.status,
@@ -110,8 +120,25 @@ function PeerContent({ data }: { data: PeerResult }) {
     },
   ], [locale]);
 
+  // D1: no institution metrics to benchmark → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.metrics.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No institution metrics are available to benchmark. Load the balance sheet and ratios to compare against the Puerto Rico cooperativa peer group.',
+          es: 'No hay métricas de la institución para comparar. Cargue el balance de situación y las razones para compararse contra el grupo de pares de cooperativas de Puerto Rico.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <div className="text-[11px] text-slate-500">
         {locale === 'es' ? data.peerGroupNameEs : data.peerGroupName} · {data.peerCount} {locale === 'es' ? 'instituciones' : 'institutions'}
       </div>
@@ -123,7 +150,7 @@ function PeerContent({ data }: { data: PeerResult }) {
         {data.metrics.map((m) => {
           const s = QUARTILE_STYLES[m.status];
           const range = m.peerMax - m.peerMin || 1;
-          const pct       = ((m.institutionValue - m.peerMin) / range) * 100;
+          const pct       = m.institutionValue != null ? ((m.institutionValue - m.peerMin) / range) * 100 : 0;
           const medianPct = ((m.peerMedian       - m.peerMin) / range) * 100;
           const p25Pct    = ((m.peerP25          - m.peerMin) / range) * 100;
           const p75Pct    = ((m.peerP75          - m.peerMin) / range) * 100;
@@ -137,9 +164,9 @@ function PeerContent({ data }: { data: PeerResult }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-lg font-bold tabular-nums text-slate-950">{m.institutionValue}</span>
+                  <span className="font-mono text-lg font-bold tabular-nums text-slate-950">{m.institutionValue ?? '—'}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${s.bg} ${s.text} ${s.border}`}>
-                    P{m.percentileRank}
+                    {m.percentileRank != null ? `P${m.percentileRank}` : '—'}
                   </span>
                 </div>
               </div>

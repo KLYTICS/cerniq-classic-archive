@@ -5,7 +5,11 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface FactorLoading {
   readonly tenor: string;
@@ -14,17 +18,20 @@ interface FactorLoading {
   readonly pc3: number;
 }
 
-interface PCAResult {
+interface PCAResult extends AlmDataShell {
   readonly varianceExplained: readonly number[];
   readonly cumulativeVariance: readonly number[];
   readonly factorLoadings: readonly FactorLoading[];
-  readonly interpretation: { readonly pc1: string; readonly pc2: string; readonly pc3: string };
-  readonly niiSensitivity: { readonly pc1Impact: number; readonly pc2Impact: number; readonly pc3Impact: number };
+  // D1: null when there is no yield-curve history to decompose.
+  readonly interpretation: { readonly pc1: string; readonly pc2: string; readonly pc3: string } | null;
+  readonly niiSensitivity: { readonly pc1Impact: number; readonly pc2Impact: number; readonly pc3Impact: number } | null;
 }
 
 function validatePCA(raw: unknown): PCAResult {
   if (!raw || typeof raw !== 'object') throw new Error('PCA response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (empty factors + gaps[]); validate
+  // STRUCTURE only — the arrays the content maps over.
   if (!Array.isArray(r.varianceExplained)) throw new Error('PCA: varianceExplained must be array');
   if (!Array.isArray(r.factorLoadings)) throw new Error('PCA: factorLoadings must be array');
   return r as unknown as PCAResult;
@@ -52,19 +59,37 @@ function getDemo(): PCAResult {
 
 function PCAContent({ data }: { data: PCAResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
-    { key: 'pc1_var',        label: 'PC1 (Level) %',                                           value: (data.varianceExplained[0] ?? 0) * 100,   unit: '%' },
-    { key: 'pc2_var',        label: 'PC2 (Slope) %',                                           value: (data.varianceExplained[1] ?? 0) * 100,   unit: '%' },
-    { key: 'pc3_var',        label: 'PC3 (Curvature) %',                                       value: (data.varianceExplained[2] ?? 0) * 100,   unit: '%' },
-    { key: 'cum_var',        label: locale === 'es' ? 'Var. Acumulada' : 'Cum. Variance',      value: (data.cumulativeVariance[2] ?? 0) * 100,  unit: '%' },
-    { key: 'pc1_nii_impact', label: locale === 'es' ? 'Impacto NII PC1' : 'NII Impact PC1',    value: data.niiSensitivity.pc1Impact, unit: 'USD_M' },
-    { key: 'pc2_nii_impact', label: locale === 'es' ? 'Impacto NII PC2' : 'NII Impact PC2',    value: data.niiSensitivity.pc2Impact, unit: 'USD_M' },
-    { key: 'pc3_nii_impact', label: locale === 'es' ? 'Impacto NII PC3' : 'NII Impact PC3',    value: data.niiSensitivity.pc3Impact, unit: 'USD_M' },
+    { key: 'pc1_var',        label: 'PC1 (Level) %',                                           value: data.varianceExplained[0] != null ? data.varianceExplained[0] * 100 : null,   unit: '%' },
+    { key: 'pc2_var',        label: 'PC2 (Slope) %',                                           value: data.varianceExplained[1] != null ? data.varianceExplained[1] * 100 : null,   unit: '%' },
+    { key: 'pc3_var',        label: 'PC3 (Curvature) %',                                       value: data.varianceExplained[2] != null ? data.varianceExplained[2] * 100 : null,   unit: '%' },
+    { key: 'cum_var',        label: locale === 'es' ? 'Var. Acumulada' : 'Cum. Variance',      value: data.cumulativeVariance[2] != null ? data.cumulativeVariance[2] * 100 : null,  unit: '%' },
+    { key: 'pc1_nii_impact', label: locale === 'es' ? 'Impacto NII PC1' : 'NII Impact PC1',    value: data.niiSensitivity?.pc1Impact ?? null, unit: 'USD_M' },
+    { key: 'pc2_nii_impact', label: locale === 'es' ? 'Impacto NII PC2' : 'NII Impact PC2',    value: data.niiSensitivity?.pc2Impact ?? null, unit: 'USD_M' },
+    { key: 'pc3_nii_impact', label: locale === 'es' ? 'Impacto NII PC3' : 'NII Impact PC3',    value: data.niiSensitivity?.pc3Impact ?? null, unit: 'USD_M' },
   ], [data, locale]);
+
+  // D1: no yield-curve history to decompose → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.factorLoadings.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No yield-curve history is available to decompose. The PCA factor model needs a time series of curve observations to extract the level/slope/curvature factors.',
+          es: 'No hay historial de curva de rendimiento para descomponer. El modelo de factores PCA requiere una serie de tiempo de observaciones de la curva para extraer los factores de nivel/pendiente/curvatura.',
+        }}
+      />
+    );
+  }
 
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Factor loadings chart */}
@@ -89,9 +114,9 @@ function PCAContent({ data }: { data: PCAResult }) {
       {/* Factor interpretations */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {([
-          { pc: 'PC1', name: locale === 'es' ? 'Nivel'     : 'Level',     desc: data.interpretation.pc1, tone: 'teal'   },
-          { pc: 'PC2', name: locale === 'es' ? 'Pendiente' : 'Slope',     desc: data.interpretation.pc2, tone: 'amber'  },
-          { pc: 'PC3', name: locale === 'es' ? 'Curvatura' : 'Curvature', desc: data.interpretation.pc3, tone: 'violet' },
+          { pc: 'PC1', name: locale === 'es' ? 'Nivel'     : 'Level',     desc: data.interpretation?.pc1 ?? '', tone: 'teal'   },
+          { pc: 'PC2', name: locale === 'es' ? 'Pendiente' : 'Slope',     desc: data.interpretation?.pc2 ?? '', tone: 'amber'  },
+          { pc: 'PC3', name: locale === 'es' ? 'Curvatura' : 'Curvature', desc: data.interpretation?.pc3 ?? '', tone: 'violet' },
         ] as const).map((f) => {
           const toneClass =
             f.tone === 'teal'   ? 'border-teal-200 bg-teal-50/50' :

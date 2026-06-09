@@ -6,43 +6,51 @@ import { Check, X, AlertTriangle } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
-type Status = 'compliant' | 'warning' | 'breach';
+type Status = 'compliant' | 'warning' | 'breach' | 'data_unavailable';
 
 interface ConcentrationExposure {
   readonly limitName: string;
   readonly limitType: string;
   readonly maxPct: number;
-  readonly currentPct: number;
-  readonly currentBalance: number;
-  readonly headroom: number;
+  // D1: null when a limit has no underlying geographic / borrower data loaded.
+  readonly currentPct: number | null;
+  readonly currentBalance: number | null;
+  readonly headroom: number | null;
   readonly status: Status;
-  readonly utilizationPct: number;
+  readonly utilizationPct: number | null;
 }
 
-interface ConcentrationAnalysis {
+interface ConcentrationAnalysis extends AlmDataShell {
   readonly exposures: readonly ConcentrationExposure[];
-  readonly hhi: number;
-  readonly hhiInterpretation: string;
-  readonly diversificationScore: number;
+  readonly hhi: number | null;
+  readonly hhiInterpretation: string | null;
+  readonly diversificationScore: number | null;
   readonly breachCount: number;
   readonly warningCount: number;
-  readonly totalAssets: number;
+  readonly totalAssets: number | null;
 }
 
 const STATUS_COLORS: Record<Status, { bg: string; text: string; border: string; bar: string }> = {
   compliant: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: '#059669' },
   warning:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   bar: '#d97706' },
   breach:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    bar: '#dc2626' },
+  // D1: a limit with no data is a neutral gray semáforo — never a false PASS.
+  data_unavailable: { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', bar: '#94a3b8' },
 };
 
 function validateConcentration(raw: unknown): ConcentrationAnalysis {
   if (!raw || typeof raw !== 'object') throw new Error('Concentration response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (null hhi + gaps[]); validate
+  // STRUCTURE only — `exposures` is the array the content maps over.
   if (!Array.isArray(r.exposures)) throw new Error('Concentration: exposures must be array');
-  if (typeof r.hhi !== 'number') throw new Error('Concentration: missing hhi');
   return r as unknown as ConcentrationAnalysis;
 }
 
@@ -67,6 +75,7 @@ function getDemo(): ConcentrationAnalysis {
 
 function ConcentrationContent({ data }: { data: ConcentrationAnalysis }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'hhi',              label: 'HHI',                                                           value: data.hhi,                   unit: 'count' },
@@ -80,7 +89,7 @@ function ConcentrationContent({ data }: { data: ConcentrationAnalysis }) {
   const chartData = useMemo(
     () => data.exposures.map((e) => ({
       name: e.limitName,
-      current: +(e.currentPct * 100).toFixed(1),
+      current: e.currentPct != null ? +(e.currentPct * 100).toFixed(1) : null,
       limit:   +(e.maxPct     * 100).toFixed(1),
       status:  e.status,
     })),
@@ -107,10 +116,10 @@ function ConcentrationContent({ data }: { data: ConcentrationAnalysis }) {
                 r.status === 'warning' ? 'bg-amber-500' :
                                          'bg-emerald-500'
               }`}
-              style={{ width: `${Math.min(r.utilizationPct, 100)}%` }}
+              style={{ width: `${Math.min(r.utilizationPct ?? 0, 100)}%` }}
             />
           </div>
-          <span className="font-mono text-[10px] tabular-nums text-slate-500">{r.utilizationPct.toFixed(0)}%</span>
+          <span className="font-mono text-[10px] tabular-nums text-slate-500">{r.utilizationPct != null ? `${r.utilizationPct.toFixed(0)}%` : '—'}</span>
         </div>
       ),
     },
@@ -131,10 +140,27 @@ function ConcentrationContent({ data }: { data: ConcentrationAnalysis }) {
     },
   ], [locale]);
 
+  // D1: no portfolio / exposure data loaded → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.exposures.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No exposure data is loaded. Load the loan and securities book with borrower/geography tags to compute concentration limits and the HHI.',
+          es: 'No hay datos de exposición cargados. Cargue la cartera de préstamos y valores con etiquetas de prestatario/geografía para calcular los límites de concentración y el HHI.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <div className="text-[11px] text-slate-500">
-        HHI {data.hhi.toLocaleString()} · {data.hhiInterpretation}
+        HHI {data.hhi != null ? data.hhi.toLocaleString() : '—'}{data.hhiInterpretation ? ` · ${data.hhiInterpretation}` : ''}
       </div>
 
       <MetricStrip items={stripItems} locale={locale} density="compact" />

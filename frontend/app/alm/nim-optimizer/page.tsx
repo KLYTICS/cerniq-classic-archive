@@ -9,8 +9,12 @@ import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface RateRec {
   readonly product: string;
@@ -26,18 +30,20 @@ interface RateRec {
   readonly rationaleEs: string;
 }
 
-interface NIMResult {
-  readonly currentNIM: number;
-  readonly projectedNIM: number;
-  readonly nimGainBps: number;
-  readonly totalNIIGain: number;
+interface NIMResult extends AlmDataShell {
+  // D1: null when there is no balance sheet / peer rate data to optimize.
+  readonly currentNIM: number | null;
+  readonly projectedNIM: number | null;
+  readonly nimGainBps: number | null;
+  readonly totalNIIGain: number | null;
   readonly recommendations: readonly RateRec[];
 }
 
 function validateNimOpt(raw: unknown): NIMResult {
   if (!raw || typeof raw !== 'object') throw new Error('NIM optimizer response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.currentNIM !== 'number') throw new Error('NIM opt: missing currentNIM');
+  // D1: accept the data_unavailable shell (null currentNIM + gaps[]); validate
+  // STRUCTURE only — `recommendations` is the array the content maps over.
   if (!Array.isArray(r.recommendations)) throw new Error('NIM opt: recommendations must be array');
   return r as unknown as NIMResult;
 }
@@ -60,6 +66,7 @@ function getDemo(): NIMResult {
 
 function NimOptContent({ data }: { data: NIMResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'nim_current',    label: locale === 'es' ? 'NIM Actual'     : 'NIM Current',     value: data.currentNIM,   unit: '%' },
@@ -105,8 +112,25 @@ function NimOptContent({ data }: { data: NIMResult }) {
     { id: 'impact',    header: locale === 'es' ? 'Impacto NII' : 'NII Impact', kind: 'delta', accessor: (r) => r.niiImpact, unit: 'USD_M' },
   ], [locale]);
 
+  // D1: no balance sheet / peer rate data to optimize → honest neutral panel.
+  if (isDataUnavailable(data) || data.recommendations.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'NIM optimization needs the product-level rate book and peer benchmarks. Load them to generate repricing recommendations.',
+          es: 'La optimización del NIM requiere el libro de tasas por producto y los comparables de pares. Cárguelos para generar recomendaciones de repreciación.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* NII impact chart */}

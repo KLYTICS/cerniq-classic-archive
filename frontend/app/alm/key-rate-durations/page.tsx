@@ -5,8 +5,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface PortfolioKRDPoint {
   readonly tenor: string;
@@ -22,20 +26,22 @@ interface InstrumentKRDDetail {
   readonly convexity: number;
 }
 
-interface KeyRateDurationData {
+interface KeyRateDurationData extends AlmDataShell {
   readonly instruments: readonly InstrumentKRDDetail[];
-  readonly portfolioModifiedDuration: number;
-  readonly portfolioEffectiveDuration: number;
-  readonly portfolioConvexity: number;
-  readonly durationGap: number;
-  readonly negativeConvexityExposure: number;
+  // D1: null when there is no fixed-income book to compute durations.
+  readonly portfolioModifiedDuration: number | null;
+  readonly portfolioEffectiveDuration: number | null;
+  readonly portfolioConvexity: number | null;
+  readonly durationGap: number | null;
+  readonly negativeConvexityExposure: number | null;
   readonly portfolioKRDs: readonly PortfolioKRDPoint[];
 }
 
 function validateKRD(raw: unknown): KeyRateDurationData {
   if (!raw || typeof raw !== 'object') throw new Error('KRD response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.portfolioModifiedDuration !== 'number') throw new Error('KRD: missing portfolioModifiedDuration');
+  // D1: accept the data_unavailable shell (null durations + gaps[]); validate
+  // STRUCTURE only — `portfolioKRDs` is the array the content maps over.
   if (!Array.isArray(r.portfolioKRDs)) throw new Error('KRD: portfolioKRDs must be array');
   return r as unknown as KeyRateDurationData;
 }
@@ -69,6 +75,7 @@ function getDemo(): KeyRateDurationData {
 
 function KRDContent({ data }: { data: KeyRateDurationData }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'mod_duration',       label: locale === 'es' ? 'Duración Modificada' : 'Modified Duration', value: data.portfolioModifiedDuration,  unit: 'years' },
@@ -94,8 +101,25 @@ function KRDContent({ data }: { data: KeyRateDurationData }) {
     },
   ], [locale]);
 
+  // D1: no fixed-income book to compute durations → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.portfolioKRDs.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No fixed-income book is loaded. Load the securities/loan portfolio with cash-flow schedules to compute key-rate durations and convexity.',
+          es: 'No hay una cartera de renta fija cargada. Cargue la cartera de valores/préstamos con calendarios de flujo para calcular las duraciones por tasa clave y la convexidad.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* KRD profile chart */}

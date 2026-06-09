@@ -8,8 +8,12 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 /**
  * Black-Litterman — Bayesian posterior allocation (POST endpoint).
@@ -31,12 +35,14 @@ interface BLRadarPoint {
   readonly posterior: number;
 }
 
-interface BLResult {
+interface BLResult extends AlmDataShell {
   readonly priorWeights: Readonly<Record<string, number>>;
   readonly posteriorWeights: Readonly<Record<string, number>>;
-  readonly expectedReturn: number;
-  readonly riskBudget: number;
-  readonly sharpeRatio: number;
+  // D1: null when there is no investable portfolio / market equilibrium to
+  // anchor the Bayesian posterior.
+  readonly expectedReturn: number | null;
+  readonly riskBudget: number | null;
+  readonly sharpeRatio: number | null;
   readonly views: readonly BLView[];
   readonly radarData: readonly BLRadarPoint[];
 }
@@ -44,8 +50,8 @@ interface BLResult {
 function validateBL(raw: unknown): BLResult {
   if (!raw || typeof raw !== 'object') throw new Error('BL response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.expectedReturn !== 'number') throw new Error('BL: missing expectedReturn');
-  if (typeof r.sharpeRatio !== 'number') throw new Error('BL: missing sharpeRatio');
+  // D1: accept the data_unavailable shell (null returns + gaps[]); validate
+  // STRUCTURE only — the arrays the content maps over.
   if (!Array.isArray(r.views)) throw new Error('BL: views must be array');
   if (!Array.isArray(r.radarData)) throw new Error('BL: radarData must be array');
   return r as unknown as BLResult;
@@ -76,6 +82,7 @@ function getDemo(): BLResult {
 
 function BLContent({ data }: { data: BLResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'expected_return', label: locale === 'es' ? 'Retorno Esperado'    : 'Expected Return', value: data.expectedReturn, unit: 'ratio' },
@@ -100,8 +107,25 @@ function BLContent({ data }: { data: BLResult }) {
     { id: 'conf',  header: locale === 'es' ? 'Confianza'  : 'Confidence', kind: 'number', accessor: (r) => r.confidence, unit: 'ratio' },
   ], [locale]);
 
+  // D1: no investable portfolio to anchor the posterior → honest neutral panel.
+  if (isDataUnavailable(data) || data.radarData.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'Black-Litterman needs an investable portfolio and its market-equilibrium weights. Load the securities portfolio to compute the Bayesian posterior allocation.',
+          es: 'Black-Litterman requiere una cartera invertible y sus pesos de equilibrio de mercado. Cargue la cartera de valores para calcular la asignación posterior bayesiana.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Prior vs Posterior radar */}

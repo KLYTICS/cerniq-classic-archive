@@ -8,8 +8,12 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface KMVObligor {
   readonly name: string;
@@ -20,17 +24,19 @@ interface KMVObligor {
   readonly rating: string;
 }
 
-interface KMVResult {
-  readonly portfolioDD: number;
-  readonly portfolioEDF: number;
-  readonly riskRating: string;
+interface KMVResult extends AlmDataShell {
+  // D1: null when there is no obligor portfolio to compute distance-to-default.
+  readonly portfolioDD: number | null;
+  readonly portfolioEDF: number | null;
+  readonly riskRating: string | null;
   readonly obligors: readonly KMVObligor[];
 }
 
 function validateKMV(raw: unknown): KMVResult {
   if (!raw || typeof raw !== 'object') throw new Error('KMV response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.portfolioDD !== 'number') throw new Error('KMV: missing portfolioDD');
+  // D1: accept the data_unavailable shell (null portfolioDD + gaps[]); validate
+  // STRUCTURE only — `obligors` is the array the content maps over.
   if (!Array.isArray(r.obligors)) throw new Error('KMV: obligors must be array');
   return r as unknown as KMVResult;
 }
@@ -67,6 +73,7 @@ function ddLabel(dd: number, locale: 'en' | 'es'): string {
 
 function KMVContent({ data }: { data: KMVResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'portfolio_dd',  label: locale === 'es' ? 'DD Portafolio'  : 'Portfolio DD',  value: data.portfolioDD,  unit: 'x' },
@@ -110,8 +117,25 @@ function KMVContent({ data }: { data: KMVResult }) {
     },
   ], [locale]);
 
+  // D1: no obligor portfolio loaded → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.obligors.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No obligor portfolio is loaded. Load borrower asset values and debt points to compute the KMV-Merton distance-to-default.',
+          es: 'No hay una cartera de obligados cargada. Cargue los valores de activos y puntos de deuda de los prestatarios para calcular la distancia al incumplimiento (KMV-Merton).',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Extra line for the string-valued risk rating since MetricStrip is number-first */}
@@ -120,7 +144,7 @@ function KMVContent({ data }: { data: KMVResult }) {
           {locale === 'es' ? 'Calificación Portafolio' : 'Portfolio Rating'}
         </span>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-bold text-slate-700">
-          {data.riskRating}
+          {data.riskRating ?? '—'}
         </span>
       </div>
 

@@ -8,7 +8,11 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface LossPoint {
   readonly loss: number;
@@ -16,25 +20,26 @@ interface LossPoint {
   readonly tCopula: number;
 }
 
-interface CopulaResult {
-  readonly gaussianVaR: number;
-  readonly tCopulaVaR: number;
-  readonly tailDependence: number;
+interface CopulaResult extends AlmDataShell {
+  // D1: null when there is no credit portfolio with correlations to model.
+  readonly gaussianVaR: number | null;
+  readonly tCopulaVaR: number | null;
+  readonly tailDependence: number | null;
   readonly degreesOfFreedom: number;
-  readonly portfolioCorrelation: number;
+  readonly portfolioCorrelation: number | null;
   readonly lossDistribution: readonly LossPoint[];
   readonly tailComparison: {
     readonly gaussianP99: number;
     readonly tCopulaP99: number;
     readonly excessRatio: number;
-  };
+  } | null;
 }
 
 function validateCopula(raw: unknown): CopulaResult {
   if (!raw || typeof raw !== 'object') throw new Error('Copula response must be an object');
   const r = raw as Record<string, unknown>;
-  if (typeof r.gaussianVaR !== 'number') throw new Error('Copula: missing gaussianVaR');
-  if (typeof r.tCopulaVaR !== 'number') throw new Error('Copula: missing tCopulaVaR');
+  // D1: accept the data_unavailable shell (null VaRs + gaps[]); validate
+  // STRUCTURE only — `lossDistribution` is the array the content maps over.
   if (!Array.isArray(r.lossDistribution)) throw new Error('Copula: lossDistribution must be array');
   return r as unknown as CopulaResult;
 }
@@ -60,7 +65,7 @@ function getDemo(): CopulaResult {
 
 function CopulaContent({ data }: { data: CopulaResult }) {
   const { locale } = useTranslation();
-  const excessPct = ((data.tailComparison.excessRatio - 1) * 100).toFixed(0);
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'gaussian_var',    label: 'VaR Gaussian',    value: data.gaussianVaR, unit: 'USD_M' },
@@ -68,11 +73,30 @@ function CopulaContent({ data }: { data: CopulaResult }) {
     { key: 'tail_dependence', label: locale === 'es' ? 'Dep. Cola' : 'Tail Dep.', value: data.tailDependence, unit: 'ratio' },
     { key: 'df',              label: locale === 'es' ? 'ν (Grados)' : 'ν (DoF)',   value: data.degreesOfFreedom, unit: 'count' },
     { key: 'correlation',     label: locale === 'es' ? 'Correlación' : 'Correlation', value: data.portfolioCorrelation, unit: 'ratio' },
-    { key: 'excess_ratio',    label: locale === 'es' ? 'Ratio Exceso' : 'Excess Ratio', value: data.tailComparison.excessRatio, unit: 'x' },
+    { key: 'excess_ratio',    label: locale === 'es' ? 'Ratio Exceso' : 'Excess Ratio', value: data.tailComparison?.excessRatio ?? null, unit: 'x' },
   ], [data, locale]);
+
+  // D1: no credit portfolio with correlations → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.lossDistribution.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'The copula credit model needs a credit portfolio with obligor correlations. Load the loan/obligor book to compare Gaussian vs t-copula tail risk.',
+          es: 'El modelo de cópula de crédito requiere una cartera de crédito con correlaciones entre obligados. Cargue la cartera de préstamos para comparar el riesgo de cola Gaussiano vs t-cópula.',
+        }}
+      />
+    );
+  }
+
+  const excessPct = (((data.tailComparison?.excessRatio ?? 1) - 1) * 100).toFixed(0);
 
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       {/* Loss distribution chart */}
@@ -100,8 +124,8 @@ function CopulaContent({ data }: { data: CopulaResult }) {
         </p>
         <p className="text-[11px] leading-relaxed text-amber-700">
           {locale === 'es'
-            ? `La copula Gaussiana subestima las pérdidas conjuntas extremas en ${excessPct}%. La copula t-Student con ν=${data.degreesOfFreedom} captura la dependencia de cola (λ=${data.tailDependence.toFixed(3)}), crucial para evaluar riesgo sistémico de crédito en portafolios concentrados.`
-            : `Gaussian copula underestimates joint extreme losses by ${excessPct}%. The t-copula with ν=${data.degreesOfFreedom} captures tail dependence (λ=${data.tailDependence.toFixed(3)}), crucial for assessing systemic credit risk in concentrated portfolios.`}
+            ? `La copula Gaussiana subestima las pérdidas conjuntas extremas en ${excessPct}%. La copula t-Student con ν=${data.degreesOfFreedom} captura la dependencia de cola (λ=${(data.tailDependence ?? 0).toFixed(3)}), crucial para evaluar riesgo sistémico de crédito en portafolios concentrados.`
+            : `Gaussian copula underestimates joint extreme losses by ${excessPct}%. The t-copula with ν=${data.degreesOfFreedom} captures tail dependence (λ=${(data.tailDependence ?? 0).toFixed(3)}), crucial for assessing systemic credit risk in concentrated portfolios.`}
         </p>
       </section>
     </>

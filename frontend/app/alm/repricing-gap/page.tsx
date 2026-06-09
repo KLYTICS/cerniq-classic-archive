@@ -8,8 +8,12 @@ import {
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
 
 interface RepricingBucket {
   readonly label: string;
@@ -22,20 +26,22 @@ interface RepricingBucket {
   readonly isPolicyBreach: boolean;
 }
 
-interface RepricingGapResult {
+interface RepricingGapResult extends AlmDataShell {
   readonly buckets: readonly RepricingBucket[];
-  readonly totalAssets: number;
-  readonly totalLiabilities: number;
-  readonly durationGap: number;
+  // D1: null when there is no maturity-bucketed balance sheet to gap.
+  readonly totalAssets: number | null;
+  readonly totalLiabilities: number | null;
+  readonly durationGap: number | null;
   readonly analysisDate: string;
-  readonly policyLimitPct: number;
+  readonly policyLimitPct: number | null;
 }
 
 function validateRepricing(raw: unknown): RepricingGapResult {
   if (!raw || typeof raw !== 'object') throw new Error('Repricing gap response must be an object');
   const r = raw as Record<string, unknown>;
+  // D1: accept the data_unavailable shell (null totals + gaps[]); validate
+  // STRUCTURE only — `buckets` is the array the content maps over.
   if (!Array.isArray(r.buckets)) throw new Error('Repricing gap: buckets must be array');
-  if (typeof r.totalAssets !== 'number') throw new Error('Repricing gap: missing totalAssets');
   return r as unknown as RepricingGapResult;
 }
 
@@ -60,6 +66,7 @@ function getDemo(): RepricingGapResult {
 
 function RepricingContent({ data }: { data: RepricingGapResult }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
     { key: 'total_assets',       label: locale === 'es' ? 'Activos'       : 'Total Assets',     value: data.totalAssets,      unit: 'USD_M' },
@@ -100,8 +107,25 @@ function RepricingContent({ data }: { data: RepricingGapResult }) {
     },
   ], [locale]);
 
+  // D1: no maturity-bucketed balance sheet → honest neutral panel + gaps.
+  if (isDataUnavailable(data) || data.buckets.length === 0) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No maturity-bucketed balance sheet is loaded. Load assets and liabilities with repricing dates to compute the OCIF Schedule 7 repricing gap.',
+          es: 'No hay un balance de situación segmentado por vencimiento. Cargue activos y pasivos con fechas de repreciación para calcular la brecha de repricing (OCIF Anejo 7).',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <MetricStrip items={stripItems} locale={locale} density="compact" />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
