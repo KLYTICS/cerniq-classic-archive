@@ -59,20 +59,26 @@ export class CapitalOptimizerService {
 
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabilities = items.filter((i: any) => i.category === 'liability');
-    const totalAssets = assets.reduce((s: any, i: any) => s + i.balance, 0);
+    // `balance`/`rate` are Prisma Decimal objects at runtime (TS types them as
+    // number). Coerce with Number() before arithmetic: a raw `s + i.balance`
+    // reduce STRING-CONCATENATES the Decimals ("0" + "30" + "50" …) in prod.
+    const totalAssets = assets.reduce(
+      (s: any, i: any) => s + Number(i.balance),
+      0,
+    );
     const totalLiabilities = liabilities.reduce(
-      (s: any, i: any) => s + i.balance,
+      (s: any, i: any) => s + Number(i.balance),
       0,
     );
     const equity = totalAssets - totalLiabilities;
 
     // Current NII
     const currentAssetIncome = assets.reduce(
-      (s: any, i: any) => s + i.balance * i.rate,
+      (s: any, i: any) => s + Number(i.balance) * Number(i.rate),
       0,
     );
     const currentLiabCost = liabilities.reduce(
-      (s: any, i: any) => s + i.balance * i.rate,
+      (s: any, i: any) => s + Number(i.balance) * Number(i.rate),
       0,
     );
     const currentNII = currentAssetIncome - currentLiabCost;
@@ -96,7 +102,7 @@ export class CapitalOptimizerService {
         assetsBySubcategory.set(sub, { balance: 0, rate: 0, items: [] });
       }
       const entry = assetsBySubcategory.get(sub)!;
-      entry.balance += item.balance;
+      entry.balance += Number(item.balance);
       entry.items.push(item);
     }
 
@@ -105,7 +111,7 @@ export class CapitalOptimizerService {
       entry.rate =
         entry.balance > 0
           ? entry.items.reduce(
-              (s: number, i: any) => s + i.rate * i.balance,
+              (s: number, i: any) => s + Number(i.rate) * Number(i.balance),
               0,
             ) / entry.balance
           : 0;
@@ -173,14 +179,16 @@ export class CapitalOptimizerService {
         liabsBySubcategory.set(item.subcategory, { balance: 0, rate: 0 });
       }
       const entry = liabsBySubcategory.get(item.subcategory)!;
-      entry.balance += item.balance;
+      entry.balance += Number(item.balance);
     }
     for (const [sub, entry] of liabsBySubcategory) {
       const items = liabilities.filter((i: any) => i.subcategory === sub);
       entry.rate =
         entry.balance > 0
-          ? items.reduce((s: any, i: any) => s + i.rate * i.balance, 0) /
-            entry.balance
+          ? items.reduce(
+              (s: any, i: any) => s + Number(i.rate) * Number(i.balance),
+              0,
+            ) / entry.balance
           : 0;
     }
 
