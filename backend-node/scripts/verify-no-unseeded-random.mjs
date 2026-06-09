@@ -87,14 +87,18 @@ export function countRandom(content) {
 // the remediation: swap Math.random() for a SEEDED PRNG and, where it fabricated
 // a missing input, an honest data_unavailable + DataGap.
 //
-// Locked 2026-06-08: 3 entries / 11 calls. 0 unbaselined. monte-carlo.service.ts
+// Locked 2026-06-08: 2 entries / 4 calls. 0 unbaselined. monte-carlo.service.ts
 // is NOT here — its only `Math.random` is a comment explaining what it avoids
 // (stripped before counting).
 // (nim-attribution.service.ts cleared 2026-06-08: the Math.random()-perturbed
 //  prior was deleted in the D1 sweep — the prior-period NIM now comes from the
 //  most recent BoardReport.nimSnapshot, so the attribution is deterministic.)
+// (portfolio-var.service.ts cleared 2026-06-08: the 7 Math.random() draws AND
+//  the unseeded crypto.randomBytes Monte Carlo were replaced with a seeded
+//  xorshift32 PRNG (institution-hash seed). The historical-simulation + Kupiec
+//  paths now run over a SYNTHETIC distribution, honestly relabelled `simulated`
+//  + disclosed via DataGaps — no longer mislabelled empirical history.)
 const BASELINE = {
-  'alm/portfolio-var.service.ts': 7, // historical-VaR scenarios fabricated with Math.random() → phantom VaR/ES, different every run; reseed an MC over real MarketDataSnapshot rates.
   'alm/cvar-optimizer.service.ts': 3, // CVaR sampling + Box-Muller draws from Math.random() → non-reproducible "optimal" allocation; seed the PRNG. (peer-active lane coop-d1-bs-batch — they may clear this.)
   'alm/reports/reports.service.ts': 1, // report-ID suffix, NOT a financial metric — non-reproducible id; prefer crypto.randomUUID() (Rule-12-adjacent). Low priority.
 };
