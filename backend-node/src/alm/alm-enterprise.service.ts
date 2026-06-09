@@ -482,7 +482,10 @@ export class AlmEnterpriseService {
     const liabilities = items
       .filter((i: any) => i.category === 'liability')
       .map(toInstrument);
-    const totalAssets = assets.reduce((s: any, a: any) => s + Number(a.amount), 0);
+    const totalAssets = assets.reduce(
+      (s: any, a: any) => s + Number(a.amount),
+      0,
+    );
     const totalLiabilities = liabilities.reduce(
       (s: any, l: any) => s + Number(l.amount),
       0,
@@ -838,7 +841,10 @@ export class AlmEnterpriseService {
     const assetItems = items.filter((i: any) => i.category === 'asset');
     const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
-    const totalAssets = assetItems.reduce((s: any, i: any) => s + Number(i.balance), 0);
+    const totalAssets = assetItems.reduce(
+      (s: any, i: any) => s + Number(i.balance),
+      0,
+    );
     const totalLiabilities = liabilityItems.reduce(
       (s: any, i: any) => s + Number(i.balance),
       0,
@@ -1660,7 +1666,10 @@ export class AlmEnterpriseService {
     const assetItems = items.filter((i: any) => i.category === 'asset');
     const liabilityItems = items.filter((i: any) => i.category === 'liability');
 
-    const totalAssets = assetItems.reduce((s: any, i: any) => s + Number(i.balance), 0);
+    const totalAssets = assetItems.reduce(
+      (s: any, i: any) => s + Number(i.balance),
+      0,
+    );
     const totalLiabilities = liabilityItems.reduce(
       (s: any, i: any) => s + Number(i.balance),
       0,

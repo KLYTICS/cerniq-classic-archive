@@ -54,7 +54,10 @@ export class ProspectIntelligenceService {
       (i) => i.category === 'liability',
     );
     const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const equity = totalAssets - totalLiabilities;
     const nwr = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
 

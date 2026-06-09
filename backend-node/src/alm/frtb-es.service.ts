@@ -147,7 +147,10 @@ export class FRTBESService {
     const totalByCategory = new Map<string, number>();
     for (const item of items) {
       const rc = this.getItemRiskClass(item);
-      totalByCategory.set(rc, (totalByCategory.get(rc) ?? 0) + Number(item.balance));
+      totalByCategory.set(
+        rc,
+        (totalByCategory.get(rc) ?? 0) + Number(item.balance),
+      );
     }
 
     return Array.from(totalByCategory.entries()).map(

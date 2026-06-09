@@ -1170,7 +1170,10 @@ export class PortalController {
     );
 
     const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const totalEquity =
       equityItems.length > 0
         ? equityItems.reduce((s, i) => s + Number(i.balance), 0)
@@ -1203,7 +1206,10 @@ export class PortalController {
       (i) => i.subcategory === 'deposits',
     );
     const totalLoans = loanItems.reduce((s, i) => s + Number(i.balance), 0);
-    const totalDeposits = depositItems.reduce((s, i) => s + Number(i.balance), 0);
+    const totalDeposits = depositItems.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const loanToDeposit = totalDeposits > 0 ? totalLoans / totalDeposits : 0;
 
     const capitalAdequacy = totalAssets > 0 ? totalEquity / totalAssets : 0;

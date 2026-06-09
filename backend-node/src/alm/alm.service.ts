@@ -53,7 +53,10 @@ export class AlmService {
     );
 
     const totalAssets = assetDetails.reduce((s, d) => s + Number(d.amount), 0);
-    const totalLiabilities = liabilityDetails.reduce((s, d) => s + Number(d.amount), 0);
+    const totalLiabilities = liabilityDetails.reduce(
+      (s, d) => s + Number(d.amount),
+      0,
+    );
 
     /** Weighted-average Macaulay duration (weights = notional share) */
     const assetDuration = this.weightedDuration(assetDetails, totalAssets);
@@ -694,7 +697,10 @@ export class AlmService {
       }
     }
 
-    const totalLiabilities = bs.liabilities.reduce((s, l) => s + Number(l.amount), 0);
+    const totalLiabilities = bs.liabilities.reduce(
+      (s, l) => s + Number(l.amount),
+      0,
+    );
     const estimatedOutflows = totalLiabilities * 0.1; // 10% stress outflow
 
     return this.computeLCR({ level1, level2a, level2b: 0 }, estimatedOutflows);

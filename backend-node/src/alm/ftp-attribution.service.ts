@@ -158,7 +158,10 @@ export class FTPAttributionService {
       (s, d) => s + d.economicProfit,
       0,
     );
-    const totalBalance = decompositions.reduce((s, d) => s + Number(d.balance), 0);
+    const totalBalance = decompositions.reduce(
+      (s, d) => s + Number(d.balance),
+      0,
+    );
 
     return {
       decompositions,

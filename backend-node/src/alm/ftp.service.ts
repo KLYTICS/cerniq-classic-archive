@@ -166,7 +166,10 @@ export class FTPService {
     const assets = instruments.filter((i) => i.category === 'asset');
     const liabilities = instruments.filter((i) => i.category === 'liability');
     const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce(
+      (s, i) => s + Number(i.balance),
+      0,
+    );
     const totalAssetContrib = assets.reduce((s, i) => s + i.contribution, 0);
     const totalLiabContrib = liabilities.reduce(
       (s, i) => s + i.contribution,

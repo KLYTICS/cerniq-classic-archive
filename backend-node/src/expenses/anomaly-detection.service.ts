@@ -234,7 +234,9 @@ export class AnomalyDetectionService {
             severity: 'HIGH',
             affectedInvoiceIds: group.map((e) => e.id),
             affectedVendor: group[0].merchantName,
-            estimatedRecovery: group.slice(1).reduce((s, e) => s + Number(e.amount), 0),
+            estimatedRecovery: group
+              .slice(1)
+              .reduce((s, e) => s + Number(e.amount), 0),
             explanation: `Exact duplicate: ${group.length} invoices with identical vendor, amount ($${group[0].amount.toFixed(2)}), and date.`,
             explanationEs: `Duplicado exacto: ${group.length} facturas con proveedor, monto ($${group[0].amount.toFixed(2)}) y fecha idénticos.`,
             detectedAt: new Date(),

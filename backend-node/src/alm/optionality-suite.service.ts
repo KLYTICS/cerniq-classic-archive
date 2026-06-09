@@ -132,7 +132,10 @@ export class OptionalitySuiteService {
       const negConvItems = instruments.filter(
         (i) => i.isNegativelyConvex && i.category === 'asset',
       );
-      const negConvBal = negConvItems.reduce((s, i) => s + Number(i.balance), 0);
+      const negConvBal = negConvItems.reduce(
+        (s, i) => s + Number(i.balance),
+        0,
+      );
 
       // Duration mismatch heatmap by maturity bucket
       const heatmap = MATURITY_BUCKETS.map((bucket) => {

@@ -148,11 +148,17 @@ export class CECLService {
       balance: Math.max(0, Number.isFinite(balance) ? balance : 0),
       weightedAvgMaturity: Math.max(
         0,
-        Math.min(Number.isFinite(weightedAvgMaturity) ? weightedAvgMaturity : 0, 50),
+        Math.min(
+          Number.isFinite(weightedAvgMaturity) ? weightedAvgMaturity : 0,
+          50,
+        ),
       ), // cap at 50 years
       historicalLossRate: Math.max(
         0,
-        Math.min(Number.isFinite(historicalLossRate) ? historicalLossRate : 0, 1),
+        Math.min(
+          Number.isFinite(historicalLossRate) ? historicalLossRate : 0,
+          1,
+        ),
       ), // 0-100%
       lgd: Math.max(0, Math.min(Number.isFinite(lgd) ? lgd : 0.5, 1)), // 0-100%
       // Qualitative adjustment per CERNIQ Model Governance Policy v1.0
@@ -421,7 +427,10 @@ export class CECLService {
 
     // Use baseline segment breakdown with weighted allowance
     const baselineResults = scenarioResults.baseline;
-    const totalBalance = baselineResults.reduce((sum, r) => sum + Number(r.balance), 0);
+    const totalBalance = baselineResults.reduce(
+      (sum, r) => sum + Number(r.balance),
+      0,
+    );
 
     // Prorate weighted allowance across segments
     const baselineTotal = scenarioTotals.baseline || 1;

@@ -230,7 +230,10 @@ export class NCUA5300Service {
     }
 
     // Computed fields
-    const totalAssets = assets.reduce((s: number, i: any) => s + Number(i.balance), 0);
+    const totalAssets = assets.reduce(
+      (s: number, i: any) => s + Number(i.balance),
+      0,
+    );
     const totalLiabilities = liabilities.reduce(
       (s: number, i: any) => s + Number(i.balance),
       0,
