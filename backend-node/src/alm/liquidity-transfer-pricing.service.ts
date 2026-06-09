@@ -115,7 +115,7 @@ export class LiquidityTransferPricingService {
         });
       }
       const e = bySub.get(item.subcategory)!;
-      e.balance += item.balance;
+      e.balance += Number(item.balance);
       e.rate += item.rate * item.balance;
       e.duration += item.duration * item.balance;
     }

@@ -53,7 +53,7 @@ export class ClimateRiskService {
       where: { institutionId },
     });
     const totalAssets =
-      items.reduce((s: any, i: any) => s + i.balance, 0) || 445;
+      items.reduce((s: any, i: any) => s + Number(i.balance), 0) || 445;
 
     const reLoans = items.filter(
       (i: any) =>
@@ -61,7 +61,7 @@ export class ClimateRiskService {
         ['residential_mortgage', 'commercial_re'].includes(i.subcategory),
     );
     const totalREExposure = reLoans.reduce(
-      (s: any, i: any) => s + i.balance,
+      (s: any, i: any) => s + Number(i.balance),
       0,
     );
 
@@ -105,7 +105,7 @@ export class ClimateRiskService {
     const hqlaPct =
       items
         .filter((i: any) => ['cash', 'securities'].includes(i.subcategory))
-        .reduce((s: number, i: any) => s + i.balance, 0) / totalAssets;
+        .reduce((s: number, i: any) => s + Number(i.balance), 0) / totalAssets;
     const mitigationScore = Math.min(
       100,
       Math.round(

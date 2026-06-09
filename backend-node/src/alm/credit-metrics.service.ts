@@ -142,7 +142,7 @@ export class CreditMetricsService {
           pctOfTotal: +(
             (s.balance /
               segments.reduce(
-                (sum: number, seg: any) => sum + seg.balance,
+                (sum: number, seg: any) => sum + Number(seg.balance),
                 0,
               )) *
             100

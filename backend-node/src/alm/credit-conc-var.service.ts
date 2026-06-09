@@ -51,7 +51,7 @@ export class CreditConcentrationVaRService {
       if (segments.length === 0) return this.dataUnavailableResult();
 
       const totalLoans = segments.reduce(
-        (s: number, seg: any) => s + seg.balance,
+        (s: number, seg: any) => s + Number(seg.balance),
         0,
       );
       // D1: segments present but zero total balance — still nothing to measure

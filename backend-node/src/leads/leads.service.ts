@@ -254,13 +254,13 @@ export class LeadsService {
       statusCounts[lead.status] = (statusCounts[lead.status] || 0) + 1;
       if (lead.status === 'CLOSED_WON') {
         closedWon++;
-        totalRevenue += lead.revenueAmount || 0;
+        totalRevenue += Number(lead.revenueAmount) || 0;
         if (lead.convertedAt) {
           totalCloseTimeMs +=
             lead.convertedAt.getTime() - lead.createdAt.getTime();
         }
         if (lead.convertedAt && lead.convertedAt >= monthStart) {
-          monthRevenue += lead.revenueAmount || 0;
+          monthRevenue += Number(lead.revenueAmount) || 0;
         }
       }
       // Pipeline value for active stages

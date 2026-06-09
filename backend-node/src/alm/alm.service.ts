@@ -52,8 +52,8 @@ export class AlmService {
       this.instrumentDetail(i),
     );
 
-    const totalAssets = assetDetails.reduce((s, d) => s + d.amount, 0);
-    const totalLiabilities = liabilityDetails.reduce((s, d) => s + d.amount, 0);
+    const totalAssets = assetDetails.reduce((s, d) => s + Number(d.amount), 0);
+    const totalLiabilities = liabilityDetails.reduce((s, d) => s + Number(d.amount), 0);
 
     /** Weighted-average Macaulay duration (weights = notional share) */
     const assetDuration = this.weightedDuration(assetDetails, totalAssets);
@@ -684,17 +684,17 @@ export class AlmService {
 
     for (const asset of bs.assets) {
       if (asset.isFloating && asset.maturityYears === 0) {
-        level1 += asset.amount; // cash-like
+        level1 += Number(asset.amount); // cash-like
       } else if (
         !asset.isFloating &&
         asset.maturityYears >= 5 &&
         asset.rate < 0.05
       ) {
-        level2a += asset.amount; // treasury-like
+        level2a += Number(asset.amount); // treasury-like
       }
     }
 
-    const totalLiabilities = bs.liabilities.reduce((s, l) => s + l.amount, 0);
+    const totalLiabilities = bs.liabilities.reduce((s, l) => s + Number(l.amount), 0);
     const estimatedOutflows = totalLiabilities * 0.1; // 10% stress outflow
 
     return this.computeLCR({ level1, level2a, level2b: 0 }, estimatedOutflows);

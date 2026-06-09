@@ -52,7 +52,7 @@ export class BlackLittermanService {
       if (!bySub.has(item.subcategory))
         bySub.set(item.subcategory, { balance: 0, rate: 0 });
       const e = bySub.get(item.subcategory)!;
-      e.balance += item.balance;
+      e.balance += Number(item.balance);
       e.rate += item.rate * item.balance;
     }
 
@@ -67,7 +67,7 @@ export class BlackLittermanService {
 
     // Market cap weights (balance-weighted)
     const totalBalance = Array.from(bySub.values()).reduce(
-      (s, v) => s + v.balance,
+      (s, v) => s + Number(v.balance),
       0,
     );
     const marketWeights = assetNames.map(

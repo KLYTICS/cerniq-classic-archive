@@ -68,7 +68,7 @@ export class NIMAttributionService {
 
       const assets = items.filter((i: any) => i.category === 'asset');
       const liabs = items.filter((i: any) => i.category === 'liability');
-      const totalA = assets.reduce((s: number, i: any) => s + i.balance, 0);
+      const totalA = assets.reduce((s: number, i: any) => s + Number(i.balance), 0);
 
       // D1: NIM is undefined without an earning-asset base. Never the former
       // hardcoded `: 3.5` fallback — return data_unavailable honestly.
@@ -132,11 +132,11 @@ export class NIMAttributionService {
       const loanPct =
         assets
           .filter((i: any) => !['cash', 'securities'].includes(i.subcategory))
-          .reduce((s: number, i: any) => s + i.balance, 0) / (totalA || 1);
+          .reduce((s: number, i: any) => s + Number(i.balance), 0) / (totalA || 1);
       const fixedPct =
         assets
           .filter((i: any) => i.rateType === 'fixed')
-          .reduce((s: number, i: any) => s + i.balance, 0) / (totalA || 1);
+          .reduce((s: number, i: any) => s + Number(i.balance), 0) / (totalA || 1);
 
       const factors: NIMFactor[] = [
         {

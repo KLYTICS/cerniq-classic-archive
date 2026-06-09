@@ -130,42 +130,41 @@ export class CECLService {
     qualitativeAdj: number;
     discountRate: number;
   } {
+    // Prisma Decimal inputs arrive TYPED as `number` but are Decimal OBJECTS at
+    // runtime (the generic computeAnalysis path maps balanceSheet → segmentData
+    // without coercion). `Number.isFinite(Decimal)` is ALWAYS false, so the
+    // guards below silently zeroed balance / historicalLossRate → a $0 CECL
+    // allowance filed for an institution with real loans. Coerce with Number()
+    // FIRST so isFinite (and the clamps) operate on real numbers; an absent
+    // optional field coerces to NaN → isFinite false → the documented default.
+    const balance = Number(seg.balance);
+    const weightedAvgMaturity = Number(seg.weightedAvgMaturity);
+    const historicalLossRate = Number(seg.historicalLossRate);
+    const lgd = Number(seg.lgd);
+    const qualitativeAdj = Number(seg.qualitativeAdj);
+    const discountRate = Number(seg.discountRate);
     return {
       segmentName: seg.segmentName || 'Unknown',
-      balance: Math.max(0, Number.isFinite(seg.balance) ? seg.balance : 0),
+      balance: Math.max(0, Number.isFinite(balance) ? balance : 0),
       weightedAvgMaturity: Math.max(
         0,
-        Math.min(
-          Number.isFinite(seg.weightedAvgMaturity)
-            ? seg.weightedAvgMaturity
-            : 0,
-          50,
-        ),
+        Math.min(Number.isFinite(weightedAvgMaturity) ? weightedAvgMaturity : 0, 50),
       ), // cap at 50 years
       historicalLossRate: Math.max(
         0,
-        Math.min(
-          Number.isFinite(seg.historicalLossRate) ? seg.historicalLossRate : 0,
-          1,
-        ),
+        Math.min(Number.isFinite(historicalLossRate) ? historicalLossRate : 0, 1),
       ), // 0-100%
-      lgd: Math.max(0, Math.min(Number.isFinite(seg.lgd) ? seg.lgd! : 0.5, 1)), // 0-100%
+      lgd: Math.max(0, Math.min(Number.isFinite(lgd) ? lgd : 0.5, 1)), // 0-100%
       // Qualitative adjustment per CERNIQ Model Governance Policy v1.0
       // Cap: ±10% for standard segments, ±15% for emerging risk segments
       // Justification must be documented per FASB 326 qualitative framework
       qualitativeAdj: Math.max(
         -0.1,
-        Math.min(
-          Number.isFinite(seg.qualitativeAdj) ? seg.qualitativeAdj! : 0,
-          0.1,
-        ),
+        Math.min(Number.isFinite(qualitativeAdj) ? qualitativeAdj : 0, 0.1),
       ), // -10% to +10%
       discountRate: Math.max(
         0,
-        Math.min(
-          Number.isFinite(seg.discountRate) ? seg.discountRate! : 0.03,
-          0.2,
-        ),
+        Math.min(Number.isFinite(discountRate) ? discountRate : 0.03, 0.2),
       ), // 0-20%, default 3%
     };
   }
@@ -221,7 +220,7 @@ export class CECLService {
       };
     });
 
-    const totalBalance = results.reduce((sum, r) => sum + r.balance, 0);
+    const totalBalance = results.reduce((sum, r) => sum + Number(r.balance), 0);
     const totalAllowance = results.reduce(
       (sum, r) => sum + r.allowanceRequired,
       0,
@@ -324,7 +323,7 @@ export class CECLService {
       };
     });
 
-    const totalBalance = results.reduce((sum, r) => sum + r.balance, 0);
+    const totalBalance = results.reduce((sum, r) => sum + Number(r.balance), 0);
     const totalAllowance = results.reduce(
       (sum, r) => sum + r.allowanceRequired,
       0,
@@ -422,7 +421,7 @@ export class CECLService {
 
     // Use baseline segment breakdown with weighted allowance
     const baselineResults = scenarioResults.baseline;
-    const totalBalance = baselineResults.reduce((sum, r) => sum + r.balance, 0);
+    const totalBalance = baselineResults.reduce((sum, r) => sum + Number(r.balance), 0);
 
     // Prorate weighted allowance across segments
     const baselineTotal = scenarioTotals.baseline || 1;

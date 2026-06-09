@@ -72,7 +72,7 @@ export class SOFRMonitorService {
       if (items.length === 0) return this.dataUnavailableResult();
 
       const totalPortfolio = items.reduce(
-        (s: number, i: any) => s + i.balance,
+        (s: number, i: any) => s + Number(i.balance),
         0,
       );
 
@@ -110,11 +110,11 @@ export class SOFRMonitorService {
       // No LIBOR-referenced instruments is a REAL zero-exposure result (the
       // transition is complete / never had LIBOR), not missing data — return the
       // measured zeros with status 'ok', never a fabricated demo.
-      const totalLIBOR = exposures.reduce((s, e) => s + e.balance, 0);
+      const totalLIBOR = exposures.reduce((s, e) => s + Number(e.balance), 0);
       const totalTransfer = exposures.reduce((s, e) => s + e.valueTransfer, 0);
       const sofrExposure = items
         .filter((i: any) => (i.name || '').toLowerCase().includes('sofr'))
-        .reduce((s: number, i: any) => s + i.balance, 0);
+        .reduce((s: number, i: any) => s + Number(i.balance), 0);
 
       return {
         exposures,

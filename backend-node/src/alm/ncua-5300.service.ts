@@ -196,7 +196,7 @@ export class NCUA5300Service {
     const assetBySub = new Map<string, number>();
     for (const item of assets) {
       const sub = item.subcategory.toLowerCase();
-      assetBySub.set(sub, (assetBySub.get(sub) ?? 0) + item.balance);
+      assetBySub.set(sub, (assetBySub.get(sub) ?? 0) + Number(item.balance));
     }
 
     for (const [sub, mapping] of Object.entries(ASSET_CODES)) {
@@ -215,7 +215,7 @@ export class NCUA5300Service {
     const liabBySub = new Map<string, number>();
     for (const item of liabilities) {
       const sub = item.subcategory.toLowerCase();
-      liabBySub.set(sub, (liabBySub.get(sub) ?? 0) + item.balance);
+      liabBySub.set(sub, (liabBySub.get(sub) ?? 0) + Number(item.balance));
     }
 
     for (const [sub, mapping] of Object.entries(LIABILITY_CODES)) {
@@ -230,9 +230,9 @@ export class NCUA5300Service {
     }
 
     // Computed fields
-    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalAssets = assets.reduce((s: number, i: any) => s + Number(i.balance), 0);
     const totalLiabilities = liabilities.reduce(
-      (s: number, i: any) => s + i.balance,
+      (s: number, i: any) => s + Number(i.balance),
       0,
     );
     const netWorth = totalAssets - totalLiabilities;
@@ -241,10 +241,10 @@ export class NCUA5300Service {
         (i: any) =>
           !['cash', 'securities'].includes(i.subcategory.toLowerCase()),
       )
-      .reduce((s: number, i: any) => s + i.balance, 0);
+      .reduce((s: number, i: any) => s + Number(i.balance), 0);
     const totalShares = liabilities
       .filter((i: any) => !i.subcategory.toLowerCase().includes('borrowing'))
-      .reduce((s: number, i: any) => s + i.balance, 0);
+      .reduce((s: number, i: any) => s + Number(i.balance), 0);
     const totalInvestments = assetBySub.get('securities') ?? 0;
 
     fields.push(

@@ -187,7 +187,7 @@ export class CreditRiskQuantService {
         };
       });
 
-      const totalEAD = segments.reduce((s, seg) => s + seg.balance, 0);
+      const totalEAD = segments.reduce((s, seg) => s + Number(seg.balance), 0);
       const totalEL = segments.reduce((s, seg) => s + seg.expectedLoss, 0);
       const totalUL = segments.reduce((s, seg) => s + seg.unexpectedLoss, 0);
       const totalEC = segments.reduce((s, seg) => s + seg.economicCapital, 0);

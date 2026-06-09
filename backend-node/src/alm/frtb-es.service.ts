@@ -67,7 +67,7 @@ export class FRTBESService {
 
       const totalAssets = items
         .filter((i: any) => i.category === 'asset')
-        .reduce((s: number, i: any) => s + i.balance, 0);
+        .reduce((s: number, i: any) => s + Number(i.balance), 0);
 
       // Generate 250 daily returns (1 year of data)
       const rng = this.seededRNG(42);
@@ -147,7 +147,7 @@ export class FRTBESService {
     const totalByCategory = new Map<string, number>();
     for (const item of items) {
       const rc = this.getItemRiskClass(item);
-      totalByCategory.set(rc, (totalByCategory.get(rc) ?? 0) + item.balance);
+      totalByCategory.set(rc, (totalByCategory.get(rc) ?? 0) + Number(item.balance));
     }
 
     return Array.from(totalByCategory.entries()).map(

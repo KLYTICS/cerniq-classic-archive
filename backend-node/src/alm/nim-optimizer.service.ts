@@ -56,7 +56,7 @@ export class NIMOptimizerService {
 
     const assets = items.filter((i: any) => i.category === 'asset');
     const liabilities = items.filter((i: any) => i.category === 'liability');
-    const totalAssets = assets.reduce((s: number, i: any) => s + i.balance, 0);
+    const totalAssets = assets.reduce((s: number, i: any) => s + Number(i.balance), 0);
     const currentNII =
       assets.reduce((s: number, i: any) => s + i.balance * i.rate, 0) -
       liabilities.reduce((s: number, i: any) => s + i.balance * i.rate, 0);
@@ -79,7 +79,7 @@ export class NIMOptimizerService {
           category: item.category,
         });
       const entry = bySub.get(key)!;
-      entry.balance += item.balance;
+      entry.balance += Number(item.balance);
       entry.weightedRate += item.rate * item.balance;
     }
 

@@ -166,63 +166,13 @@ export function countOffenders(content) {
 // ratchet counts down WITHOUT editing this map (no stale-fail). When the class
 // is fully chipped, tighten every ceiling to 0.
 //
-// Locked 2026-06-08 (see header — swarm-friendly ceiling, not stale-fail).
-// 49 files / 142 offenders at lock. portfolio-var + monte-carlo are NOT here —
-// already coerced (Number()/this.num()) by concurrent sessions, proving the gate
-// recognizes the fix. The two SUB-CLASSES this covers: bare `+ <Decimal>`
-// string-concat (the bulk) and `isFinite(<Decimal>)` zeroing (cecl.service.ts's
-// 6-guard validateSegment cluster → a $0 CECL allowance is the worst instance).
-const BASELINE = {
-  'ai/peer/peer-synthesis.service.ts': 1,
-  'alm/alm-enterprise.service.ts': 19,
-  'alm/alm.service.ts': 5,
-  'alm/behavioral-duration.service.ts': 1,
-  'alm/black-litterman.service.ts': 2,
-  'alm/capital-optimizer.service.ts': 4,
-  'alm/cecl-vintage.service.ts': 1,
-  'alm/cecl.service.ts': 8,
-  'alm/chat-analyst.service.ts': 1,
-  'alm/climate-risk.service.ts': 3,
-  'alm/concentration.service.ts': 2,
-  'alm/cost-of-funds.service.ts': 2,
-  'alm/credit-conc-var.service.ts': 1,
-  'alm/credit-metrics.service.ts': 1,
-  'alm/credit-risk-quant.service.ts': 1,
-  'alm/csv-ingestion.service.ts': 2,
-  'alm/cvar-optimizer.service.ts': 1,
-  'alm/deposit-beta.service.ts': 1,
-  'alm/deposit-decay.service.ts': 2,
-  'alm/exam-prep/camel-scorer.service.ts': 2,
-  'alm/excel-export.service.ts': 2,
-  'alm/frtb-es.service.ts': 2,
-  'alm/ftp-attribution.service.ts': 2,
-  'alm/ftp.service.ts': 3,
-  'alm/hrp.service.ts': 1,
-  'alm/irr-policy.service.ts': 2,
-  'alm/key-rate-duration.service.ts': 3,
-  'alm/kmv-merton.service.ts': 2,
-  'alm/liquidity-advanced.service.ts': 5,
-  'alm/liquidity-stress-pack.service.ts': 2,
-  'alm/liquidity-transfer-pricing.service.ts': 1,
-  'alm/maturity-ladder.service.ts': 4,
-  'alm/ncua-5300.service.ts': 6,
-  'alm/network-intelligence.service.ts': 3,
-  'alm/nim-attribution.service.ts': 3,
-  'alm/nim-optimizer.service.ts': 2,
-  'alm/oas-calculator.service.ts': 1,
-  'alm/optionality-suite.service.ts': 3,
-  'alm/prospect-intelligence.service.ts': 4,
-  'alm/robust-optimizer.service.ts': 2,
-  'alm/sofr-monitor.service.ts': 3,
-  'alm/stress-testing/stress-testing.service.ts': 4,
-  'alm/stress-v2.service.ts': 2,
-  'api-v1/api-v1.service.ts': 1,
-  'expenses/anomaly-detection.service.ts': 7,
-  'expenses/expense-ingestion.service.ts': 1,
-  'expenses/vendor-intelligence/vendor-intelligence.service.ts': 2,
-  'leads/leads.service.ts': 2,
-  'portal/portal.controller.ts': 7,
-};
+// Locked 2026-06-08 at 49 files / 142 offenders (swarm-friendly ceiling). The
+// coercion SWEEP (this session's codemod + portfolio-var 06f5d2b + monte-carlo
+// 3cae65e) then drove the WHOLE tree to 0, so the ceiling was tightened to
+// empty: this gate is now a ZERO-TOLERANCE lock — ANY new `+ <Decimal>`
+// string-concat or `isFinite(<Decimal>)` zeroing fails CI. To re-open the
+// ledger mid-sweep, restore per-file ceilings from this file's git history.
+const BASELINE = {};
 
 // ─── Walker ────────────────────────────────────────────────────────────
 function walkTs(dir) {

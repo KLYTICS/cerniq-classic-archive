@@ -73,7 +73,7 @@ export class ApiV1Service {
     // Calculate total assets from rows
     const totalAssets = normalizedRows
       .filter((r) => r.category === 'asset')
-      .reduce((sum, r) => sum + r.balance, 0);
+      .reduce((sum, r) => sum + Number(r.balance), 0);
 
     // Create institution
     const institution = await this.almEnterprise.createInstitution({

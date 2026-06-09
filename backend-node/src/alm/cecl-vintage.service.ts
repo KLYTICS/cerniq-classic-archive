@@ -208,7 +208,7 @@ export class CECLVintageService {
       totalBase += baseEL;
       totalAdverse += adverseEL;
       totalSevere += severeEL;
-      totalBalance += seg.balance;
+      totalBalance += Number(seg.balance);
     }
 
     // Persist result

@@ -244,7 +244,7 @@ export class ExpenseIngestionService {
     }
 
     // Compute summary
-    const totalAmount = items.reduce((s, i) => s + i.amount, 0);
+    const totalAmount = items.reduce((s, i) => s + Number(i.amount), 0);
     const uniqueVendors = new Set(items.map((i) => i.vendor.toLowerCase()))
       .size;
     const dates = items.map((i) => i.date).sort();

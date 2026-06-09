@@ -103,11 +103,11 @@ export class NetworkIntelligenceService {
         );
         const totalA =
           assets.reduce(
-            (s: number, i: (typeof assets)[number]) => s + i.balance,
+            (s: number, i: (typeof assets)[number]) => s + Number(i.balance),
             0,
           ) || inst.totalAssets;
         const totalL = liabilities.reduce(
-          (s: number, i: (typeof liabilities)[number]) => s + i.balance,
+          (s: number, i: (typeof liabilities)[number]) => s + Number(i.balance),
           0,
         );
         const nwr = totalA > 0 ? ((totalA - totalL) / totalA) * 100 : null;
@@ -135,7 +135,7 @@ export class NetworkIntelligenceService {
       );
 
       const totalSystemAssets = networkInstitutions.reduce(
-        (s, i) => s + i.totalAssets,
+        (s, i) => s + Number(i.totalAssets),
         0,
       );
 

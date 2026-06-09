@@ -144,7 +144,7 @@ export class FTPService {
         });
       }
       const seg = segmentMap.get(key)!;
-      seg.totalBalance += inst.balance;
+      seg.totalBalance += Number(inst.balance);
       seg.weightedActualRate += inst.actualRate * inst.balance;
       seg.weightedFTPRate += inst.ftpRate * inst.balance;
       seg.weightedSpread += inst.spread * inst.balance;
@@ -165,8 +165,8 @@ export class FTPService {
     // Summary
     const assets = instruments.filter((i) => i.category === 'asset');
     const liabilities = instruments.filter((i) => i.category === 'liability');
-    const totalAssets = assets.reduce((s, i) => s + i.balance, 0);
-    const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0);
+    const totalAssets = assets.reduce((s, i) => s + Number(i.balance), 0);
+    const totalLiabilities = liabilities.reduce((s, i) => s + Number(i.balance), 0);
     const totalAssetContrib = assets.reduce((s, i) => s + i.contribution, 0);
     const totalLiabContrib = liabilities.reduce(
       (s, i) => s + i.contribution,

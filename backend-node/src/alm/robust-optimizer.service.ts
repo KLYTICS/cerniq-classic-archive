@@ -37,7 +37,7 @@ export class RobustOptimizerService {
     const totalAssets =
       items
         .filter((i: any) => i.category === 'asset')
-        .reduce((s: number, i: any) => s + i.balance, 0) || 445;
+        .reduce((s: number, i: any) => s + Number(i.balance), 0) || 445;
 
     const maxMovePct = { conservative: 0.03, moderate: 0.06, aggressive: 0.1 }[
       aggressiveness
@@ -118,7 +118,7 @@ export class RobustOptimizerService {
     for (const item of items) {
       bySub.set(
         item.subcategory,
-        (bySub.get(item.subcategory) ?? 0) + item.balance,
+        (bySub.get(item.subcategory) ?? 0) + Number(item.balance),
       );
     }
 

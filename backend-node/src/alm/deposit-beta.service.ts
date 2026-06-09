@@ -42,11 +42,18 @@ export class DepositBetaService {
     for (const item of items) {
       const sub = item.subcategory.toLowerCase();
       if (!seen.has(sub)) {
-        seen.set(sub, { beta: item.depositBeta, balance: item.balance });
+        // D1/Decimal: seed with Number()-coerced values. `balance`/`depositBeta`
+        // are Prisma Decimal objects; a Decimal seed would make the later
+        // `existing.balance += Number(...)` STRING-CONCATENATE on iteration 2,
+        // and `beta` flows out as `currentBeta` (used downstream as a number).
+        seen.set(sub, {
+          beta: item.depositBeta === null ? null : Number(item.depositBeta),
+          balance: Number(item.balance),
+        });
       } else {
         const existing = seen.get(sub)!;
-        existing.balance += item.balance;
-        if (item.depositBeta !== null) existing.beta = item.depositBeta;
+        existing.balance += Number(item.balance);
+        if (item.depositBeta !== null) existing.beta = Number(item.depositBeta);
       }
     }
 

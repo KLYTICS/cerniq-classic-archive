@@ -129,7 +129,7 @@ export class FTPAttributionService {
       if (!rarocMap.has(key))
         rarocMap.set(key, { balance: 0, profit: 0, category: d.category });
       const entry = rarocMap.get(key)!;
-      entry.balance += d.balance;
+      entry.balance += Number(d.balance);
       entry.profit += d.economicProfit;
     }
 
@@ -158,7 +158,7 @@ export class FTPAttributionService {
       (s, d) => s + d.economicProfit,
       0,
     );
-    const totalBalance = decompositions.reduce((s, d) => s + d.balance, 0);
+    const totalBalance = decompositions.reduce((s, d) => s + Number(d.balance), 0);
 
     return {
       decompositions,

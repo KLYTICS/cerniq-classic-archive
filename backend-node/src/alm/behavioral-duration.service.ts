@@ -90,7 +90,7 @@ export class BehavioralDurationService {
           interpretationEs: `${sub.replace(/_/g, ' ')}: duración conductual ${behavioralD.toFixed(1)} años (beta=${(beta * 100).toFixed(0)}%, fuga=${(phi * 100).toFixed(0)}%/año). Mucho más largo que el vencimiento contractual de un día.`,
         });
 
-        totalBalance += item.balance;
+        totalBalance += Number(item.balance);
         weightedContractual += contractualD * item.balance;
         weightedBehavioral += behavioralD * item.balance;
       }
