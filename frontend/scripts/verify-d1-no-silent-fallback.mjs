@@ -78,23 +78,22 @@ function stripComments(content) {
 // now guards). When a page is fixed, REMOVE its entry — the stale-baseline
 // detector will confirm the getDemo is gone and fail until you take the credit.
 //
-// Locked 2026-06-07: 7 TODO. cossec / nev / board-report are CLEAN (not
-// listed) and therefore protected against regression. 0 unbaselined violations.
+// Locked 2026-06-07 at 7 TODO; chipped 2026-06-08: alerts / form-5300 / rbc2
+// swept (getDemo dropped — see each page's D1 tombstone) → 4 TODO remain. The
+// 4 left each need BACKEND work before the frontend can render honestly (the
+// backend either fabricates synthetic data with no data_unavailable shell, or
+// returns a shape the page was never wired to, or has no endpoint) — they are
+// NOT a frontend-only drop. cossec / nev / board-report are CLEAN (not listed)
+// and therefore protected against regression. 0 unbaselined violations.
 const BASELINE = {
   'app/alm/exam-prep/page.tsx':
-    'TODO D1 — <AlmPage getDemo={getDemo}>: a COSSEC/NCUA exam-readiness + CAMEL score must never render a sample. Drop getDemo; render data_unavailable.',
+    'TODO D1 — <AlmPage getDemo={getDemo}>: a COSSEC/NCUA exam-readiness + CAMEL score must never render a sample. BLOCKED: registry has NO endpoint and no backend GET returns ExamPrepData — needs a backend endpoint before getDemo can be dropped.',
   'app/alm/irr-policy/page.tsx':
-    'TODO D1 — getDemo fabricates EVE/NII/DurationGap limit status (WATCH/WARNING/BREACH) for an institution with no data.',
-  'app/alm/alerts/page.tsx':
-    'TODO D1 — getDemo fabricates the regulatory-publication alert feed.',
+    'TODO D1 — getDemo fabricates EVE/NII/DurationGap limit status (WATCH/WARNING/BREACH). BLOCKED: irr-policy.service fabricates synthetic safe defaults on an empty balance sheet with NO data_unavailable shell — needs a backend shell first.',
   'app/alm/camel-forecast/page.tsx':
-    'TODO D1 — getDemo fabricates the AR(2) 4-quarter CAMEL component prediction.',
-  'app/alm/form-5300/page.tsx':
-    'TODO D1 — getDemo fabricates NCUA 5300 Call Report field values — a filed regulatory artifact.',
-  'app/alm/rbc2/page.tsx':
-    'TODO D1 — getDemo fabricates the 8-component NCUA risk-based-capital (Letter 15-CU-02) result.',
+    'TODO D1 — getDemo fabricates the AR(2) 4-quarter CAMEL component prediction. BLOCKED: camel-forecaster.service (src/ai/camel) synthesizes a forecast on no board reports with NO data_unavailable shell — needs a backend shell first.',
   'app/alm/compliance/page.tsx':
-    'TODO D1 — getDemoData fabricates the cross-regulator compliance status calendar.',
+    'TODO D1 — getDemoData fabricates the cross-regulator compliance status calendar. BLOCKED: compliance-calendar.service returns a different shape ({events} not {deadlines}, no institutionName/requiredDocuments) and no data_unavailable shell — needs a backend alignment first.',
 };
 
 // ─── Registry-derived scope ──────────────────────────────────────────────

@@ -5,8 +5,27 @@ import { Check, X, Download } from 'lucide-react';
 
 import { useTranslation } from '@/lib/i18n';
 import { AlmPage } from '@/components/alm/AlmPage';
+import { AlmDataUnavailable } from '@/components/alm/AlmDataUnavailable';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
+import { DataGapBanner } from '@/components/ui/cerniq';
+import { useReportDataGaps } from '@/hooks/useReportDataGaps';
+import { isDataUnavailable, type AlmDataShell } from '@/lib/alm/data-shell';
+
+/**
+ * NCUA 5300 Call Report — D1-hardened.
+ *
+ * D1 (never silent zeros, SESSION_HANDOFF §1): NO `getDemo` fallback is
+ * supplied — a FILED regulatory artifact (the NCUA 5300 Call Report) must never
+ * render a fabricated sample. The former getDemo() invented $445M total assets
+ * / a 13.5% NWR / 8 account-code field values that a preparer would read as
+ * their cooperativa's real filing. The backend `ncua-5300.service` returns an
+ * honest `overallStatus:'data_unavailable'` shell (empty fields, a CRITICAL
+ * EMPTY_BALANCE_SHEET gap) on an unloaded balance sheet, which this page
+ * renders as <AlmDataUnavailable> + the gap manifest — never a `0` Call Report.
+ * A genuine network / 5xx error renders <AlmPage>'s error screen. Removed
+ * getDemo 2026-06-08.
+ */
 
 interface Form5300Field {
   readonly accountCode: string;
@@ -21,9 +40,10 @@ interface Form5300ValidationNotice {
   readonly description: string;
 }
 
-interface Form5300Data {
+interface Form5300Data extends AlmDataShell {
   readonly quarter: string;
-  readonly charterNumber: string;
+  // D1: null when no charter is on file / the balance sheet is unloaded.
+  readonly charterNumber: string | null;
   readonly fields: readonly Form5300Field[];
   readonly validationResult: {
     readonly valid: boolean;
@@ -49,31 +69,10 @@ function validateForm5300(raw: unknown): Form5300Data {
   return r as unknown as Form5300Data;
 }
 
-function getDemo(): Form5300Data {
-  return {
-    quarter: '2026Q1',
-    charterNumber: '12345',
-    fields: [
-      { accountCode: '010',      label: 'Cash & Cash Equivalents', value: 45,  schedule: 'A', sourceField: 'BalanceSheetItem.cash' },
-      { accountCode: '799B',     label: 'Total Investments',        value: 50,  schedule: 'A', sourceField: 'BalanceSheetItem.securities' },
-      { accountCode: '025A',     label: 'Personal Loans',           value: 85,  schedule: 'A', sourceField: 'BalanceSheetItem.consumer_loans' },
-      { accountCode: '703',      label: 'First Mortgage RE',        value: 95,  schedule: 'A', sourceField: 'BalanceSheetItem.residential_mortgage' },
-      { accountCode: '010A',     label: 'Regular Shares',           value: 180, schedule: 'C', sourceField: 'BalanceSheetItem.demand_deposits' },
-      { accountCode: '050',      label: 'Share Certificates',       value: 75,  schedule: 'C', sourceField: 'BalanceSheetItem.time_deposits' },
-      { accountCode: '010TOTAL', label: 'Total Assets',             value: 445, schedule: 'A', sourceField: 'computed' },
-      { accountCode: '931',      label: 'Net Worth',                value: 40,  schedule: 'D', sourceField: 'computed' },
-    ],
-    validationResult: {
-      valid: true,
-      errors: [],
-      warnings: [{ code: 'EC-020', description: 'Delinquent loans approaching 6% threshold' }],
-    },
-    summary: { totalAssets: 445, totalLiabilities: 385, netWorth: 60, netWorthRatio: 13.5, totalLoans: 300, totalShares: 330, totalInvestments: 50 },
-  };
-}
-
 function Form5300Content({ data }: { data: Form5300Data }) {
   const { locale } = useTranslation();
+  const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
+
   const vr = data.validationResult;
 
   const stripItems = useMemo<readonly MetricStripItem[]>(() => [
@@ -102,10 +101,29 @@ function Form5300Content({ data }: { data: Form5300Data }) {
     },
   ], [locale]);
 
+  // D1: balance sheet not loaded → honest neutral panel + the CRITICAL gap,
+  // never a fabricated Call Report. The backend shells `overallStatus`.
+  if (isDataUnavailable(data)) {
+    return (
+      <AlmDataUnavailable
+        gaps={data.gaps}
+        message={{
+          en: 'No balance sheet is loaded. Load it before generating the NCUA 5300 Call Report — filing against phantom data is a regulatory exposure.',
+          es: 'No hay balance de situación cargado. Cárguelo antes de generar el Informe NCUA 5300 — radicar con datos ficticios es una exposición regulatoria.',
+        }}
+      />
+    );
+  }
+
   return (
     <>
+      {/* D1: partial (status:'ok') WARNING gaps render alongside the filing. */}
+      {gaps.length > 0 ? (
+        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+      ) : null}
+
       <div className="text-[11px] text-slate-500">
-        {locale === 'es' ? 'Trimestre' : 'Quarter'}: <strong>{data.quarter}</strong> · Charter: <strong>{data.charterNumber}</strong>
+        {locale === 'es' ? 'Trimestre' : 'Quarter'}: <strong>{data.quarter}</strong> · Charter: <strong>{data.charterNumber ?? '—'}</strong>
       </div>
 
       <MetricStrip items={stripItems} locale={locale} density="compact" />
@@ -161,7 +179,6 @@ export default function Form5300Page() {
       slug="form-5300"
       iconTint="sky"
       validate={validateForm5300}
-      getDemo={getDemo}
       controls={
         <div className="flex items-center gap-2">
           <button
