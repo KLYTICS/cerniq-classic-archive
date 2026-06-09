@@ -79,16 +79,14 @@ export function countPhantoms(content) {
 // by applying the D1 shell (empty → data_unavailable + EMPTY_BALANCE_SHEET gap,
 // null totals) and remove the entry. The stale detector fails CI if you forget.
 //
-// Locked 2026-06-08: 5 entries / 7 phantoms. 0 unbaselined. ncua-rbc2.service.ts
-// is NOT here — it already removed its `|| 445` (the surviving mention is a
-// comment, stripped before counting).
-const BASELINE = {
-  'alm/stress-v2.service.ts': 2, // `|| 445` assets + `|| 385` liabilities in runDFASTScenario → fabricated capital/asset base for a regulatory DFAST stress test.
-  'alm/exam-prep/camel-scorer.service.ts': 2, // `|| 445` + `|| 385` in scoreInstitution → CAMEL composite + exam-readiness computed against a fabricated balance sheet.
-  'alm/chat-analyst.service.ts': 1, // `|| 445` in the getLCR case → renders "LCR: 115%. HQLA … Status: Compliant" for an institution with no loaded assets.
-  'alm/climate-risk.service.ts': 1, // `|| 445` in computeClimateRisk → RE-exposure concentration ratio over a fabricated total-assets denominator.
-  'alm/robust-optimizer.service.ts': 1, // `|| 445` in optimizePortfolio → maxMoveUSD/perturbation bounds sized off a fabricated $445M base.
-};
+// Locked 2026-06-08 at 5 entries / 7 phantoms; CLEARED 2026-06-09: the swarm's
+// D1-shell sweep removed every `|| 445`/`|| 385` phantom from all 5 files
+// (stress-v2, camel-scorer, chat-analyst, climate-risk, robust-optimizer →
+// empty balance sheet now returns status:'data_unavailable' + a CRITICAL gap),
+// so the stale-detector demanded the credit be taken. 0 phantoms remain → the
+// gate is now a ZERO-TOLERANCE lock on the `reduce(...balance,0) || <num>`
+// fabrication. ncua-rbc2 was never here (removed its own `|| 445` earlier).
+const BASELINE = {};
 
 // ─── Walker ────────────────────────────────────────────────────────────
 function walkTs(dir) {
@@ -280,16 +278,20 @@ function selfTest() {
     {
       name: 'baselined file AT its count → baselined',
       content: `const t = items.reduce((s, i) => s + i.balance, 0) || 445;`, // count 1, baseline 1
-      rel: 'alm/chat-analyst.service.ts',
+      rel: 'alm/__selftest__.service.ts',
       expected: 'baselined',
     },
     {
       name: 'baselined file GROWN past its count → violation',
       content: `const a = x.reduce((s,i)=>s+i.balance, 0) || 445;\nconst b = y.reduce((s,i)=>s+i.balance, 0) || 385;`, // count 2 > baseline 1
-      rel: 'alm/chat-analyst.service.ts',
+      rel: 'alm/__selftest__.service.ts',
       expected: 'violation',
     },
   ];
+
+  // The real BASELINE is empty (the class was fully chipped), so inject a temp
+  // ceiling for the two "baselined" cases, then remove it before the parity check.
+  BASELINE['alm/__selftest__.service.ts'] = 1;
 
   let pass = 0;
   let fail = 0;
@@ -302,6 +304,7 @@ function selfTest() {
       console.log(`  expected: ${c.expected}, got: ${result.status}`);
     }
   }
+  delete BASELINE['alm/__selftest__.service.ts'];
 
   // Parity: baseline keys are in scope and have positive counts.
   const bad = Object.entries(BASELINE).filter(
