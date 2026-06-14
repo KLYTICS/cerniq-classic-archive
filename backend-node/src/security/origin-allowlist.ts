@@ -26,6 +26,19 @@ function normalizeOrigin(origin: string): string | null {
   }
 }
 
+/**
+ * `ALLOW_PREVIEW_ORIGINS` gates CORS for Vercel preview deployments
+ * (e.g. `*-ekiess-projects.vercel.app`, see DEFAULT_VERCEL_PREVIEW_PATTERN).
+ *
+ * - Production (cerniq.io): keep `false` — preview origins must not reach the
+ *   live API with credentials.
+ * - Demo / staging environments: set `true` so a preview build (or a demo URL
+ *   served off a Vercel preview) can call the API with `credentials: include`.
+ *   Pair with the cross-domain SameSite=none cookie (auto-detected in
+ *   auth-cookie.util.ts) so the browser actually sends the cookie.
+ *
+ * Accepts `1|true|yes|on` (case-insensitive); anything else (incl. unset) = off.
+ */
 function allowPreviewOrigins(): boolean {
   const raw = (process.env.ALLOW_PREVIEW_ORIGINS || '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';

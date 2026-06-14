@@ -756,7 +756,8 @@ ANTHROPIC_API_KEY=<set in secret manager>
 API_KEY_PEPPER=<32+ char random string>
 DATA_ENCRYPTION_KEY=<32 char hex>
 AUTH_COOKIE_SECURE=true
-AUTH_COOKIE_SAMESITE=lax
+# AUTH_COOKIE_SAMESITE — leave UNSET. auth-cookie.util.ts auto-detects `none` for the
+# cross-domain cerniq.io → api.cerniq.io setup. Hardcoding `lax` was BUG-001.
 AUTH_COOKIE_DOMAIN=.cerniq.io
 HEALTH_DETAILS_PUBLIC=false
 

@@ -120,7 +120,9 @@ services:
       HEALTH_DETAILS_PUBLIC: "false"
       ALLOW_DEMO_MOCKS: "false"
       AUTH_COOKIE_SECURE: "true"
-      AUTH_COOKIE_SAMESITE: lax
+      # AUTH_COOKIE_SAMESITE intentionally NOT set — auth-cookie.util.ts auto-detects
+      # `none` for the cross-domain cerniq.io → api.cerniq.io setup. Hardcoding `lax`
+      # here was BUG-001 (broke cross-site cookie delivery). Leave unset.
       # URLs
       FRONTEND_URL: ${FRONTEND_URL}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}

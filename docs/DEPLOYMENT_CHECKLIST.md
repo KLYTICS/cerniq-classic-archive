@@ -112,7 +112,7 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 |----------|-----------------|-------|
 | `ADMIN_KEY` | (unique random string) | Protects `/api/admin/*` endpoints |
 | `AUTH_COOKIE_SECURE` | `true` | Cookies only over HTTPS |
-| `AUTH_COOKIE_SAMESITE` | `lax` | CSRF protection |
+| `AUTH_COOKIE_SAMESITE` | _(leave unset)_ | **Do NOT set manually** — auto-detected in `auth-cookie.util.ts`. Cross-domain (cerniq.io → api.cerniq.io) resolves to `none`; same-site resolves to `lax`. Hardcoding `lax` was BUG-001. |
 | `AUTH_COOKIE_DOMAIN` | `.cerniq.io` | Shared across subdomains |
 | `API_KEY_PEPPER` | (random string) | API key hashing pepper |
 | `HEALTH_DETAILS_PUBLIC` | `false` | Hides `/health/detailed` in prod |
@@ -204,7 +204,7 @@ All variables sourced from `.env.example` at project root. Set these in Railway 
 - [ ] `FRONTEND_URL` set to `https://cerniq.io` (used by CORS callback in `origin-allowlist.ts`)
 - [ ] Helmet CSP directives reviewed — current policy allows Segment, GA4, PostHog; remove any unused analytics
 - [ ] Rate limiting active: ThrottlerModule configured at 100 requests/60s globally; demo-request endpoint at 5/60s
-- [ ] Auth cookie settings: `AUTH_COOKIE_SECURE=true`, `AUTH_COOKIE_SAMESITE=lax`, `AUTH_COOKIE_DOMAIN=.cerniq.io`
+- [ ] Auth cookie settings: `AUTH_COOKIE_SECURE=true`, `AUTH_COOKIE_DOMAIN=.cerniq.io`. **`AUTH_COOKIE_SAMESITE` must NOT be set** — auto-detection (`auth-cookie.util.ts`) resolves it to `none` for the cross-domain cerniq.io → api.cerniq.io setup; hardcoding `lax` was BUG-001.
 - [ ] `HEALTH_DETAILS_PUBLIC=false` — `/health/detailed` returns 404 in production
 - [ ] `ALLOW_DEMO_MOCKS=false` — no synthetic data served to users
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` is set only in backend, never in frontend env vars
