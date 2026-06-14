@@ -118,4 +118,24 @@ describe('SicDemoService', () => {
     expect(r.gaps.some((g) => g.severity === 'CRITICAL')).toBe(false);
     expect(r.modelLineage.length).toBeGreaterThanOrEqual(5);
   });
+
+  it('surfaces COSSEC findings (fail-first) and names the binding constraint in the narrative', async () => {
+    const r = await new SicDemoService().run();
+    // this institution carries real IRR + concentration findings, so the list is non-empty
+    expect(r.findings.length).toBeGreaterThan(0);
+    for (const f of r.findings) {
+      expect(['fail', 'warning']).toContain(f.status);
+    }
+    // fail-first ordering: no 'fail' may appear after the first 'warning'
+    const firstWarning = r.findings.findIndex((f) => f.status === 'warning');
+    if (firstWarning !== -1) {
+      expect(
+        r.findings.slice(firstWarning).every((f) => f.status === 'warning'),
+      ).toBe(true);
+    }
+    // the binding constraint is named in the headline narrative (both languages)
+    const top = r.findings.find((f) => f.status === 'fail') ?? r.findings[0];
+    expect(r.headline.narrative).toContain(top.name);
+    expect(r.headline.narrativeEs).toContain(top.nameEs);
+  });
 });

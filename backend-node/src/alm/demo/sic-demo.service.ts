@@ -102,6 +102,20 @@ export interface SicDemoResult {
     narrative: string;
     narrativeEs: string;
   };
+  /**
+   * COSSEC ratios currently breaching (`fail`) or near-limit (`warning`),
+   * fail-first. For this institution the binding constraints are interest-rate
+   * risk (duration gap / EVE sensitivity) and loan concentration — the hidden
+   * risks a headline capital ratio alone does not surface.
+   */
+  findings: Array<{
+    name: string;
+    nameEs: string;
+    value: number;
+    unit: string;
+    threshold: string;
+    status: 'fail' | 'warning';
+  }>;
   pipeline: Array<{ step: string; name: string; status: PipelineStepStatus }>;
   gaps: DataGap[];
   modelLineage: Array<{ model: string; source: string }>;
@@ -182,6 +196,22 @@ export class SicDemoService {
       projection.deterministic.stressedCapitalRatioPct;
     const adverseTailCapitalRatioPct = projection.distribution.p5;
 
+    // COSSEC findings: ratios breaching (fail) or near-limit (warning), fail-first.
+    const findings = cossec.ratios
+      .filter((r) => r.status === 'fail' || r.status === 'warning')
+      .sort((a, b) =>
+        a.status === b.status ? 0 : a.status === 'fail' ? -1 : 1,
+      )
+      .map((r) => ({
+        name: r.name,
+        nameEs: r.nameEs,
+        value: round2(r.value),
+        unit: r.unit,
+        threshold: r.threshold,
+        status: r.status as 'fail' | 'warning',
+      }));
+    const topFinding = findings.find((f) => f.status === 'fail') ?? findings[0];
+
     const cushionWord = (bps: number, es: boolean) =>
       bps >= 0
         ? es
@@ -191,18 +221,30 @@ export class SicDemoService {
           ? 'por debajo del'
           : 'below the';
 
+    // The headline leads with capital, then surfaces the BINDING constraint —
+    // capital looks fine, but the real risk is the duration gap / EVE the
+    // headline ratio hides. That is the demo's value proposition.
+    const findingsEs = topFinding
+      ? ` COSSEC marca ${findings.length} hallazgo(s) hoy — la restricción vinculante es ${topFinding.nameEs} en ${topFinding.value}${topFinding.unit} (límite ${topFinding.threshold}).`
+      : '';
+    const findingsEn = topFinding
+      ? ` COSSEC flags ${findings.length} issue(s) today — the binding constraint is ${topFinding.name} at ${topFinding.value}${topFinding.unit} (limit ${topFinding.threshold}).`
+      : '';
+
     const narrativeEs =
       `Bajo el escenario SIC 2026 (Reestructuración Global), el ratio de capital de ${fixture.name} ` +
       `pasa de ${baselineCapitalRatioPct}% a ${stressedCapitalRatioPct}% (estimación central). ` +
       `En el percentil adverso (p5) cae a ${adverseTailCapitalRatioPct}%, ` +
       `${Math.abs(projection.adverseCushionBps)} pbs ${cushionWord(projection.adverseCushionBps, true)} ` +
-      `mínimo COSSEC de ${cossecMinimumPct}%.`;
+      `mínimo COSSEC de ${cossecMinimumPct}%.` +
+      findingsEs;
     const narrative =
       `Under the SIC 2026 (Global Restructuring) scenario, ${fixture.name}'s capital ratio ` +
       `moves from ${baselineCapitalRatioPct}% to ${stressedCapitalRatioPct}% (central estimate). ` +
       `At the adverse percentile (p5) it falls to ${adverseTailCapitalRatioPct}%, ` +
       `${Math.abs(projection.adverseCushionBps)} bps ${cushionWord(projection.adverseCushionBps, false)} ` +
-      `${cossecMinimumPct}% COSSEC minimum.`;
+      `${cossecMinimumPct}% COSSEC minimum.` +
+      findingsEn;
 
     const result: Omit<SicDemoResult, 'resultChecksum'> = {
       generatedFor: 'Mauldin SIC 2026 — Global Restructuring',
@@ -271,6 +313,7 @@ export class SicDemoService {
         narrative,
         narrativeEs,
       },
+      findings,
       pipeline: [
         {
           step: '1',

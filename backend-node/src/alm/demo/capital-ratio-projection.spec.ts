@@ -37,12 +37,12 @@ describe('projectCapitalRatioUnderStress', () => {
     );
   });
 
-  it('the band is centred on the deterministic estimate (median ≈ centre)', () => {
+  it('the band is centred on the deterministic estimate (mean = centre, lognormal mean-1)', () => {
     const r = projectCapitalRatioUnderStress(BASE);
-    expect(r.distribution.p50).toBeCloseTo(
-      r.deterministic.stressedCapitalRatioPct,
-      1,
-    );
+    // mean-1 lognormal severities ⇒ E[stressed ratio] = deterministic centre.
+    expect(
+      Math.abs(r.meanCapitalRatioPct - r.deterministic.stressedCapitalRatioPct),
+    ).toBeLessThan(0.1);
   });
 
   it('percentiles are ordered p5 ≤ p25 ≤ p50 ≤ p75 ≤ p95', () => {
@@ -53,9 +53,36 @@ describe('projectCapitalRatioUnderStress', () => {
     expect(d.p75).toBeLessThanOrEqual(d.p95);
   });
 
-  it('the adverse tail (p5) sits below baseline — stress erodes capital', () => {
+  it('lognormal severities keep every path below baseline — stress only erodes capital', () => {
+    // Severity > 0 always (no truncation), so loss > 0 on every path ⇒ even the
+    // benign tail (p95) sits below baseline. The adverse tail (p5) is well below.
     const r = projectCapitalRatioUnderStress(BASE);
-    expect(r.distribution.p5).toBeLessThan(r.baselineCapitalRatioPct);
+    expect(r.distribution.p95).toBeLessThan(r.baselineCapitalRatioPct);
+    expect(r.distribution.p5).toBeLessThan(r.distribution.p95);
+  });
+
+  it('systemic correlation fattens the adverse tail (ρ↑ ⇒ p5↓, no diversification)', () => {
+    // With three comparable loss channels, independent draws diversify and lift
+    // p5; a shared systemic factor makes them worsen together and lowers it.
+    const losses = { creditLoss: 6, depositCost: 6, niiShortfall: 6 };
+    const independent = projectCapitalRatioUnderStress({
+      ...BASE,
+      deterministicLosses: losses,
+      assumptions: { systemicCorrelation: 0 },
+    });
+    const correlated = projectCapitalRatioUnderStress({
+      ...BASE,
+      deterministicLosses: losses,
+      assumptions: { systemicCorrelation: 0.95 },
+    });
+    expect(correlated.distribution.p5).toBeLessThan(
+      independent.distribution.p5,
+    );
+    // but the mean is unaffected by correlation (correlation moves variance, not mean)
+    expect(correlated.meanCapitalRatioPct).toBeCloseTo(
+      independent.meanCapitalRatioPct,
+      0,
+    );
   });
 
   it('is reproducible — same seed yields a deep-equal result (SR 11-7)', () => {
@@ -104,5 +131,13 @@ describe('projectCapitalRatioUnderStress', () => {
     expect(r.disclosures.length).toBeGreaterThan(0);
     expect(r.disclosures.join(' ')).toMatch(/seed/i);
     expect(r.disclosures.join(' ')).toMatch(/parametric|CV/i);
+  });
+
+  it('degenerate zero-asset input yields 0 ratios without NaN or throwing', () => {
+    const r = projectCapitalRatioUnderStress({ ...BASE, totalAssets: 0 });
+    expect(r.baselineCapitalRatioPct).toBe(0);
+    expect(r.deterministic.stressedCapitalRatioPct).toBe(0);
+    expect(Number.isFinite(r.distribution.p5)).toBe(true);
+    expect(Number.isFinite(r.meanCapitalRatioPct)).toBe(true);
   });
 });

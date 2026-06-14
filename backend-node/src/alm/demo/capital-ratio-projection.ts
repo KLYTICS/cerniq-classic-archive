@@ -37,16 +37,21 @@ export interface CapitalRatioProjectionInput {
   };
   /** Deterministic seed string ⇒ reproducible draws. */
   seed: string;
-  /** Monte Carlo paths (clamped to [200, 100000]). Default 5000. */
+  /** Monte Carlo paths (clamped to [200, 100000]). Default 10000. */
   paths?: number;
   /**
-   * Disclosed severity coefficients of variation (stddev / mean) applied to
-   * each deterministic loss. Defaults are conservative communication assumptions.
+   * Disclosed model assumptions. Severities are mean-1 LOGNORMAL multipliers
+   * keyed off each coefficient of variation; `systemicCorrelation` ties the three
+   * loss channels to a common factor (single-factor Gaussian copula) so they
+   * worsen together in a macro scenario. Defaults are conservative communication
+   * assumptions, not empirically calibrated.
    */
   assumptions?: {
     creditSeverityCv?: number;
     depositSeverityCv?: number;
     niiSeverityCv?: number;
+    /** Correlation ρ∈[0,1] of each channel to the systemic factor. */
+    systemicCorrelation?: number;
   };
 }
 
@@ -85,6 +90,7 @@ export interface CapitalRatioUnderStress {
     creditSeverityCv: number;
     depositSeverityCv: number;
     niiSeverityCv: number;
+    systemicCorrelation: number;
   };
   disclosures: string[];
 }
@@ -93,6 +99,7 @@ const DEFAULT_ASSUMPTIONS = {
   creditSeverityCv: 0.4,
   depositSeverityCv: 0.3,
   niiSeverityCv: 0.35,
+  systemicCorrelation: 0.5,
 };
 
 function round2(n: number): number {
@@ -148,10 +155,11 @@ export function projectCapitalRatioUnderStress(
   input: CapitalRatioProjectionInput,
 ): CapitalRatioUnderStress {
   const paths = Math.min(
-    Math.max(Math.floor(input.paths ?? 5000), 200),
+    Math.max(Math.floor(input.paths ?? 10000), 200),
     100000,
   );
   const a = { ...DEFAULT_ASSUMPTIONS, ...(input.assumptions ?? {}) };
+  const rho = Math.min(Math.max(a.systemicCorrelation, 0), 1);
   const { baseEquity, totalAssets, cossecMinimumPct } = input;
   const { creditLoss, depositCost, niiShortfall } = input.deterministicLosses;
 
@@ -166,17 +174,35 @@ export function projectCapitalRatioUnderStress(
 
   const normal = makeNormal(makeUniform(fnv1a(input.seed)));
 
-  // A severity multiplier ~ max(0, 1 + cv·Z): mean ~1 so the distribution is
-  // centred on the deterministic losses; floored at 0 (a loss can't be negative).
-  const severity = (cv: number) => Math.max(0, 1 + cv * normal());
+  // Mean-1 LOGNORMAL severity multiplier: S = exp(σ·X − σ²/2) with
+  // σ = sqrt(ln(1+CV²)). E[S] = 1 exactly (the band is centred on the engine's
+  // deterministic loss), S > 0 always (no truncation), right-skewed (losses can
+  // be far worse than expected, rarely much better).
+  const sigmaOf = (cv: number) => Math.sqrt(Math.log(1 + cv * cv));
+  const sigmaC = sigmaOf(a.creditSeverityCv);
+  const sigmaD = sigmaOf(a.depositSeverityCv);
+  const sigmaN = sigmaOf(a.niiSeverityCv);
+  const sevFrom = (sigma: number, x: number) =>
+    Math.exp(sigma * x - (sigma * sigma) / 2);
+
+  // Single-factor Gaussian copula: each channel's driver X = √ρ·Z_sys +
+  // √(1−ρ)·Z_i shares a systemic factor, so credit / funding / NII worsen
+  // together in a macro scenario instead of diversifying (which would understate
+  // the adverse tail). ρ = 0 → independent; ρ = 1 → perfectly correlated.
+  const sqrtRho = Math.sqrt(rho);
+  const sqrtComp = Math.sqrt(1 - rho);
 
   const ratios: number[] = [];
   let breaches = 0;
   for (let i = 0; i < paths; i++) {
+    const zSys = normal();
+    const xC = sqrtRho * zSys + sqrtComp * normal();
+    const xD = sqrtRho * zSys + sqrtComp * normal();
+    const xN = sqrtRho * zSys + sqrtComp * normal();
     const pathLoss =
-      creditLoss * severity(a.creditSeverityCv) +
-      depositCost * severity(a.depositSeverityCv) +
-      niiShortfall * severity(a.niiSeverityCv);
+      creditLoss * sevFrom(sigmaC, xC) +
+      depositCost * sevFrom(sigmaD, xD) +
+      niiShortfall * sevFrom(sigmaN, xN);
     const ratio =
       totalAssets > 0 ? ((baseEquity - pathLoss) / totalAssets) * 100 : 0;
     ratios.push(ratio);
@@ -188,9 +214,10 @@ export function projectCapitalRatioUnderStress(
   const p5 = percentile(ratios, 0.05);
 
   const disclosures = [
-    'Parametric stress band: each deterministic loss is scaled by an independent severity multiplier max(0, 1 + CV·Z), Z ~ N(0,1).',
+    'Parametric stress band: each deterministic loss is scaled by a mean-1 lognormal severity multiplier S = exp(σ·X − σ²/2), σ = sqrt(ln(1+CV²)).',
+    `Loss channels share a single systemic factor (Gaussian copula, ρ=${a.systemicCorrelation}) so credit/funding/NII worsen together — no spurious diversification in the tail.`,
     `Severity CVs are disclosed model assumptions (credit ${a.creditSeverityCv}, deposit ${a.depositSeverityCv}, NII ${a.niiSeverityCv}), not empirically calibrated.`,
-    'The central (deterministic) stressed capital ratio is the ALM engine output; the band only expresses uncertainty around it.',
+    'The expected (mean) stressed capital ratio equals the ALM engine deterministic output; the band only expresses uncertainty around it.',
     `Seeded (seed="${input.seed}") — identical inputs reproduce this distribution exactly (SR 11-7).`,
   ];
 

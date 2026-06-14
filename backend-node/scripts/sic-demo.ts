@@ -14,6 +14,7 @@
  * No database, no Nest bootstrap — the harness serves the institution from an
  * in-memory fixture and runs the real ALM engines against it.
  */
+import { Logger } from '@nestjs/common';
 import {
   SicDemoService,
   SicDemoResult,
@@ -70,6 +71,20 @@ function printReport(r: SicDemoResult): void {
     `    Breach probability (< ${pct(r.headline.cossecMinimumPct)}): ${pct(r.headline.breachProbabilityPct)}`,
   );
 
+  console.log(
+    '\n  COSSEC FINDINGS (the binding constraints capital ratio hides)',
+  );
+  if (r.findings.length === 0) {
+    console.log('    none — all ratios within limits');
+  } else {
+    for (const f of r.findings) {
+      const mark = f.status === 'fail' ? '✗' : '!';
+      console.log(
+        `    ${mark} [${f.status.toUpperCase().padEnd(7)}] ${f.name} = ${f.value}${f.unit}  (limit: ${f.threshold})`,
+      );
+    }
+  }
+
   console.log('\n  HEADLINE');
   console.log(`    ${r.headline.narrative}`);
   console.log(`    ${r.headline.narrativeEs}`);
@@ -94,6 +109,9 @@ function printReport(r: SicDemoResult): void {
 }
 
 async function main(): Promise<void> {
+  // Silence the Nest service loggers so the CLI emits a clean report only.
+  Logger.overrideLogger(false);
+
   const argv = process.argv.slice(2);
   const asJson = argv.includes('--json');
   const pathsArg = argv.find((a) => a.startsWith('--paths='));
