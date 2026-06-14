@@ -10,8 +10,19 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
 import { InstitutionFixture } from './_schema';
+import { buildSanJuanFederalDemo } from './builders/san-juan-federal.builder';
 
 const FIXTURE_DIR = __dirname;
+
+/**
+ * Code-generated fixtures. Unlike the static `.json` snapshots, these are built
+ * from parameters at load time — every derived balance (cash, equity, the LCR,
+ * the loan segments) is computed, not frozen. They register alongside the
+ * scanned JSON fixtures so the seed pipeline and CLI resolve them by `seedKey`
+ * identically (`getFixture('pr-cooperativa-san-juan-federal')` works the same
+ * whether the fixture is a file or a builder output).
+ */
+const GENERATED_FIXTURES: InstitutionFixture[] = [buildSanJuanFederalDemo()];
 
 function loadAllFixtures(): Record<string, InstitutionFixture> {
   const out: Record<string, InstitutionFixture> = {};
@@ -32,6 +43,15 @@ function loadAllFixtures(): Record<string, InstitutionFixture> {
     }
     if (out[fixture.seedKey]) {
       throw new Error(`Duplicate fixture seedKey: ${fixture.seedKey}`);
+    }
+    out[fixture.seedKey] = fixture;
+  }
+
+  for (const fixture of GENERATED_FIXTURES) {
+    if (out[fixture.seedKey]) {
+      throw new Error(
+        `Duplicate fixture seedKey: ${fixture.seedKey} (generated fixture collides with a JSON fixture)`,
+      );
     }
     out[fixture.seedKey] = fixture;
   }

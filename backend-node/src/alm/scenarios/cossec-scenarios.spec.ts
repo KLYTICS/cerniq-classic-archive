@@ -67,6 +67,8 @@ describe('COSSEC_SCENARIOS library', () => {
       expect(sic!.creditShockPct).toBe(3);
       // deposit runoff: 5% outflow (negative = outflow per the field convention)
       expect(sic!.depositShockPct).toBe(-5);
+      // and the +3% default shock lands on the consumer book specifically
+      expect(sic!.creditShockSegment).toBe('consumer');
     });
 
     it('is typed as a combined macro shock (not a curve-shape or pr_specific scenario)', () => {
