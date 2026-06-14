@@ -47,6 +47,7 @@
     "seed:portal-submit": "npx ts-node scripts/seed-portal-submit.ts",
     "demo:provision": "npx ts-node scripts/provision-demo-portal.ts",
     "demo:list": "npx ts-node scripts/provision-demo-portal.ts --list",
+    "demo:sic": "npx ts-node scripts/sic-demo.ts",
     "exports:test": "npx ts-node scripts/test-file-exports.ts"
   },
   "dependencies": {
