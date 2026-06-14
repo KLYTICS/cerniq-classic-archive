@@ -1,4 +1,5 @@
 import { StressTestingService } from './stress-testing.service';
+import { getFixture } from '../data/fixtures';
 
 describe('StressTestingService', () => {
   let service: StressTestingService;
@@ -526,6 +527,74 @@ describe('StressTestingService', () => {
         expect(r.scenario.nameEs.length).toBeGreaterThan(0);
         expect(r.scenario.descriptionEs.length).toBeGreaterThan(0);
       }
+    });
+
+    // ── SIC 2026 demo scenario, run on the Cooperativa San Juan Federal book ──
+    // Proves the demo headline numbers are MODEL-DERIVED from the committed
+    // fixture totals (loans $175M, deposits $210M), not hand-typed. The engine
+    // applies `creditShockPct` to the whole loan book (conservative) and prices
+    // deposit runoff at a 150bps marginal funding cost — we assert exactly that.
+    it('SIC 2026 produces model-derived impacts from the San Juan Federal fixture totals', async () => {
+      const fx = getFixture('pr-cooperativa-san-juan-federal');
+      const totalLoans = fx.items
+        .filter(
+          (i) =>
+            i.category === 'asset' &&
+            [
+              'consumer_loans',
+              'residential_mortgages',
+              'commercial_loans',
+            ].includes(i.subcategory),
+        )
+        .reduce((s, i) => s + i.balance, 0);
+      const totalDeposits = fx.items
+        .filter(
+          (i) =>
+            i.category === 'liability' &&
+            ['savings_deposits', 'time_deposits', 'demand_deposits'].includes(
+              i.subcategory,
+            ),
+        )
+        .reduce((s, i) => s + i.balance, 0);
+      expect(totalLoans).toBe(175);
+      expect(totalDeposits).toBe(210);
+
+      // Feed the fixture totals into the engine via the COSSEC summary, and pin a
+      // clean +200bps NII-sensitivity point so the rate-impact scale factor is 1.
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        summary: { totalShares: totalDeposits, totalLoans },
+      });
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 100, niImpact: -1.0, mveImpact: -1, niImpactPct: -10 },
+          { shiftBps: 200, niImpact: -2.0, mveImpact: -2, niImpactPct: -20 },
+          { shiftBps: -200, niImpact: 1.6, mveImpact: 1.5, niImpactPct: 16 },
+        ],
+      });
+
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+      const results = await service.runCOSSECScenarios('inst-1');
+      const sic = results.find(
+        (r) => r.scenario.id === 'sic_2026_global_restructuring',
+      );
+
+      expect(sic).toBeDefined();
+      // credit loss = total loan book × +3% default-rate increase
+      expect(sic!.creditLoss).toBeCloseTo(round2(totalLoans * 0.03), 2); // 5.25
+      // deposit impact = 5% runoff × 150bps marginal funding cost
+      expect(sic!.depositImpact).toBeCloseTo(
+        round2(totalDeposits * 0.05 * 0.015),
+        2,
+      ); // 0.16
+      // NII impact = closest (+200bps) sensitivity point × scaleFactor(=1)
+      expect(sic!.niiImpact).toBeCloseTo(-2.0, 2);
+      // total = nii − depositImpact − creditLoss
+      expect(sic!.totalImpact).toBeCloseTo(
+        round2(sic!.niiImpact - sic!.depositImpact - sic!.creditLoss),
+        2,
+      );
+      expect(['pass', 'warn', 'fail']).toContain(sic!.passFailStatus);
     });
   });
 

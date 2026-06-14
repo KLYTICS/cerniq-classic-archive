@@ -1,0 +1,163 @@
+{
+  "$schema": "./_schema.ts#InstitutionFixture",
+  "seedKey": "pr-cooperativa-san-juan-federal",
+  "name": "Cooperativa San Juan Federal",
+  "type": "cooperativa",
+  "totalAssets": 250,
+  "currency": "USD",
+  "reportingDate": "2026-03-31",
+  "primaryRegulator": "COSSEC",
+  "cossecRegistrationNumber": "COSSEC-2024-0847",
+  "fiscalYearEnd": "december",
+  "preferredLanguage": "es",
+  "items": [
+    {
+      "category": "asset",
+      "subcategory": "consumer_loans",
+      "name": "Préstamos de Auto y Personal",
+      "balance": 80,
+      "rate": 8.75,
+      "duration": 3.0,
+      "rateType": "fixed"
+    },
+    {
+      "category": "asset",
+      "subcategory": "residential_mortgages",
+      "name": "Préstamos Hipotecarios",
+      "balance": 60,
+      "rate": 6.25,
+      "duration": 12.0,
+      "rateType": "fixed"
+    },
+    {
+      "category": "asset",
+      "subcategory": "commercial_loans",
+      "name": "Préstamos Comerciales",
+      "balance": 35,
+      "rate": 9.0,
+      "duration": 2.5,
+      "rateType": "variable"
+    },
+    {
+      "category": "asset",
+      "subcategory": "investment_securities",
+      "name": "Bonos del Tesoro de EE.UU.",
+      "balance": 30,
+      "rate": 4.25,
+      "duration": 4.0,
+      "rateType": "fixed"
+    },
+    {
+      "category": "asset",
+      "subcategory": "investment_securities",
+      "name": "Valores Hipotecarios de Agencia (MBS)",
+      "balance": 20,
+      "rate": 5.0,
+      "duration": 5.5,
+      "rateType": "fixed"
+    },
+    {
+      "category": "asset",
+      "subcategory": "cash_equivalents",
+      "name": "Efectivo y Equivalentes",
+      "balance": 25,
+      "rate": 5.25,
+      "duration": 0.1,
+      "rateType": "variable"
+    },
+    {
+      "category": "liability",
+      "subcategory": "savings_deposits",
+      "name": "Ahorros de Socios",
+      "balance": 95,
+      "rate": 1.75,
+      "duration": 0.3,
+      "rateType": "variable",
+      "depositBeta": 0.35
+    },
+    {
+      "category": "liability",
+      "subcategory": "time_deposits",
+      "name": "Certificados de Acción",
+      "balance": 70,
+      "rate": 4.5,
+      "duration": 1.2,
+      "rateType": "fixed"
+    },
+    {
+      "category": "liability",
+      "subcategory": "demand_deposits",
+      "name": "Cuentas Corrientes",
+      "balance": 30,
+      "rate": 0.25,
+      "duration": 0.1,
+      "rateType": "variable",
+      "depositBeta": 0.15
+    },
+    {
+      "category": "liability",
+      "subcategory": "time_deposits",
+      "name": "Depósitos a Plazo",
+      "balance": 15,
+      "rate": 4.0,
+      "duration": 0.8,
+      "rateType": "fixed"
+    },
+    {
+      "category": "liability",
+      "subcategory": "borrowings",
+      "name": "Préstamos FHLB",
+      "balance": 15,
+      "rate": 5.5,
+      "duration": 2.0,
+      "rateType": "fixed"
+    }
+  ],
+  "liquidity": {
+    "date": "2026-03-31",
+    "hqlaLevel1": 40,
+    "hqlaLevel2": 15,
+    "cashOutflows": 45,
+    "cashInflows": 0,
+    "lcr": 122.2,
+    "nsfr": 110.0
+  },
+  "loanSegments": [
+    {
+      "segmentName": "Préstamos Personales",
+      "balance": 45,
+      "weightedAvgRate": 0.095,
+      "weightedAvgMaturity": 3.5,
+      "historicalLossRate": 0.025,
+      "lgd": 0.6,
+      "qualitativeAdj": 0.003
+    },
+    {
+      "segmentName": "Préstamos de Auto",
+      "balance": 35,
+      "weightedAvgRate": 0.0675,
+      "weightedAvgMaturity": 4.5,
+      "historicalLossRate": 0.013,
+      "lgd": 0.45,
+      "qualitativeAdj": 0.001
+    },
+    {
+      "segmentName": "Hipotecas Residenciales",
+      "balance": 60,
+      "weightedAvgRate": 0.0625,
+      "weightedAvgMaturity": 18,
+      "historicalLossRate": 0.008,
+      "lgd": 0.35,
+      "qualitativeAdj": 0
+    },
+    {
+      "segmentName": "Préstamos Comerciales (MBL)",
+      "balance": 35,
+      "weightedAvgRate": 0.09,
+      "weightedAvgMaturity": 6,
+      "historicalLossRate": 0.016,
+      "lgd": 0.45,
+      "qualitativeAdj": 0.003
+    }
+  ]
+}

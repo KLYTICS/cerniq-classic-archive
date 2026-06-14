@@ -149,6 +149,33 @@ const SCENARIOS: GovernedScenarioSeed[] = [
     },
     approvedUses: ['board_report', 'internal_analysis'],
   },
+  // ── Macro / thematic ──
+  {
+    scenarioKey: 'stress.sic-2026-global-restructuring',
+    displayName: 'SIC 2026 — Global Restructuring',
+    description:
+      'Combined macro shock for the Strategic Investment Conference 2026 "Global Restructuring" theme: +200bps parallel rate rise, +3% consumer default-rate increase, 5% deposit runoff over 12 months. Runnable engine twin: COSSEC_SCENARIOS["sic_2026_global_restructuring"].',
+    version: '1.0.0',
+    scope: 'SECTOR',
+    status: 'APPROVED',
+    source: 'CERNIQ_MACRO_LIBRARY',
+    ownerName: OWNER,
+    parameters: {
+      rateShockBps: 200,
+      shiftType: 'parallel',
+      depositRunoffPct: 5,
+      creditLossPct: 3,
+      creditLossSegment: 'consumer',
+      timeHorizonMonths: 12,
+      engineScenarioId: 'sic_2026_global_restructuring',
+    },
+    approvedUses: ['board_report', 'internal_analysis'],
+    provenance: {
+      basis:
+        'Mauldin Strategic Investment Conference 2026 — "The Global Restructuring"',
+      thematic: true,
+    },
+  },
 ];
 
 const BENCHMARKS: GovernedBenchmarkSeed[] = [
