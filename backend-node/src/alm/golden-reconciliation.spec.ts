@@ -235,4 +235,15 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
     const expected = loadOrCapture('pr-cooperativa-demo.cecl.json', actual);
     expect(actual).toEqual(expected);
   });
+
+  it('incurred-loss (Reg 8665) produces the canonical snapshot', async () => {
+    const actual = normalize(
+      await cecl.getCECLAnalysis(INSTITUTION_ID, 'incurredloss'),
+    );
+    const expected = loadOrCapture(
+      'pr-cooperativa-demo.incurred-loss.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
 });

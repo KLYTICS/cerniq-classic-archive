@@ -42,6 +42,30 @@ const PD_MULTIPLIERS = {
   severely_adverse: 3.0,
 };
 
+// ─── Incurred-Loss horizon (Reglamento 8665 §2.12.2.5) ───────
+
+/**
+ * Loss-Emergence Period (LEP), in years, for the incurred-loss allowance basis.
+ *
+ * The incurred-loss method (legacy ALLL under ASC 450-20, mapped to COSSEC
+ * Reglamento 8665 §2.12.2.5) recognizes losses *already incurred but not yet
+ * confirmed* over a short emergence window — in contrast to CECL/WARM, which
+ * recognizes *lifetime* expected losses scaled by remaining maturity. The one
+ * structural difference between the two allowances is this horizon multiplier:
+ *
+ *   incurred-loss = balance × (historicalLossRate + qualitativeAdj) × LEP
+ *   CECL / WARM   = balance × (historicalLossRate + qualitativeAdj) × WARL × pvFactor
+ *
+ * DISCLOSED CONFIG (D1): the exact LEP and any phase-in in Reglamento 8665
+ * §2.12.2.5 are UNVERIFIED — the operative text is a non-OCR scan (Market Bible
+ * §9 item 3 / CC-2023-01). Until the OCR'd circular is obtained we default to a
+ * 12-month emergence period (the conventional ASC 450-20 ALLL window) and emit a
+ * WARNING DataGap on every incurred-loss computation so an examiner sees the
+ * assumption rather than inferring a verified figure. NEVER ship this value
+ * silently — it is an estimate presented as an estimate.
+ */
+const INCURRED_LOSS_EMERGENCE_PERIOD_YEARS = 1.0;
+
 // ─── Types ───────────────────────────────────────────────────
 
 export interface CECLSegmentResult {
@@ -241,6 +265,121 @@ export class CECLService {
       segments: results,
       overallStatus: 'computed',
     };
+  }
+
+  // ─── Incurred-Loss Method (Reglamento 8665 §2.12.2.5) ──────
+
+  /**
+   * Incurred-loss allowance (COSSEC Reglamento 8665 §2.12.2.5 / legacy
+   * ASC 450-20 ALLL). Mirrors {@link calculateWARM}'s inputs but applies a short
+   * loss-emergence horizon instead of remaining life, producing the incurred-loss
+   * leg of the CAEL dual filing (Wave 1, W1.1). Per the confirmed 12-month-LEP
+   * convention: `allowance = balance × (lossRate + qFactor) × LEP`, no PV discount,
+   * no forward-looking macro overlay — the honest, backward-looking contrast to
+   * CECL's lifetime number.
+   *
+   * D1: refuses to compute on empty / all-zero-balance segments (returns
+   * `data_unavailable` + CRITICAL gap) and ALWAYS attaches a WARNING gap
+   * disclosing that the LEP and exact §2.12.2.5 basis are provisional config
+   * pending the OCR'd circular. WARNING gaps render the report; they do not block.
+   */
+  calculateIncurredLoss(
+    segments: Array<{
+      segmentName: string;
+      balance: number;
+      weightedAvgMaturity: number;
+      historicalLossRate: number;
+      lgd?: number;
+      qualitativeAdj?: number;
+      discountRate?: number;
+    }>,
+    options: { lossEmergencePeriodYears?: number } = {},
+  ): CECLSummary {
+    const methodology = 'Incurred Loss (Reg 8665)';
+
+    // D1: same empty-segment guard as WARM — an institution with no loan data
+    // gets `data_unavailable`, never a "valid" $0 incurred-loss allowance.
+    if (segments.length === 0 || segments.every((s) => !s.balance)) {
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        methodology,
+        reason: 'EMPTY_SEGMENTS',
+      });
+      return this.dataUnavailableSummary(methodology, 'no segments provided');
+    }
+
+    const lep = this.resolveLossEmergencePeriod(
+      options.lossEmergencePeriodYears,
+    );
+
+    const results: CECLSegmentResult[] = segments.map((rawSeg) => {
+      const seg = this.validateSegment(rawSeg);
+      // Annual adjusted loss rate, identical to WARM (historical + qualitative).
+      const adjRate = seg.historicalLossRate + seg.qualitativeAdj;
+      // Incurred-loss horizon = emergence period, NOT remaining life. No PV
+      // discount (ASC 450-20 incurred losses are undiscounted), no macro overlay.
+      const incurredLossRate = Math.min(Math.max(adjRate, 0) * lep, 1);
+      const expectedLoss = seg.balance * incurredLossRate;
+
+      return {
+        segmentName: seg.segmentName,
+        balance: seg.balance,
+        methodology,
+        historicalLossRate: seg.historicalLossRate,
+        qualitativeAdj: seg.qualitativeAdj,
+        adjustedLossRate: adjRate,
+        expectedLoss,
+        allowanceRequired: expectedLoss,
+        coverageRatio: seg.balance > 0 ? expectedLoss / seg.balance : 0,
+      };
+    });
+
+    const totalBalance = results.reduce((sum, r) => sum + Number(r.balance), 0);
+    const totalAllowance = results.reduce(
+      (sum, r) => sum + r.allowanceRequired,
+      0,
+    );
+
+    return {
+      totalBalance,
+      totalAllowance,
+      weightedCoverageRatio:
+        totalBalance > 0 ? totalAllowance / totalBalance : 0,
+      methodology,
+      segments: results,
+      overallStatus: 'computed',
+      accountingBasis: {
+        framework:
+          'Reglamento 8665 §2.12.2.5 (pérdida incurrida) — base de medición RAP / Reg 8665 §2.12.2.5 (incurred loss) — RAP measurement basis',
+        regulatoryContext:
+          'Base de pérdida incurrida para el CAEL (Reglamento 7790); coexiste con el cómputo CECL (ASC 326) durante la transición RAP→GAAP (~2028). / Incurred-loss basis for CAEL (Reg 7790); coexists with the CECL (ASC 326) computation during the RAP→GAAP transition (~2028).',
+        effectiveNote: `Horizonte de emergencia de pérdida (LEP) = ${lep} año(s); sin descuento a valor presente. / Loss-emergence period (LEP) = ${lep} year(s); undiscounted.`,
+      },
+      gaps: [
+        {
+          field: 'cecl.incurredLoss.lossEmergencePeriod',
+          reason: 'COSSEC_INPUTS_INSUFFICIENT',
+          severity: 'WARNING',
+          action: `El período de emergencia de pérdida (${lep} año) y la base exacta del Reglamento 8665 §2.12.2.5 son configuración PROVISIONAL — el texto operativo es un escaneo sin OCR (CC-2023-01); confirmar con COSSEC antes de presentar. / The loss-emergence period (${lep}yr) and the exact Reglamento 8665 §2.12.2.5 basis are PROVISIONAL config — the operative text is a non-OCR scan (CC-2023-01); confirm with COSSEC before filing.`,
+          context: {
+            lossEmergencePeriodYears: lep,
+            source: 'Reg 8665 §2.12.2.5 (UNVERIFIED)',
+          },
+        },
+      ],
+    };
+  }
+
+  /**
+   * Clamp the loss-emergence period to a sane 0–10yr window; falls back to the
+   * disclosed 12-month default when the input is absent or non-positive.
+   */
+  private resolveLossEmergencePeriod(input?: number): number {
+    const v = Number(input);
+    if (!Number.isFinite(v) || v <= 0) {
+      return INCURRED_LOSS_EMERGENCE_PERIOD_YEARS;
+    }
+    return Math.min(v, 10);
   }
 
   /**
@@ -506,6 +645,9 @@ export class CECLService {
         return this.calculateVintage(segmentData);
       case 'pdlgd':
         return this.calculatePDxLGD(segmentData);
+      case 'incurredloss':
+      case 'incurred-loss':
+        return this.calculateIncurredLoss(segmentData);
       default:
         return this.calculateWARM(segmentData);
     }

@@ -131,6 +131,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     limitations: ['Refuses on empty segments (D1)', 'No DEMO segment fallback'],
   },
   {
+    modelKey: 'credit.incurred-loss',
+    displayName: 'Incurred-Loss Allowance (Reg 8665 §2.12.2.5)',
+    description:
+      'Legacy incurred-loss ALLL (COSSEC Reglamento 8665 §2.12.2.5 / ASC 450-20): balance × (historicalLossRate + qualitativeAdj) × loss-emergence period. The incurred-loss leg of the CAEL dual filing (W1.1) — the backward-looking contrast to lifetime CECL.',
+    version: '0.1.0',
+    category: 'CREDIT_RISK',
+    riskTier: 'TIER_1',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/cecl.service.ts',
+    entryFunction: 'calculateIncurredLoss',
+    requiredInputs: ['loanSegments'],
+    limitations: [
+      'Refuses on empty segments (D1)',
+      'Loss-emergence period default 1yr is DISCLOSED config (WARNING gap) — exact Reg 8665 §2.12.2.5 basis UNVERIFIED (non-OCR scan, CC-2023-01)',
+      'Undiscounted; no forward-looking macro overlay (by design — incurred vs CECL)',
+    ],
+  },
+  {
     modelKey: 'credit.cecl-vintage',
     displayName: 'CECL — Vintage/Cohort Method',
     description: 'Vintage loss emergence with Weibull fit to cohort data.',
@@ -461,6 +480,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     serviceFile: 'alm/exam-prep/camel-certification.service.ts',
     entryFunction: 'generateCertification',
     requiredInputs: ['balanceSheetItems'],
+  },
+  {
+    modelKey: 'reg.cael-pr',
+    displayName: 'CAEL-PR Filing Framework (Reg 7790 / CECL / Piloto)',
+    description:
+      'COSSEC CAEL filing framework — Capital/Asset-quality/Earnings/Liquidity ratio dictionary for the three quarterly AITSA report variants (Reglamento 7790 incurred-loss, CAEL-with-CECL, and the Net Equity Ratio "Piloto"). Declarative half of W1.1; the compute + dual-output renderer land in Slice 2.',
+    version: '0.1.0',
+    category: 'REGULATORY',
+    riskTier: 'TIER_1',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/frameworks/cael-pr.framework.ts',
+    entryFunction: 'getCaelFramework',
+    requiredInputs: ['balanceSheetItems', 'loanSegments'],
+    limitations: [
+      'CAEL composite weighting + rating bands UNVERIFIED (Reg 7790 / CC-2023-01 non-OCR scans) — provisional ratios flagged per-ratio, disclosed via WARNING gap at compute time',
+      'Statutory thresholds (Ley 255 capital 8%, CC-2021-02 liquidity 5%) are NOT provisional',
+      'Compute layer (calculateCAELCompliance) + dual-output renderer deferred to Slice 2',
+    ],
   },
 
   // ───────────────── CAPITAL ─────────────────
@@ -806,6 +844,11 @@ export class ModelRegistrySeeder implements OnModuleInit {
         modelKey: 'alm.nii-sensitivity',
         goldenFile: 'pr-cooperativa-demo.nii-sensitivity.json',
         label: 'NII sensitivity golden test (pr-cooperativa-demo)',
+      },
+      {
+        modelKey: 'credit.incurred-loss',
+        goldenFile: 'pr-cooperativa-demo.incurred-loss.json',
+        label: 'Incurred-loss (Reg 8665) golden test (pr-cooperativa-demo)',
       },
     ];
 
