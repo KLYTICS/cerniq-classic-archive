@@ -9,16 +9,20 @@
  * Usage:
  *   npm run demo:sic                 # formatted bilingual report
  *   npm run demo:sic -- --json       # full machine-readable result
+ *   npm run demo:sic -- --html       # print-ready HTML one-pager (sic-demo.html)
+ *   npm run demo:sic -- --html=/tmp/sic.html
  *   npm run demo:sic -- --paths=20000
  *
  * No database, no Nest bootstrap — the harness serves the institution from an
  * in-memory fixture and runs the real ALM engines against it.
  */
+import { writeFileSync } from 'fs';
 import { Logger } from '@nestjs/common';
 import {
   SicDemoService,
   SicDemoResult,
 } from '../src/alm/demo/sic-demo.service';
+import { renderSicDemoHtml } from '../src/alm/demo/sic-demo-report';
 
 function pct(n: number): string {
   return `${n.toFixed(2)}%`;
@@ -114,11 +118,20 @@ async function main(): Promise<void> {
 
   const argv = process.argv.slice(2);
   const asJson = argv.includes('--json');
+  const htmlArg = argv.find((a) => a === '--html' || a.startsWith('--html='));
   const pathsArg = argv.find((a) => a.startsWith('--paths='));
   const paths = pathsArg ? parseInt(pathsArg.split('=')[1], 10) : undefined;
 
   const result = await new SicDemoService().run({ paths });
 
+  if (htmlArg) {
+    const outPath = htmlArg.includes('=')
+      ? htmlArg.split('=')[1]
+      : 'sic-demo.html';
+    writeFileSync(outPath, renderSicDemoHtml(result), 'utf-8');
+    console.log(`SIC 2026 demo report written to ${outPath}`);
+    return;
+  }
   if (asJson) {
     console.log(JSON.stringify(result, null, 2));
   } else {
