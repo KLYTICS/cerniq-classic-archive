@@ -37,7 +37,14 @@ export interface CapitalGlidePathAssumptions {
   annualAssetGrowthPct?: number;
   /** Annual return on assets (net surplus ÷ assets), percent. Default 0.6%. */
   annualRoaPct?: number;
-  /** Fraction of net surplus retained into the indivisible reserve, percent. Default 100%. */
+  /**
+   * Fraction of net surplus retained into the indivisible reserve, percent.
+   * Default 25% — the Ley 255 §6.02 statutory-floor allocation (the greater of
+   * 25% of net earnings or 4% of net operating income). Conservative on purpose:
+   * a planning default must never OVERSTATE a coop's climb to the capital floor
+   * to an examiner. Override with the coop's board-approved retention policy
+   * (a coop barred from distributions until the reserve is built may retain 100%).
+   */
   surplusRetentionPct?: number;
   /** Projection horizon in years. Default 5. */
   horizonYears?: number;
@@ -101,7 +108,9 @@ export interface CapitalGlidePathResult {
 const DEFAULTS = {
   annualAssetGrowthPct: 4,
   annualRoaPct: 0.6,
-  surplusRetentionPct: 100,
+  // Ley 255 §6.02 statutory-floor allocation (25%) — conservative default that
+  // never overstates the climb to the floor; override per coop board policy.
+  surplusRetentionPct: 25,
   horizonYears: 5,
   periodsPerYear: 4,
   netEquityFloorPct: 4,

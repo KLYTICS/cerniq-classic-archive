@@ -147,6 +147,20 @@ describe('CapitalPlanningService — indivisible-capital glide path (W1.4)', () 
     expect(r.assumptions.horizonYears).toBe(30);
   });
 
+  it('defaults surplus retention to the conservative Ley 255 §6.02 floor (25%)', () => {
+    // No surplusRetentionPct supplied → must fall back to the 25% statutory-floor
+    // allocation, NOT the optimistic full-retention figure. Founder decision: a
+    // planning default must never overstate a coop's climb to the capital floor.
+    const r = svc.projectGlidePath({
+      equity: 3,
+      totalAssets: 100,
+      riskWeightedAssets: 50,
+    });
+    expect(r.assumptions.surplusRetentionPct).toBe(25);
+    const gap = r.gaps.find((g) => g.field === 'capital.glidePath.assumptions');
+    expect(gap?.context).toMatchObject({ surplusRetentionPct: 25 });
+  });
+
   describe('D1 — refuses to project on a missing balance sheet', () => {
     it('zero assets → data_unavailable + CRITICAL gap, no phantom path', () => {
       const r = svc.projectGlidePath({ equity: 5, totalAssets: 0 }, BUILDING);
