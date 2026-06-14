@@ -26,6 +26,7 @@ import { DurationService } from './duration.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { CECLService } from './cecl.service';
+import { CapitalPlanningService } from './cooperativa/capital-planning.service';
 import { getFixture } from './data/fixtures';
 
 const GOLDEN_DIR = join(__dirname, '..', '..', 'test', 'golden');
@@ -242,6 +243,27 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
     );
     const expected = loadOrCapture(
       'pr-cooperativa-demo.incurred-loss.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it('capital glide-path (W1.4) produces the canonical snapshot', async () => {
+    const cossec = await service.getCOSSECCompliance(INSTITUTION_ID);
+    const planner = new CapitalPlanningService();
+    // Pinned planning assumptions so the golden is deterministic regardless of
+    // the service defaults; the math runs on the real demo balance sheet.
+    const actual = normalize(
+      planner.planFromCossecSummary(cossec.summary, {
+        annualAssetGrowthPct: 4,
+        annualRoaPct: 0.6,
+        surplusRetentionPct: 100,
+        horizonYears: 5,
+        periodsPerYear: 4,
+      }),
+    );
+    const expected = loadOrCapture(
+      'pr-cooperativa-demo.capital-glide-path.json',
       actual,
     );
     expect(actual).toEqual(expected);

@@ -529,6 +529,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     entryFunction: 'optimize',
     requiredInputs: ['balanceSheetItems', 'riskAppetite'],
   },
+  {
+    modelKey: 'capital.glide-path-planner',
+    displayName: 'Capital Indivisible Glide-Path Planner',
+    description:
+      'Forward-looking COSSEC capital projection (Wave 1, W1.4): projects the Net-Equity ratio (CAEL Piloto 4% floor) and the statutory indivisible-capital-over-RWA ratio (Ley 255 §6.02, 8%) period-by-period from retained net surplus + asset growth, with a stressed-recovery variant.',
+    version: '0.1.0',
+    category: 'CAPITAL',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/cooperativa/capital-planning.service.ts',
+    entryFunction: 'projectGlidePath',
+    requiredInputs: ['equity', 'totalAssets', 'riskWeightedAssets'],
+    limitations: [
+      'Deterministic projection; growth/ROA/surplus-retention are DISCLOSED planning assumptions (WARNING gap), not measured data',
+      'RWA grows proportionally with assets (disclosed simplification)',
+      'Refuses on missing balance sheet (D1); statutory leg skipped + gap when RWA absent',
+    ],
+  },
 
   // ───────────────── RISK METRICS ─────────────────
   {
@@ -849,6 +868,11 @@ export class ModelRegistrySeeder implements OnModuleInit {
         modelKey: 'credit.incurred-loss',
         goldenFile: 'pr-cooperativa-demo.incurred-loss.json',
         label: 'Incurred-loss (Reg 8665) golden test (pr-cooperativa-demo)',
+      },
+      {
+        modelKey: 'capital.glide-path-planner',
+        goldenFile: 'pr-cooperativa-demo.capital-glide-path.json',
+        label: 'Capital glide-path golden test (pr-cooperativa-demo)',
       },
     ];
 
