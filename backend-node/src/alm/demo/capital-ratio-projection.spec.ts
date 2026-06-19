@@ -8,6 +8,7 @@
  */
 import {
   projectCapitalRatioUnderStress,
+  reverseStressToFloor,
   CapitalRatioProjectionInput,
 } from './capital-ratio-projection';
 
@@ -139,5 +140,50 @@ describe('projectCapitalRatioUnderStress', () => {
     expect(r.deterministic.stressedCapitalRatioPct).toBe(0);
     expect(Number.isFinite(r.distribution.p5)).toBe(true);
     expect(Number.isFinite(r.meanCapitalRatioPct)).toBe(true);
+  });
+});
+
+describe('reverseStressToFloor', () => {
+  // equity 25 / assets 250, floor 7% ⇒ floor equity 17.5 ⇒ absorbs 7.5 before breach.
+  const base = {
+    baseEquity: 25,
+    totalAssets: 250,
+    cossecMinimumPct: 7,
+    scenarioTotalLoss: 2.5,
+    targetSegmentBalance: 80,
+  };
+
+  it('loss-to-floor = equity − floor×assets', () => {
+    const r = reverseStressToFloor(base);
+    expect(r.lossToFloor).toBeCloseTo(25 - 0.07 * 250, 6); // 7.5
+    expect(r.alreadyBelowFloor).toBe(false);
+  });
+
+  it('headroom multiple = loss-to-floor / scenario loss', () => {
+    const r = reverseStressToFloor(base);
+    expect(r.headroomMultiple).toBeCloseTo(7.5 / 2.5, 2); // 3.0×
+  });
+
+  it('breaking-point segment default = loss-to-floor / segment balance', () => {
+    const r = reverseStressToFloor(base);
+    expect(r.breakingPointSegmentDefaultPct).toBeCloseTo((7.5 / 80) * 100, 1); // 9.375% → round2 9.38
+  });
+
+  it('flags an institution already below the floor (negative headroom)', () => {
+    const r = reverseStressToFloor({ ...base, baseEquity: 15 }); // 15 < 17.5
+    expect(r.alreadyBelowFloor).toBe(true);
+    expect(r.lossToFloor).toBeLessThan(0);
+    expect(r.headroomMultiple).toBe(0); // clamped — no headroom
+  });
+
+  it('returns null multiples when the divisors are absent', () => {
+    const r = reverseStressToFloor({
+      baseEquity: 25,
+      totalAssets: 250,
+      cossecMinimumPct: 7,
+      scenarioTotalLoss: 0,
+    });
+    expect(r.headroomMultiple).toBeNull();
+    expect(r.breakingPointSegmentDefaultPct).toBeNull();
   });
 });

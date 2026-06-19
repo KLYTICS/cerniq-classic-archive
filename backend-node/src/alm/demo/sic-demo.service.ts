@@ -31,7 +31,9 @@ import {
 import { makeInMemoryPrismaFromFixture } from '../data/fixtures/in-memory-prisma';
 import {
   projectCapitalRatioUnderStress,
+  reverseStressToFloor,
   CapitalRatioUnderStress,
+  ReverseStressResult,
 } from './capital-ratio-projection';
 
 /** COSSEC leverage capital-ratio floor (equity / total assets), percent. */
@@ -116,6 +118,15 @@ export interface SicDemoResult {
     threshold: string;
     status: 'fail' | 'warning';
   }>;
+  /**
+   * Reverse stress test (EBA/PRA distance-to-breach): the loss that would drive
+   * the leverage ratio to the COSSEC floor, expressed as a multiple of the SIC
+   * scenario loss and as the consumer default-rate that alone would breach.
+   */
+  reverseStress: ReverseStressResult & {
+    narrative: string;
+    narrativeEs: string;
+  };
   pipeline: Array<{ step: string; name: string; status: PipelineStepStatus }>;
   gaps: DataGap[];
   modelLineage: Array<{ model: string; source: string }>;
@@ -225,7 +236,7 @@ export class SicDemoService {
     // capital looks fine, but the real risk is the duration gap / EVE the
     // headline ratio hides. That is the demo's value proposition.
     const findingsEs = topFinding
-      ? ` COSSEC marca ${findings.length} hallazgo(s) hoy — la restricción vinculante es ${topFinding.nameEs} en ${topFinding.value}${topFinding.unit} (límite ${topFinding.threshold}).`
+      ? ` COSSEC marca ${findings.length} hallazgo(s) hoy — la restricción vinculante es ${topFinding.nameEs} en ${topFinding.value}${topFinding.unit}, que excede el límite regulatorio.`
       : '';
     const findingsEn = topFinding
       ? ` COSSEC flags ${findings.length} issue(s) today — the binding constraint is ${topFinding.name} at ${topFinding.value}${topFinding.unit} (limit ${topFinding.threshold}).`
@@ -245,6 +256,47 @@ export class SicDemoService {
       `${Math.abs(projection.adverseCushionBps)} bps ${cushionWord(projection.adverseCushionBps, false)} ` +
       `${cossecMinimumPct}% COSSEC minimum.` +
       findingsEn;
+
+    // ── Reverse stress test: distance to the COSSEC floor ──
+    const consumerLoans = fixture.items
+      .filter(
+        (i) => i.category === 'asset' && i.subcategory === 'consumer_loans',
+      )
+      // Number() satisfies verify:decimal-coercion (no-op on the fixture's plain
+      // number balance; defensive if the shape ever becomes a Prisma Decimal).
+      .reduce((s, i) => s + Number(i.balance), 0);
+    const rs = reverseStressToFloor({
+      baseEquity: cossec.summary.equity,
+      totalAssets: cossec.summary.totalAssets,
+      cossecMinimumPct,
+      scenarioTotalLoss: projection.deterministic.totalLoss,
+      targetSegmentBalance: consumerLoans,
+    });
+    const multEs =
+      rs.headroomMultiple != null
+        ? ` (${rs.headroomMultiple}× el choque SIC)`
+        : '';
+    const multEn =
+      rs.headroomMultiple != null
+        ? ` (${rs.headroomMultiple}× the SIC shock)`
+        : '';
+    const bpEs =
+      rs.breakingPointSegmentDefaultPct != null
+        ? `; equivale a +${rs.breakingPointSegmentDefaultPct}% de morosidad de consumo frente al +${sic.scenario.creditShockPct}% del escenario`
+        : '';
+    const bpEn =
+      rs.breakingPointSegmentDefaultPct != null
+        ? `; equivalent to a +${rs.breakingPointSegmentDefaultPct}% consumer default rate vs the scenario's +${sic.scenario.creditShockPct}%`
+        : '';
+    const reverseStress = {
+      ...rs,
+      narrativeEs: rs.alreadyBelowFloor
+        ? `Ya está por debajo del piso de ${cossecMinimumPct}%.`
+        : `Puede absorber $${rs.lossToFloor}M en pérdidas${multEs} antes de tocar el piso de ${cossecMinimumPct}%${bpEs}.`,
+      narrative: rs.alreadyBelowFloor
+        ? `Already below the ${cossecMinimumPct}% floor.`
+        : `Can absorb $${rs.lossToFloor}M of losses${multEn} before hitting the ${cossecMinimumPct}% floor${bpEn}.`,
+    };
 
     const result: Omit<SicDemoResult, 'resultChecksum'> = {
       generatedFor: 'Mauldin SIC 2026 — Global Restructuring',
@@ -314,6 +366,7 @@ export class SicDemoService {
         narrativeEs,
       },
       findings,
+      reverseStress,
       pipeline: [
         {
           step: '1',

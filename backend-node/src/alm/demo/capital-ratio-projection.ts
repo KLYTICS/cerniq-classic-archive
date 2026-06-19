@@ -248,3 +248,60 @@ export function projectCapitalRatioUnderStress(
     disclosures,
   };
 }
+
+// ─── Reverse stress test (distance-to-breach) ───────────────────────────────
+
+export interface ReverseStressInput {
+  /** Net worth / equity before stress, $M. */
+  baseEquity: number;
+  /** Total assets, $M. */
+  totalAssets: number;
+  /** COSSEC leverage capital floor, percent. */
+  cossecMinimumPct: number;
+  /** The scenario's deterministic total loss, $M (for the headroom multiple). */
+  scenarioTotalLoss: number;
+  /**
+   * Balance of the segment the scenario's credit shock targets, $M (e.g. the
+   * consumer book). Used to express the breach as a segment default-rate.
+   */
+  targetSegmentBalance?: number;
+}
+
+export interface ReverseStressResult {
+  /** Maximum loss the institution can absorb before the ratio hits the floor, $M. */
+  lossToFloor: number;
+  /** The scenario loss this is measured against, $M. */
+  scenarioTotalLoss: number;
+  /** lossToFloor / scenarioTotalLoss — "how many SIC shocks until breach". */
+  headroomMultiple: number | null;
+  /** lossToFloor / targetSegmentBalance × 100 — the default-rate increase that alone would breach. */
+  breakingPointSegmentDefaultPct: number | null;
+  /** True when the institution already sits below the floor (no headroom). */
+  alreadyBelowFloor: boolean;
+}
+
+/**
+ * Reverse stress test: solve for the loss that drives the leverage capital
+ * ratio down to the COSSEC floor (the EBA/PRA "distance to breach"). Pure +
+ * deterministic — the exact inverse of the deterministic stressed ratio.
+ */
+export function reverseStressToFloor(
+  input: ReverseStressInput,
+): ReverseStressResult {
+  const floorEquity = (input.cossecMinimumPct / 100) * input.totalAssets;
+  const lossToFloor = round2(input.baseEquity - floorEquity);
+  const absorb = Math.max(0, lossToFloor);
+  return {
+    lossToFloor,
+    scenarioTotalLoss: round2(input.scenarioTotalLoss),
+    headroomMultiple:
+      input.scenarioTotalLoss > 0
+        ? round2(absorb / input.scenarioTotalLoss)
+        : null,
+    breakingPointSegmentDefaultPct:
+      input.targetSegmentBalance && input.targetSegmentBalance > 0
+        ? round2((absorb / input.targetSegmentBalance) * 100)
+        : null,
+    alreadyBelowFloor: lossToFloor < 0,
+  };
+}

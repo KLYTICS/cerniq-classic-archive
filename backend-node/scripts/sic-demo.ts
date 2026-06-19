@@ -95,6 +95,9 @@ function printReport(r: SicDemoResult): void {
   console.log(`    ${r.headline.narrative}`);
   console.log(`    ${r.headline.narrativeEs}`);
 
+  console.log('\n  REVERSE STRESS (distance to breach)');
+  console.log(`    ${r.reverseStress.narrative}`);
+
   console.log('\n  7-STEP PIPELINE');
   for (const s of r.pipeline) {
     const mark = s.status === 'completed' ? '✓' : '·';

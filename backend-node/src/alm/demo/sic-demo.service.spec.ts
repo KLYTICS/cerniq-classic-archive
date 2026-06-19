@@ -138,4 +138,27 @@ describe('SicDemoService', () => {
     expect(r.headline.narrative).toContain(top.name);
     expect(r.headline.narrativeEs).toContain(top.nameEs);
   });
+
+  it('computes a reverse stress test (distance-to-breach) from the engine outputs', async () => {
+    const r = await new SicDemoService().run();
+    const rs = r.reverseStress;
+    // loss-to-floor = equity − floor×assets, derived from the COSSEC summary
+    expect(rs.lossToFloor).toBeCloseTo(
+      r.baseline.equity -
+        (r.headline.cossecMinimumPct / 100) * r.institution.totalAssets,
+      1,
+    );
+    expect(rs.alreadyBelowFloor).toBe(false); // baseline 10% is well above 7%
+    // headroom multiple = lossToFloor / the scenario's total deterministic loss
+    expect(rs.headroomMultiple).toBeCloseTo(
+      rs.lossToFloor / r.capitalRatioUnderStress.deterministic.totalLoss,
+      2,
+    );
+    // the breaking-point consumer default exceeds the scenario's +3% (it has headroom)
+    expect(rs.breakingPointSegmentDefaultPct).toBeGreaterThan(
+      r.scenario.creditShockPct,
+    );
+    expect(rs.narrative).toMatch(/absorb/i);
+    expect(rs.narrativeEs).toMatch(/absorber/i);
+  });
 });

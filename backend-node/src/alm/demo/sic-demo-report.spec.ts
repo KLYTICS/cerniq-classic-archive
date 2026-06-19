@@ -70,6 +70,11 @@ describe('renderSicDemoHtml', () => {
     expect((html.match(/<body>/g) || []).length).toBe(1);
   });
 
+  it('includes the reverse stress (distance-to-breach) narrative', () => {
+    expect(html).toMatch(/Reverse stress|estrés inversa/i);
+    expect(html).toContain(r.reverseStress.narrativeEs);
+  });
+
   it('is deterministic — same result renders byte-identical HTML', () => {
     expect(renderSicDemoHtml(r)).toBe(html);
   });

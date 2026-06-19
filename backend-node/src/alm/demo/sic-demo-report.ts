@@ -178,6 +178,12 @@ export function renderSicDemoHtml(r: SicDemoResult): string {
     <p style="font-size:12px;color:var(--muted)">Escenario: ${esc(r.scenario.nameEs)} · ${r.scenario.rateShiftBps}pb · depósitos ${r.scenario.depositShockPct}% · +${r.scenario.creditShockPct}% morosidad (${esc(r.scenario.creditShockSegment)}) · prob. incumplimiento ${pct(h.breachProbabilityPct)}</p>
   </div>
 
+  <h2>Prueba de estrés inversa · Reverse stress (distance to breach)</h2>
+  <div class="headline">
+    <p>${esc(r.reverseStress.narrativeEs)}</p>
+    <p class="en">${esc(r.reverseStress.narrative)}</p>
+  </div>
+
   <h2>Hallazgos COSSEC · Findings (the risk capital ratio hides)</h2>
   <table>
     <thead><tr><th>Estado</th><th>Razón · Ratio</th><th class="num">Valor</th><th class="num">Límite</th></tr></thead>
