@@ -11,6 +11,7 @@
  *   npm run demo:sic -- --json       # full machine-readable result
  *   npm run demo:sic -- --html       # print-ready HTML one-pager (sic-demo.html)
  *   npm run demo:sic -- --html=/tmp/sic.html
+ *   npm run demo:sic -- --backtest   # SR 11-7 model backtest (calibration vs theory)
  *   npm run demo:sic -- --paths=20000
  *
  * No database, no Nest bootstrap — the harness serves the institution from an
@@ -23,6 +24,7 @@ import {
   SicDemoResult,
 } from '../src/alm/demo/sic-demo.service';
 import { renderSicDemoHtml } from '../src/alm/demo/sic-demo-report';
+import { backtestProjectionCalibration } from '../src/alm/demo/capital-ratio-backtest';
 
 function pct(n: number): string {
   return `${n.toFixed(2)}%`;
@@ -112,11 +114,33 @@ function printReport(r: SicDemoResult): void {
   console.log(line);
 }
 
+function printBacktest(): void {
+  const r = backtestProjectionCalibration();
+  const line = '─'.repeat(72);
+  console.log(line);
+  console.log('  SIC 2026 capital-ratio projection — BACKTEST (SR 11-7)');
+  console.log(`  ${r.seeds} seeds · ${r.paths} paths/run`);
+  console.log(line);
+  for (const c of r.checks) {
+    console.log(`  ${c.passed ? '✓' : '✗'} ${c.name}`);
+    console.log(`      ${c.detail}`);
+  }
+  console.log(line);
+  console.log(
+    `  RESULT: ${r.passed ? '✓ CALIBRATED — all checks passed' : '✗ FAILED'}`,
+  );
+  console.log(line);
+}
+
 async function main(): Promise<void> {
   // Silence the Nest service loggers so the CLI emits a clean report only.
   Logger.overrideLogger(false);
 
   const argv = process.argv.slice(2);
+  if (argv.includes('--backtest')) {
+    printBacktest();
+    return;
+  }
   const asJson = argv.includes('--json');
   const htmlArg = argv.find((a) => a === '--html' || a.startsWith('--html='));
   const pathsArg = argv.find((a) => a.startsWith('--paths='));

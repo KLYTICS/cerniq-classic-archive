@@ -2,20 +2,20 @@
 
 ## Model Identity
 
-| Field | Value |
-|-------|-------|
-| **Name** | Seeded Parametric Capital-Ratio Stress Band (lognormal severity + single-factor Gaussian copula) |
-| **Version** | 1.0.0 (June 2026) |
-| **Implementation** | `backend-node/src/alm/demo/capital-ratio-projection.ts` |
-| **Consumed by** | `SicDemoService` (`backend-node/src/alm/demo/sic-demo.service.ts`) — the offline SIC 2026 demo harness (`npm run demo:sic`) |
-| **Reproducibility** | Deterministic given `seed` (xorshift32 + Box–Muller, FNV-1a-keyed). No `Math.random` / `crypto.randomBytes`. SR 11-7 §VI. |
+| Field                    | Value                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Name**                 | Seeded Parametric Capital-Ratio Stress Band (lognormal severity + single-factor Gaussian copula)                                   |
+| **Version**              | 1.0.0 (June 2026)                                                                                                                  |
+| **Implementation**       | `backend-node/src/alm/demo/capital-ratio-projection.ts`                                                                            |
+| **Consumed by**          | `SicDemoService` (`backend-node/src/alm/demo/sic-demo.service.ts`) — the offline SIC 2026 demo harness (`npm run demo:sic`)        |
+| **Reproducibility**      | Deterministic given `seed` (xorshift32 + Box–Muller, FNV-1a-keyed). No `Math.random` / `crypto.randomBytes`. SR 11-7 §VI.          |
 | **Regulatory Reference** | Basel III IRB single-factor model (BCBS d424); operational-risk LDA lognormal severity (BCBS AMA); SR 11-7 (model risk management) |
 
 ---
 
 ## Purpose
 
-Express the **uncertainty band** around an *already-computed* deterministic stressed capital ratio, so a stress result can be communicated as a distribution ("baseline X% → adverse-tail Y% at p5, Z bps vs the COSSEC floor") rather than a single point.
+Express the **uncertainty band** around an _already-computed_ deterministic stressed capital ratio, so a stress result can be communicated as a distribution ("baseline X% → adverse-tail Y% at p5, Z bps vs the COSSEC floor") rather than a single point.
 
 The model is deliberately **anchored, not generative**: the central (expected) estimate is the ALM engine's own deterministic stressed capital ratio. This projection only widens that point into a band — it never invents the centre. It is a **communication tool**, not a regulatory capital model.
 
@@ -23,33 +23,33 @@ The model is deliberately **anchored, not generative**: the central (expected) e
 
 ## Input Features
 
-| Feature | Type | Source | Description |
-|---------|------|--------|-------------|
-| `baseEquity` | `number` ($M) | COSSEC summary (`equity`) | Net worth before stress |
-| `totalAssets` | `number` ($M) | COSSEC summary | Capital-ratio denominator |
-| `deterministicLosses.creditLoss` | `number` ($M ≥ 0) | `runCOSSECScenarios` (segment-targeted) | Incremental credit loss under the scenario |
-| `deterministicLosses.depositCost` | `number` ($M ≥ 0) | `runCOSSECScenarios` | Funding cost from deposit runoff |
-| `deterministicLosses.niiShortfall` | `number` ($M ≥ 0) | `max(0, −niiImpact)` | Lost net interest income (earnings that would have built capital) |
-| `cossecMinimumPct` | `number` (%) | Regulatory constant (default 7) | COSSEC leverage capital floor |
-| `seed` | `string` | Caller (`scenarioId:seedKey`) | Deterministic RNG key |
-| `paths` | `number` | Caller (default 10000, clamped [200, 100000]) | Monte Carlo paths |
-| `assumptions.{credit,deposit,nii}SeverityCv` | `number` | Disclosed assumption (0.40 / 0.30 / 0.35) | Severity coefficient of variation per channel |
-| `assumptions.systemicCorrelation` | `number` ∈ [0,1] | Disclosed assumption (default 0.5) | Correlation of each channel to the systemic factor |
+| Feature                                      | Type              | Source                                        | Description                                                       |
+| -------------------------------------------- | ----------------- | --------------------------------------------- | ----------------------------------------------------------------- |
+| `baseEquity`                                 | `number` ($M)     | COSSEC summary (`equity`)                     | Net worth before stress                                           |
+| `totalAssets`                                | `number` ($M)     | COSSEC summary                                | Capital-ratio denominator                                         |
+| `deterministicLosses.creditLoss`             | `number` ($M ≥ 0) | `runCOSSECScenarios` (segment-targeted)       | Incremental credit loss under the scenario                        |
+| `deterministicLosses.depositCost`            | `number` ($M ≥ 0) | `runCOSSECScenarios`                          | Funding cost from deposit runoff                                  |
+| `deterministicLosses.niiShortfall`           | `number` ($M ≥ 0) | `max(0, −niiImpact)`                          | Lost net interest income (earnings that would have built capital) |
+| `cossecMinimumPct`                           | `number` (%)      | Regulatory constant (default 7)               | COSSEC leverage capital floor                                     |
+| `seed`                                       | `string`          | Caller (`scenarioId:seedKey`)                 | Deterministic RNG key                                             |
+| `paths`                                      | `number`          | Caller (default 10000, clamped [200, 100000]) | Monte Carlo paths                                                 |
+| `assumptions.{credit,deposit,nii}SeverityCv` | `number`          | Disclosed assumption (0.40 / 0.30 / 0.35)     | Severity coefficient of variation per channel                     |
+| `assumptions.systemicCorrelation`            | `number` ∈ [0,1]  | Disclosed assumption (default 0.5)            | Correlation of each channel to the systemic factor                |
 
 ---
 
 ## Output Variables
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `baselineCapitalRatioPct` | `number` | `equity / totalAssets × 100` |
-| `deterministic.stressedCapitalRatioPct` | `number` | `(equity − Σ losses) / totalAssets × 100` — the anchored centre |
-| `distribution.{p5,p25,p50,p75,p95}` | `number` | Percentiles of the stressed capital ratio (`p5` = adverse tail) |
-| `meanCapitalRatioPct` | `number` | Sample mean — equals the deterministic centre by construction |
-| `breachProbabilityPct` | `number` | Share of paths below `cossecMinimumPct` |
-| `adverseCushionBps` | `number` | `(p5 − cossecMinimumPct) × 100` |
-| `breachesFloorAtAdverseTail` | `boolean` | `p5 < cossecMinimumPct` |
-| `disclosures` | `string[]` | Plain-language statement of the model structure + assumptions |
+| Variable                                | Type       | Description                                                     |
+| --------------------------------------- | ---------- | --------------------------------------------------------------- |
+| `baselineCapitalRatioPct`               | `number`   | `equity / totalAssets × 100`                                    |
+| `deterministic.stressedCapitalRatioPct` | `number`   | `(equity − Σ losses) / totalAssets × 100` — the anchored centre |
+| `distribution.{p5,p25,p50,p75,p95}`     | `number`   | Percentiles of the stressed capital ratio (`p5` = adverse tail) |
+| `meanCapitalRatioPct`                   | `number`   | Sample mean — equals the deterministic centre by construction   |
+| `breachProbabilityPct`                  | `number`   | Share of paths below `cossecMinimumPct`                         |
+| `adverseCushionBps`                     | `number`   | `(p5 − cossecMinimumPct) × 100`                                 |
+| `breachesFloorAtAdverseTail`            | `boolean`  | `p5 < cossecMinimumPct`                                         |
+| `disclosures`                           | `string[]` | Plain-language statement of the model structure + assumptions   |
 
 ---
 
@@ -83,7 +83,7 @@ Each channel's driver shares a common systemic factor so the three losses worsen
 X_i = √ρ · Z_sys + √(1−ρ) · Z_i      Z_sys, Z_i ~ N(0,1) i.i.d.
 ```
 
-ρ = 0 → independent; ρ = 1 → perfectly correlated. The default ρ = 0.5 reflects that credit, funding, and NII pressure under a single named macro scenario ("Global Restructuring") are materially co-driven. Correlation moves the *variance* (tail width), not the *mean*.
+ρ = 0 → independent; ρ = 1 → perfectly correlated. The default ρ = 0.5 reflects that credit, funding, and NII pressure under a single named macro scenario ("Global Restructuring") are materially co-driven. Correlation moves the _variance_ (tail width), not the _mean_.
 
 ### 4. Seeded PRNG
 
@@ -114,11 +114,27 @@ Locked in `capital-ratio-projection.spec.ts`:
 
 ---
 
+## Backtest (ongoing monitoring)
+
+`capital-ratio-backtest.ts` runs an SR 11-7 outcomes-analysis suite — runnable via `npm run demo:sic -- --backtest` and CI-locked in `capital-ratio-backtest.spec.ts`. The checks validate the sampler against **closed-form theory** and structural invariants (deliberately non-circular):
+
+| Check                    | Method                                                                                                                            | Tolerance |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| **breach-calibration**   | Single lognormal channel: empirical breach frequency vs the analytic tail `P(S > s*) = 1 − Φ((ln s* + σ²/2)/σ)` (Φ = A&S 26.2.17) | < 0.5pp   |
+| **mean-unbiased**        | Sample mean of the stressed ratio vs the deterministic centre (validates `E[S] = 1`)                                              | < 0.05pp  |
+| **convergence**          | Cross-seed std of the mean must shrink as paths grow (1/√N)                                                                       | std↓      |
+| **percentile-ordering**  | `p5 ≤ p25 ≤ p50 ≤ p75 ≤ p95` across all seeds                                                                                     | exact     |
+| **copula-tail-widening** | `p95 − p5` must widen as ρ rises (systemic factor removes diversification)                                                        | width↑    |
+
+Representative run (12 seeds × 20000 paths): empirical breach **10.59%** vs closed-form **10.65%** (0.07pp); mean **8.002%** vs centre **8.000%** (0.002pp); cross-seed std **0.0213 → 0.0069** as N goes 1k→20k. The breach-calibration check is the load-bearing one: it exercises the full pipeline (seeded RNG → Box–Muller → lognormal transform → breach counting) against math the implementation cannot influence.
+
+---
+
 ## Limitations
 
 1. **Assumption-driven band, not calibrated.** The severity CVs (0.40 / 0.30 / 0.35) and systemic correlation (0.5) are disclosed communication assumptions, not estimated from PR cooperativa loss history. They size the band, not the centre — but the tail (p5, breach probability) is sensitive to them. They are echoed in `disclosures[]` and `assumptions` on every result.
 2. **Single systemic factor.** Like the Basel IRB foundation, this collapses all co-movement into one factor. Real scenarios have multiple correlated macro drivers (rates, hurricane frequency, migration).
-3. **Severity-only.** The model takes the engine's deterministic losses as given and varies their *severity*; it does not re-model the rate→NII or PD→loss mechanics. Those live in the upstream ALM engine (and carry their own model cards).
+3. **Severity-only.** The model takes the engine's deterministic losses as given and varies their _severity_; it does not re-model the rate→NII or PD→loss mechanics. Those live in the upstream ALM engine (and carry their own model cards).
 4. **Single-period.** The band is a one-period capital snapshot under stress; it does not model multi-period capital accretion, dividend/patronage policy, or management action.
 5. **Not a regulatory capital figure.** This is a demonstration/communication band. The statutory capital ratio (RWA-based, `capitalRatioRWA`) and COSSEC's formal stress methodology are separate and authoritative.
 6. **Independence of idiosyncratic draws.** Beyond the shared systemic factor, the channel-specific shocks are independent; any residual channel-pair correlation is not modelled.
