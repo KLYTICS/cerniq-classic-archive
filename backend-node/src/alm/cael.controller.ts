@@ -1,23 +1,34 @@
-import { Controller, Get, Logger, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Logger,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthTenantGuard } from '../auth/auth-tenant.guard';
 import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
+import { AuditAction } from '../common/decorators/audit-action.decorator';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { CECLService } from './cecl.service';
 import {
   CaelComplianceService,
   type CaelComplianceResult,
 } from './cael-compliance.service';
+import { CaelArtifactService } from './cael-artifact.service';
+import type { ArtifactRecord } from './reports/report-artifact.service';
 
 /**
- * CAEL Compliance API (Wave 1, W1.1 Slice 2 — dispatch).
+ * CAEL Compliance API (Wave 1, W1.1 Slice 2 — dispatch + persistence).
  *
  * Exposes the three quarterly CAEL filings (Reglamento 7790 incurred-loss,
  * CAEL-with-CECL, CAEL Piloto) for one institution over the authenticated ALM
  * surface. A SEPARATE controller — NOT a method on `AlmController` — so it adds
- * zero positional-constructor slots there (the slot-map trap) and needs no
- * `schema.prisma` change: it returns the computed verdicts as JSON; the governed
- * `ReportArtifact` persistence (`CAEL_*` enum, blocked on PR #71) is a later slice.
+ * zero positional-constructor slots there (the slot-map trap).
+ *   - GET  :institutionId/cael           → compute the three filings (JSON).
+ *   - POST :institutionId/cael/artifact  → persist them as an immutable,
+ *                                          checksummed `CAEL_JSON` ReportArtifact.
  *
  * Auth: the class-level `AuthTenantGuard` + `InstitutionScopeGuard` stack mirrors
  * `AlmController` — authentication first, then tenant ownership of `:institutionId`.
@@ -32,6 +43,7 @@ export class CaelController {
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly cecl: CECLService,
     private readonly cael: CaelComplianceService,
+    private readonly caelArtifact: CaelArtifactService,
   ) {}
 
   /**
@@ -50,6 +62,34 @@ export class CaelController {
     @Param('institutionId') institutionId: string,
   ): Promise<CaelComplianceResult[]> {
     this.logger.log(`CAEL compliance filings for institution ${institutionId}`);
+    return this.computeVariants(institutionId);
+  }
+
+  /**
+   * Generate and PERSIST the three CAEL filings as an immutable, SHA-256
+   * checksummed `CAEL_JSON` ReportArtifact (model-lineage + data-gaps stamped).
+   * Append-only — an auditor can re-checksum the stored filing and trace it back.
+   */
+  @Post(':institutionId/cael/artifact')
+  @AuditAction('cael_artifact_generate')
+  @ApiOperation({
+    summary: 'Generate + persist the CAEL filings as a governed artifact',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  async generateCaelArtifact(
+    @Param('institutionId') institutionId: string,
+  ): Promise<ArtifactRecord> {
+    this.logger.log(
+      `CAEL artifact generation for institution ${institutionId}`,
+    );
+    const results = await this.computeVariants(institutionId);
+    return this.caelArtifact.persistFiling({ institutionId, results });
+  }
+
+  /** Run the engines + evaluate the three CAEL variants. Shared by both routes. */
+  private async computeVariants(
+    institutionId: string,
+  ): Promise<CaelComplianceResult[]> {
     const cossec = await this.almEnterprise.getCOSSECCompliance(institutionId);
     const incurred = await this.cecl.getCECLAnalysis(
       institutionId,

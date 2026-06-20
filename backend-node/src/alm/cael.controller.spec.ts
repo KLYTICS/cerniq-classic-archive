@@ -2,6 +2,7 @@ import { CaelController } from './cael.controller';
 import { CaelComplianceService } from './cael-compliance.service';
 import type { AlmEnterpriseService } from './alm-enterprise.service';
 import type { CECLService } from './cecl.service';
+import type { CaelArtifactService } from './cael-artifact.service';
 
 describe('CaelController — CAEL compliance dispatch (W1.1 Slice 2)', () => {
   const SUMMARY = {
@@ -29,6 +30,7 @@ describe('CaelController — CAEL compliance dispatch (W1.1 Slice 2)', () => {
     controller: CaelController;
     cossecSpy: jest.Mock;
     ceclSpy: jest.Mock;
+    persistSpy: jest.Mock;
   } {
     const cossecSpy = jest.fn().mockResolvedValue({ summary: SUMMARY });
     const ceclSpy = jest
@@ -36,18 +38,25 @@ describe('CaelController — CAEL compliance dispatch (W1.1 Slice 2)', () => {
       .mockImplementation((_id: string, method: string) =>
         Promise.resolve(method === 'incurredloss' ? INCURRED : WARM),
       );
+    const persistSpy = jest
+      .fn()
+      .mockResolvedValue({ id: 'artifact-1', format: 'CAEL_JSON' });
     const almEnterprise = {
       getCOSSECCompliance: cossecSpy,
     } as unknown as AlmEnterpriseService;
     const cecl = {
       getCECLAnalysis: ceclSpy,
     } as unknown as CECLService;
+    const caelArtifact = {
+      persistFiling: persistSpy,
+    } as unknown as CaelArtifactService;
     const controller = new CaelController(
       almEnterprise,
       cecl,
       new CaelComplianceService(),
+      caelArtifact,
     );
-    return { controller, cossecSpy, ceclSpy };
+    return { controller, cossecSpy, ceclSpy, persistSpy };
   }
 
   it('returns the three CAEL variants in canonical order', async () => {
@@ -83,5 +92,18 @@ describe('CaelController — CAEL compliance dispatch (W1.1 Slice 2)', () => {
       'pass',
     );
     expect(r[0].overallStatus).toBe('conditional');
+  });
+
+  it('persists the computed filings as a governed artifact (POST)', async () => {
+    const { controller, persistSpy } = makeController();
+    const rec = await controller.generateCaelArtifact('inst-1');
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    const arg = persistSpy.mock.calls[0][0] as {
+      institutionId: string;
+      results: unknown[];
+    };
+    expect(arg.institutionId).toBe('inst-1');
+    expect(arg.results).toHaveLength(3); // the three computed variants
+    expect(rec.id).toBe('artifact-1');
   });
 });

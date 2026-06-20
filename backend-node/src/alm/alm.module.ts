@@ -24,6 +24,7 @@ import { ScenarioPersistenceService } from './scenarios/scenario-persistence.ser
 import { YieldCurveService } from './yield-curve.service';
 import { CECLService } from './cecl.service';
 import { CaelComplianceService } from './cael-compliance.service';
+import { CaelArtifactService } from './cael-artifact.service';
 import { FTPService } from './ftp.service';
 import { DepositBetaService } from './deposit-beta.service';
 import { LiquidityAdvancedService } from './liquidity-advanced.service';
@@ -182,6 +183,7 @@ import { HJMModule } from './quant/hjm.module';
     YieldCurveService,
     CECLService,
     CaelComplianceService,
+    CaelArtifactService,
     FTPService,
     DepositBetaService,
     LiquidityAdvancedService,
@@ -303,6 +305,7 @@ import { HJMModule } from './quant/hjm.module';
     YieldCurveService,
     CECLService,
     CaelComplianceService,
+    CaelArtifactService,
     FTPService,
     DepositBetaService,
     LiquidityAdvancedService,

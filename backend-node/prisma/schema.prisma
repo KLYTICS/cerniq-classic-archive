@@ -1299,6 +1299,8 @@ enum ReportArtifactFormat {
   EXCEL
   JSON_BINDER
   CSV_TEMPLATE
+  CAEL_JSON
+  CAEL_HTML
 }
 
 model ReportArtifact {
