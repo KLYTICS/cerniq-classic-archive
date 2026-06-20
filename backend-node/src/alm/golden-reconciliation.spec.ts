@@ -27,6 +27,7 @@ import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { CECLService } from './cecl.service';
 import { CapitalPlanningService } from './cooperativa/capital-planning.service';
+import { CaelComplianceService } from './cael-compliance.service';
 import { getFixture } from './data/fixtures';
 
 const GOLDEN_DIR = join(__dirname, '..', '..', 'test', 'golden');
@@ -264,6 +265,32 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
     );
     const expected = loadOrCapture(
       'pr-cooperativa-demo.capital-glide-path.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it('CAEL compliance (W1.1 Slice 2) produces the canonical snapshot', async () => {
+    // Run the real engines, then evaluate the three quarterly CAEL variants —
+    // drift-locks the compute layer against the live COSSEC + allowance output.
+    const cossec = await service.getCOSSECCompliance(INSTITUTION_ID);
+    const incurred = await cecl.getCECLAnalysis(INSTITUTION_ID, 'incurredloss');
+    const warm = await cecl.getCECLAnalysis(INSTITUTION_ID, 'warm');
+    const cael = new CaelComplianceService();
+    const results = [
+      cael.evaluateCaelCompliance(
+        cael.caelInputsFromEngines('reg7790', cossec.summary, incurred),
+      ),
+      cael.evaluateCaelCompliance(
+        cael.caelInputsFromEngines('cecl', cossec.summary, warm),
+      ),
+      cael.evaluateCaelCompliance(
+        cael.caelInputsFromEngines('piloto', cossec.summary, null),
+      ),
+    ];
+    const actual = normalize(results);
+    const expected = loadOrCapture(
+      'pr-cooperativa-demo.cael-compliance.json',
       actual,
     );
     expect(actual).toEqual(expected);
