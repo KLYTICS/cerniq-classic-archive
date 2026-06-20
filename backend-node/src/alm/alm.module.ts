@@ -23,6 +23,7 @@ import { DurationService } from './duration.service';
 import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
 import { YieldCurveService } from './yield-curve.service';
 import { CECLService } from './cecl.service';
+import { CaelComplianceService } from './cael-compliance.service';
 import { FTPService } from './ftp.service';
 import { DepositBetaService } from './deposit-beta.service';
 import { LiquidityAdvancedService } from './liquidity-advanced.service';
@@ -115,6 +116,7 @@ import { PreviewReportService } from './preview-report.service';
 import { AlmDocumentExportsService } from './alm-document-exports.service';
 // Controllers
 import { AlmController } from './alm.controller';
+import { CaelController } from './cael.controller';
 import { AlmAdvisorController } from './alm-advisor.controller';
 import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAnalystService } from './alm-analyst.service';
@@ -147,6 +149,7 @@ import { HJMModule } from './quant/hjm.module';
   ],
   controllers: [
     AlmController,
+    CaelController,
     AlmAdvisorController,
     AlmAdvisorV2Controller,
     AlmAnalystController,
@@ -178,6 +181,7 @@ import { HJMModule } from './quant/hjm.module';
     ScenarioPersistenceService,
     YieldCurveService,
     CECLService,
+    CaelComplianceService,
     FTPService,
     DepositBetaService,
     LiquidityAdvancedService,
@@ -298,6 +302,7 @@ import { HJMModule } from './quant/hjm.module';
     ScenarioPersistenceService,
     YieldCurveService,
     CECLService,
+    CaelComplianceService,
     FTPService,
     DepositBetaService,
     LiquidityAdvancedService,
