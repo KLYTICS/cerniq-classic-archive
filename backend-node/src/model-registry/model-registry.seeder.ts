@@ -195,6 +195,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     ],
   },
   {
+    modelKey: 'credit.macro-overlay-pr',
+    displayName: 'PR Macro Overlay (data-derived CECL calibration)',
+    description:
+      'Derives the PR CECL PD multipliers + scenario weights from macro inputs (unemployment, HPI YoY, net migration) via a macro-stress index, reducing exactly to the provisional constants at a reference state. Turns the hard-coded PR overlay into a data-defensible calibration (Wave 1, W1.2).',
+    version: '0.1.0',
+    category: 'CREDIT_RISK',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/macro-overlay.service.ts',
+    entryFunction: 'deriveOverlay',
+    requiredInputs: ['prUnemploymentPct', 'prHpiYoyPct', 'prNetMigrationPct'],
+    limitations: [
+      'Sensitivity coefficients + reference macro state are DISCLOSED config (WARNING gap), PROVISIONAL pending COSSEC/NCUA validation',
+      'Stress-only: a better-than-reference macro state never softens the overlay below the provisional base',
+      'Slice 1 is the derivation engine on supplied inputs; the live FRED/BLS/Census feed + cecl wiring are follow-up slices',
+    ],
+  },
+  {
     modelKey: 'credit.kmv-merton',
     displayName: 'KMV-Merton Structural Credit',
     description:
