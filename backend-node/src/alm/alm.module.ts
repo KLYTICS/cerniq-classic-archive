@@ -23,6 +23,8 @@ import { DurationService } from './duration.service';
 import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
 import { YieldCurveService } from './yield-curve.service';
 import { CECLService } from './cecl.service';
+import { MacroOverlayService } from './macro-overlay.service';
+import { PrMacroFeedService } from './pr-macro-feed.service';
 import { CaelComplianceService } from './cael-compliance.service';
 import { CaelArtifactService } from './cael-artifact.service';
 import { FTPService } from './ftp.service';
@@ -182,6 +184,8 @@ import { HJMModule } from './quant/hjm.module';
     ScenarioPersistenceService,
     YieldCurveService,
     CECLService,
+    MacroOverlayService,
+    PrMacroFeedService,
     CaelComplianceService,
     CaelArtifactService,
     FTPService,
@@ -304,6 +308,8 @@ import { HJMModule } from './quant/hjm.module';
     ScenarioPersistenceService,
     YieldCurveService,
     CECLService,
+    MacroOverlayService,
+    PrMacroFeedService,
     CaelComplianceService,
     CaelArtifactService,
     FTPService,

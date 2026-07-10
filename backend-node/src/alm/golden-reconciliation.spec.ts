@@ -26,6 +26,9 @@ import { DurationService } from './duration.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { CECLService } from './cecl.service';
+import { MacroOverlayService } from './macro-overlay.service';
+import { PrMacroFeedService } from './pr-macro-feed.service';
+import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
 import { CapitalPlanningService } from './cooperativa/capital-planning.service';
 import { CaelComplianceService } from './cael-compliance.service';
 import { getFixture } from './data/fixtures';
@@ -174,12 +177,29 @@ function loadOrCapture(filename: string, actual: unknown): unknown {
   return JSON.parse(readFileSync(path, 'utf-8'));
 }
 
+/**
+ * W1.2: the macro overlay wired with a PINNED clock (one day after the
+ * committed snapshot's verification pass) so staleness evaluation never
+ * depends on when the suite runs — goldens must be time-independent.
+ * FRED_API_KEY is cleared so the live-refresh path can't leak in.
+ */
+function makePinnedMacroOverlay(): MacroOverlayService {
+  const feed = new PrMacroFeedService();
+  const base = new Date(`${PR_MACRO_SNAPSHOT.compiledAsOf}T00:00:00Z`);
+  feed.nowFn = () => new Date(base.getTime() + 86_400_000);
+  return new MacroOverlayService(feed);
+}
+
 describe('Golden reconciliation: pr-cooperativa-demo', () => {
   let service: AlmEnterpriseService;
   let stress: StressTestingService;
   let cecl: CECLService;
+  let overlay: MacroOverlayService;
 
   beforeEach(() => {
+    delete process.env.FRED_API_KEY;
+    delete process.env.CECL_MACRO_OVERLAY_MODE;
+    delete process.env.PR_MACRO_STALENESS_DAYS;
     const prisma = makeFakePrismaFromFixture();
     service = new AlmEnterpriseService(
       prisma,
@@ -187,7 +207,8 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       new DurationService(),
     );
     stress = new StressTestingService(prisma, service);
-    cecl = new CECLService(prisma);
+    overlay = makePinnedMacroOverlay();
+    cecl = new CECLService(prisma, overlay);
   });
 
   it('getCOSSECCompliance produces the canonical snapshot', async () => {
@@ -235,6 +256,12 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       await cecl.getCooperativaCECLAnalysis(INSTITUTION_ID),
     );
     const expected = loadOrCapture('pr-cooperativa-demo.cecl.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('deriveCurrentOverlay produces the canonical snapshot (W1.2 macro overlay)', async () => {
+    const actual = normalize(await overlay.deriveCurrentOverlay());
+    const expected = loadOrCapture('pr-macro-overlay.json', actual);
     expect(actual).toEqual(expected);
   });
 

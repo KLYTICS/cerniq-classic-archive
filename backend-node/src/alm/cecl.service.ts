@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import {
   COOPERATIVA_PRODUCT_REGISTRY,
@@ -7,6 +7,8 @@ import {
   matchProductType,
   type CooperativaProductType,
 } from './cooperativa/product-registry';
+import { MacroOverlayService } from './macro-overlay.service';
+import { getMacroOverlayMode } from './macro-overlay-config.util';
 import type { DataGap } from './reports/data-gap';
 
 // ─── Macro Scenario Weights (FASB 326 guidance) ──────────────
@@ -111,6 +113,25 @@ export interface CECLSummary {
     regulatoryContext: string;
     effectiveNote: string;
   };
+  /**
+   * W1.2 (cooperativa path, derived mode only): provenance of the PR macro
+   * overlay actually applied — which basis produced the multipliers/weights,
+   * from which macro inputs, at what stress index. Absent = the legacy
+   * hard-coded constants were used (pre-W1.2 consumers, or the
+   * CECL_MACRO_OVERLAY_MODE=hardcoded kill switch), keeping legacy output
+   * byte-identical.
+   */
+  macroOverlay?: {
+    basis: 'derived-from-macro' | 'hardcoded-fallback';
+    macroStressIndex: number | null;
+    inputs: {
+      prUnemploymentPct: number;
+      prHpiYoyPct: number;
+      prNetMigrationPct: number;
+      asOf?: string;
+    } | null;
+    provenance: string;
+  };
   gaps?: import('./reports/data-gap').DataGap[];
 }
 
@@ -129,7 +150,16 @@ export interface CECLForecast {
 export class CECLService {
   private readonly logger = new Logger(CECLService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  /**
+   * W1.2: the macro overlay is optional so the five direct `new
+   * CECLService(prisma)` sites (specs, CLI scripts, demo harness) keep
+   * compiling; AlmModule DI wires it. Absent → legacy hard-coded PR
+   * constants, byte-identical output.
+   */
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly macroOverlay?: MacroOverlayService,
+  ) {}
 
   // ─── WARM Method (Weighted Average Remaining Life) ─────────
 
@@ -812,24 +842,53 @@ export class CECLService {
       };
     }
 
+    // W1.2: derived mode routes the multipliers/weights through the
+    // data-derived macro overlay (continuity guarantee: at the reference
+    // macro state the derivation reduces exactly to the constants below, so
+    // flipping the basis never silently moves the allowance). The kill
+    // switch (CECL_MACRO_OVERLAY_MODE=hardcoded) and non-DI consumers fall
+    // through to the legacy inline constants, byte-identical.
+    const overlayResult =
+      this.macroOverlay && getMacroOverlayMode() === 'derived'
+        ? await this.macroOverlay.deriveCurrentOverlay()
+        : null;
+
     const summary = this.calculatePDxLGD(eligible, {
-      pdMultipliers: { ...PR_PD_MULTIPLIERS },
-      scenarioWeights: { ...PR_SCENARIO_WEIGHTS },
+      pdMultipliers: overlayResult
+        ? { ...overlayResult.pdMultipliers }
+        : { ...PR_PD_MULTIPLIERS },
+      scenarioWeights: overlayResult
+        ? { ...overlayResult.scenarioWeights }
+        : { ...PR_SCENARIO_WEIGHTS },
       overlayLabel: 'PR',
     });
 
     // D1: always disclose that the PR macro overlay itself is a PROVISIONAL
     // calibration (an estimate presented as an estimate), independent of
-    // whether per-segment registry PD/LGD defaults were applied.
-    gaps.push({
-      field: 'cecl.macroOverlay',
-      reason: 'COSSEC_INPUTS_INSUFFICIENT',
-      severity: 'WARNING',
-      action:
-        'Los multiplicadores macro de PR (adverso 2.1x, severo 3.6x) y los pesos de escenario (45/35/20) son una calibración PROVISIONAL (post-María / migración); los valores definitivos requieren validación COSSEC/NCUA o calibración con datos propios. / The PR macro overlay multipliers (adverse 2.1x, severe 3.6x) and scenario weights (45/35/20) are a PROVISIONAL calibration; definitive values require COSSEC/NCUA validation or institution-specific calibration.',
-    });
+    // whether per-segment registry PD/LGD defaults were applied. Derived
+    // mode discloses through the overlay's own gaps (basis, stress index,
+    // staleness); legacy mode keeps the original hard-coded disclosure.
+    if (overlayResult) {
+      gaps.push(...overlayResult.gaps);
+    } else {
+      gaps.push({
+        field: 'cecl.macroOverlay',
+        reason: 'COSSEC_INPUTS_INSUFFICIENT',
+        severity: 'WARNING',
+        action:
+          'Los multiplicadores macro de PR (adverso 2.1x, severo 3.6x) y los pesos de escenario (45/35/20) son una calibración PROVISIONAL (post-María / migración); los valores definitivos requieren validación COSSEC/NCUA o calibración con datos propios. / The PR macro overlay multipliers (adverse 2.1x, severe 3.6x) and scenario weights (45/35/20) are a PROVISIONAL calibration; definitive values require COSSEC/NCUA validation or institution-specific calibration.',
+      });
+    }
 
     return {
+      ...(overlayResult && {
+        macroOverlay: {
+          basis: overlayResult.basis,
+          macroStressIndex: overlayResult.macroStressIndex,
+          inputs: overlayResult.inputs,
+          provenance: overlayResult.provenance,
+        },
+      }),
       ...summary,
       accountingBasis: {
         framework: 'ASC 326 (FASB ASU 2016-13, CECL) — GAAP measurement basis',

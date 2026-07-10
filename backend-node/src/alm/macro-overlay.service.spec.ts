@@ -6,6 +6,9 @@ import {
   PR_PD_MULTIPLIERS,
   PR_SCENARIO_WEIGHTS,
 } from './cooperativa/product-registry';
+import { PrMacroFeedService } from './pr-macro-feed.service';
+import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
+import { DEFAULT_MACRO_STALENESS_DAYS } from './macro-overlay-config.util';
 
 describe('MacroOverlayService — data-derived PR CECL overlay (W1.2)', () => {
   let svc: MacroOverlayService;
@@ -152,6 +155,78 @@ describe('MacroOverlayService — data-derived PR CECL overlay (W1.2)', () => {
       prNetMigrationPct: -1.8,
     });
     expect(a).toEqual(b);
+  });
+
+  describe('deriveCurrentOverlay — Slice 2, feed-fed (W1.2)', () => {
+    const pinnedFeed = (daysAfterCompiled: number): PrMacroFeedService => {
+      const feed = new PrMacroFeedService();
+      const base = new Date(`${PR_MACRO_SNAPSHOT.compiledAsOf}T00:00:00Z`);
+      feed.nowFn = () =>
+        new Date(base.getTime() + daysAfterCompiled * 86_400_000);
+      return feed;
+    };
+
+    beforeEach(() => {
+      delete process.env.FRED_API_KEY;
+      delete process.env.PR_MACRO_STALENESS_DAYS;
+    });
+
+    it('no feed injected → disclosed hard-coded fallback (never silent)', async () => {
+      const r = await new MacroOverlayService().deriveCurrentOverlay();
+      expect(r.basis).toBe('hardcoded-fallback');
+      expect(r.gaps.some((g) => g.field === 'cecl.macroOverlay')).toBe(true);
+    });
+
+    it('with the committed snapshot → derived-from-macro at MSI 0 (current PR macro is benign)', async () => {
+      const r = await new MacroOverlayService(
+        pinnedFeed(1),
+      ).deriveCurrentOverlay();
+      expect(r.basis).toBe('derived-from-macro');
+      // 2026-07 sourced data: 5.6% unemployment / +14.95% HPI / −0.09%
+      // migration — all at-or-better than reference → zero stress → the
+      // derived overlay equals the provisional constants exactly.
+      expect(r.macroStressIndex).toBe(0);
+      expect(r.pdMultipliers.adverse).toBeCloseTo(PR_PD_MULTIPLIERS.adverse, 6);
+      expect(r.pdMultipliers.severely_adverse).toBeCloseTo(
+        PR_PD_MULTIPLIERS.severely_adverse,
+        6,
+      );
+      // Feed provenance is appended to the derivation provenance.
+      expect(r.provenance).toContain('pr-macro-snapshot');
+      expect(r.provenance).toContain(PR_MACRO_SNAPSHOT.compiledAsOf);
+    });
+
+    it('merges feed staleness gaps into the overlay result (one complete disclosure)', async () => {
+      const r = await new MacroOverlayService(
+        pinnedFeed(DEFAULT_MACRO_STALENESS_DAYS + 30),
+      ).deriveCurrentOverlay();
+      expect(r.basis).toBe('derived-from-macro');
+      const fields = r.gaps.map((g) => g.field);
+      expect(fields).toContain('cecl.macroOverlay'); // derivation disclosure
+      expect(fields).toContain('cecl.macroOverlay.snapshot'); // staleness
+    });
+
+    it('broken feed → fallback + a CALCULATION_FAILED gap naming the feed', async () => {
+      const broken = {
+        getSnapshot: () => Promise.reject(new Error('feed exploded')),
+        // type-rationale: minimal structural stub for the feed dependency
+      } as unknown as PrMacroFeedService;
+      const r = await new MacroOverlayService(broken).deriveCurrentOverlay();
+      expect(r.basis).toBe('hardcoded-fallback');
+      const gap = r.gaps.find((g) => g.field === 'cecl.macroOverlay.feed');
+      expect(gap?.reason).toBe('CALCULATION_FAILED');
+      expect(gap?.context).toMatchObject({ error: 'Error: feed exploded' });
+    });
+
+    it('is deterministic under a pinned clock', async () => {
+      const a = await new MacroOverlayService(
+        pinnedFeed(2),
+      ).deriveCurrentOverlay();
+      const b = await new MacroOverlayService(
+        pinnedFeed(2),
+      ).deriveCurrentOverlay();
+      expect(a).toEqual(b);
+    });
   });
 
   it('never produces a multiplier below its provisional base (stress only raises)', () => {

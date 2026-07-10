@@ -93,6 +93,7 @@ const PREFLIGHT_MODEL_KEYS = [
   'stress.regulatory',
   'stress.monte-carlo',
   'credit.cecl-warm',
+  'credit.macro-overlay-pr',
   'report.preflight',
   'report.board',
   'report.excel-export',

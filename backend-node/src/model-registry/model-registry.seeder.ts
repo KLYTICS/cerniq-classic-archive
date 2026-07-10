@@ -198,19 +198,20 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     modelKey: 'credit.macro-overlay-pr',
     displayName: 'PR Macro Overlay (data-derived CECL calibration)',
     description:
-      'Derives the PR CECL PD multipliers + scenario weights from macro inputs (unemployment, HPI YoY, net migration) via a macro-stress index, reducing exactly to the provisional constants at a reference state. Turns the hard-coded PR overlay into a data-defensible calibration (Wave 1, W1.2).',
-    version: '0.1.0',
+      'Derives the PR CECL PD multipliers + scenario weights from macro inputs (unemployment, HPI YoY, net migration) via a macro-stress index, reducing exactly to the provisional constants at a reference state. Slice 2 (v0.2.0): wired into CECLService.getCooperativaCECLAnalysis, fed by the committed pr-macro-snapshot (per-series BLS/FHFA/Census provenance) with optional FRED PRURN live refresh; CECL_MACRO_OVERLAY_MODE=hardcoded is the ops kill switch.',
+    version: '0.2.0',
     category: 'CREDIT_RISK',
     riskTier: 'TIER_2',
     status: 'DRAFT',
     ownerName: OWNER,
     serviceFile: 'alm/macro-overlay.service.ts',
-    entryFunction: 'deriveOverlay',
+    entryFunction: 'deriveCurrentOverlay',
     requiredInputs: ['prUnemploymentPct', 'prHpiYoyPct', 'prNetMigrationPct'],
     limitations: [
       'Sensitivity coefficients + reference macro state are DISCLOSED config (WARNING gap), PROVISIONAL pending COSSEC/NCUA validation',
       'Stress-only: a better-than-reference macro state never softens the overlay below the provisional base',
-      'Slice 1 is the derivation engine on supplied inputs; the live FRED/BLS/Census feed + cecl wiring are follow-up slices',
+      'Committed snapshot refreshes via operator protocol (quarterly cadence; STALE_SNAPSHOT gap past PR_MACRO_STALENESS_DAYS); only unemployment has a live path (FRED PRURN) — FHFA HPI + Census migration are snapshot-only',
+      'Raw BLS LAUS series-ID prefix unresolved (Market Bible §10.2) — live refresh deliberately uses FRED PRURN instead',
     ],
   },
   {
@@ -862,6 +863,8 @@ export class ModelRegistrySeeder implements OnModuleInit {
       modelKey: string;
       goldenFile: string;
       label: string;
+      /** Source fixture for validationMetadata (default: pr-cooperativa-demo). */
+      fixture?: string;
     }> = [
       {
         modelKey: 'reg.cossec-compliance',
@@ -893,6 +896,12 @@ export class ModelRegistrySeeder implements OnModuleInit {
         goldenFile: 'pr-cooperativa-demo.capital-glide-path.json',
         label: 'Capital glide-path golden test (pr-cooperativa-demo)',
       },
+      {
+        modelKey: 'credit.macro-overlay-pr',
+        goldenFile: 'pr-macro-overlay.json',
+        label: 'PR macro overlay derivation golden test (pr-macro-snapshot)',
+        fixture: 'pr-macro-snapshot',
+      },
     ];
 
     const goldenDir = path.resolve(__dirname, '../../test/golden');
@@ -904,7 +913,7 @@ export class ModelRegistrySeeder implements OnModuleInit {
     }
 
     let linked = 0;
-    for (const { modelKey, goldenFile, label } of GOLDEN_MAP) {
+    for (const { modelKey, goldenFile, label, fixture } of GOLDEN_MAP) {
       try {
         const filePath = path.join(goldenDir, goldenFile);
         if (!fs.existsSync(filePath)) continue;
@@ -940,7 +949,7 @@ export class ModelRegistrySeeder implements OnModuleInit {
           producedBy: 'golden-reconciliation-spec',
           producedAt: new Date(),
           validationMetadata: {
-            fixture: 'pr-cooperativa-demo',
+            fixture: fixture ?? 'pr-cooperativa-demo',
             driftDetection: 'UPDATE_GOLDEN=1 to regenerate',
           },
         });

@@ -1,4 +1,7 @@
 import { CECLService } from './cecl.service';
+import { MacroOverlayService } from './macro-overlay.service';
+import { PrMacroFeedService } from './pr-macro-feed.service';
+import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
 
 describe('CECLService', () => {
   let svc: CECLService;
@@ -609,6 +612,87 @@ describe('CECLService', () => {
       expect(result.gaps?.some((g) => g.field === 'cecl.macroOverlay')).toBe(
         true,
       );
+    });
+
+    // ── W1.2 Slice 2: data-derived macro overlay wiring ──────
+    describe('macro overlay wiring (W1.2 Slice 2)', () => {
+      const mkWiredService = (segments: any[]) => {
+        const mockPrisma = {
+          loanSegment: {
+            findMany: jest.fn().mockResolvedValue(segments),
+            createMany: jest.fn(),
+            deleteMany: jest.fn(),
+          },
+        } as any;
+        const feed = new PrMacroFeedService();
+        // Pin the clock one day after the snapshot's verification pass so
+        // staleness never fires and the output is deterministic.
+        const base = new Date(`${PR_MACRO_SNAPSHOT.compiledAsOf}T00:00:00Z`);
+        feed.nowFn = () => new Date(base.getTime() + 86_400_000);
+        return new CECLService(mockPrisma, new MacroOverlayService(feed));
+      };
+
+      beforeEach(() => {
+        delete process.env.CECL_MACRO_OVERLAY_MODE;
+        delete process.env.FRED_API_KEY;
+        delete process.env.PR_MACRO_STALENESS_DAYS;
+      });
+
+      afterEach(() => {
+        delete process.env.CECL_MACRO_OVERLAY_MODE;
+      });
+
+      it('CONTINUITY: derived-mode numbers are identical to the legacy hard-coded numbers at MSI 0', async () => {
+        // The committed snapshot's macro state is benign (at-or-better than
+        // reference) → MSI 0 → the derived overlay must reproduce the
+        // constants exactly. This is the spec that makes flipping the basis
+        // a provenance change, not a number change.
+        const legacy =
+          await mkService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        const derived =
+          await mkWiredService(prSegments).getCooperativaCECLAnalysis('inst-1');
+
+        expect(derived.totalAllowance).toBe(legacy.totalAllowance);
+        expect(derived.weightedCoverageRatio).toBe(
+          legacy.weightedCoverageRatio,
+        );
+        expect(derived.macroScenarioBreakdown).toEqual(
+          legacy.macroScenarioBreakdown,
+        );
+        expect(derived.segments).toEqual(legacy.segments);
+      });
+
+      it('derived mode stamps the macroOverlay provenance block + the DERIVED gap', async () => {
+        const result =
+          await mkWiredService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        expect(result.macroOverlay?.basis).toBe('derived-from-macro');
+        expect(result.macroOverlay?.macroStressIndex).toBe(0);
+        expect(result.macroOverlay?.inputs?.prUnemploymentPct).toBe(
+          PR_MACRO_SNAPSHOT.inputs.prUnemploymentPct,
+        );
+        expect(result.macroOverlay?.provenance).toContain('pr-macro-snapshot');
+        const gap = result.gaps?.find((g) => g.field === 'cecl.macroOverlay');
+        expect(gap?.action).toMatch(/DERIVAD/); // derived disclosure…
+        expect(gap?.action).not.toMatch(/hard-coded/); // …not the legacy one
+      });
+
+      it('CECL_MACRO_OVERLAY_MODE=hardcoded kill switch → legacy path even when wired', async () => {
+        process.env.CECL_MACRO_OVERLAY_MODE = 'hardcoded';
+        const result =
+          await mkWiredService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        expect(result.macroOverlay).toBeUndefined();
+        const gap = result.gaps?.find((g) => g.field === 'cecl.macroOverlay');
+        expect(gap?.action).toMatch(/PROVISIONAL/);
+        expect(gap?.action).toMatch(/2\.1x/); // the legacy hard-coded disclosure
+      });
+
+      it('no overlay injected (legacy constructors) → no macroOverlay block, legacy gap intact', async () => {
+        const result =
+          await mkService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        expect(result.macroOverlay).toBeUndefined();
+        const gap = result.gaps?.find((g) => g.field === 'cecl.macroOverlay');
+        expect(gap?.action).toMatch(/calibración PROVISIONAL/);
+      });
     });
 
     it('excludes an unclassified, data-less segment from allowance + coverage and discloses it (D1)', async () => {

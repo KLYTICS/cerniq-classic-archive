@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import {
   PR_PD_MULTIPLIERS,
   PR_SCENARIO_WEIGHTS,
 } from './cooperativa/product-registry';
+// Runtime import one way only — pr-macro-feed imports PrMacroInputs from
+// this module as `import type` (erased), so there is no runtime cycle.
+import { PrMacroFeedService } from './pr-macro-feed.service';
 import type { DataGap } from './reports/data-gap';
 
 /**
@@ -91,6 +94,58 @@ const MAX_WEIGHT_SHIFT = 0.25;
 
 @Injectable()
 export class MacroOverlayService {
+  private readonly logger = new Logger(MacroOverlayService.name);
+
+  /**
+   * Feed is optional so pure-derivation contexts (`new MacroOverlayService()`
+   * in specs, Slice-1 callers) keep working; DI wires it in AlmModule.
+   */
+  constructor(@Optional() private readonly feed?: PrMacroFeedService) {}
+
+  /**
+   * Slice-2 entry point: derive the overlay from the CURRENT macro state as
+   * served by PrMacroFeedService (committed snapshot + optional FRED
+   * refresh). Feed gaps (staleness, refresh failure) are merged into the
+   * result's gaps and the feed's source provenance is appended, so the
+   * consumer sees one complete disclosure. No feed (or a broken one) →
+   * disclosed hard-coded fallback — never silent (the W1.2 ratchet).
+   */
+  async deriveCurrentOverlay(): Promise<MacroOverlayResult> {
+    if (!this.feed) {
+      return this.fallbackOverlay();
+    }
+    try {
+      const snap = await this.feed.getSnapshot();
+      const derived = this.deriveOverlay(snap.inputs);
+      return {
+        ...derived,
+        gaps: [...derived.gaps, ...snap.gaps],
+        provenance: `${derived.provenance} ${snap.provenance}`,
+      };
+    } catch (err) {
+      // The feed degrades internally (fixture fallback + gaps); reaching
+      // here means the feed itself is broken. Disclose and fall back.
+      this.logger.warn(
+        `PR macro feed failed, using hard-coded fallback overlay: ${err}`,
+      );
+      const fallback = this.fallbackOverlay();
+      return {
+        ...fallback,
+        gaps: [
+          ...fallback.gaps,
+          {
+            field: 'cecl.macroOverlay.feed',
+            reason: 'CALCULATION_FAILED',
+            severity: 'WARNING',
+            action:
+              'El feed macro de PR falló — se usa la calibración hard-coded divulgada. Revisar PrMacroFeedService. / The PR macro feed failed — using the disclosed hard-coded calibration. Investigate PrMacroFeedService.',
+            context: { error: String(err) },
+          },
+        ],
+      };
+    }
+  }
+
   /**
    * Derive the PR CECL overlay from macro inputs. With no/invalid inputs, falls
    * back to the disclosed hard-coded constants — ALWAYS with a WARNING gap.

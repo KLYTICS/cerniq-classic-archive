@@ -23,6 +23,8 @@ import { DurationService } from '../duration.service';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
 import { StressTestingService } from '../stress-testing/stress-testing.service';
 import { CECLService } from '../cecl.service';
+import { MacroOverlayService } from '../macro-overlay.service';
+import { PrMacroFeedService } from '../pr-macro-feed.service';
 import type { DataGap } from '../reports/data-gap';
 import {
   buildSanJuanFederalDemo,
@@ -162,7 +164,13 @@ export class SicDemoService {
       new DurationService(),
     );
     const stress = new StressTestingService(prisma, alm);
-    const cecl = new CECLService(prisma);
+    // W1.2: demo runs the same data-derived overlay path as production
+    // (committed snapshot, real-time staleness — a stale snapshot showing
+    // its WARNING gap in the demo is the D1 disclosure story, not a bug).
+    const cecl = new CECLService(
+      prisma,
+      new MacroOverlayService(new PrMacroFeedService()),
+    );
 
     // ── Step 1: Validate (D1) ──
     const gaps: DataGap[] = [];
