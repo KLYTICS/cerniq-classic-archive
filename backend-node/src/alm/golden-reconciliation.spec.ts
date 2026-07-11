@@ -26,6 +26,7 @@ import { DurationService } from './duration.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { CECLService } from './cecl.service';
+import { AssetEWSService } from './asset-ews.service';
 import { MacroOverlayService } from './macro-overlay.service';
 import { PrMacroFeedService } from './pr-macro-feed.service';
 import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
@@ -195,6 +196,7 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
   let stress: StressTestingService;
   let cecl: CECLService;
   let overlay: MacroOverlayService;
+  let ews: AssetEWSService;
 
   beforeEach(() => {
     delete process.env.FRED_API_KEY;
@@ -209,6 +211,7 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
     stress = new StressTestingService(prisma, service);
     overlay = makePinnedMacroOverlay();
     cecl = new CECLService(prisma, overlay);
+    ews = new AssetEWSService(prisma);
   });
 
   it('getCOSSECCompliance produces the canonical snapshot', async () => {
@@ -262,6 +265,12 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
   it('deriveCurrentOverlay produces the canonical snapshot (W1.2 macro overlay)', async () => {
     const actual = normalize(await overlay.deriveCurrentOverlay());
     const expected = loadOrCapture('pr-macro-overlay.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('computeEWS produces the canonical snapshot (W1.3 early-warning composite)', async () => {
+    const actual = normalize(await ews.computeEWS(INSTITUTION_ID));
+    const expected = loadOrCapture('pr-cooperativa-demo.ews.json', actual);
     expect(actual).toEqual(expected);
   });
 

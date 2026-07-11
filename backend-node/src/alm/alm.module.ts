@@ -120,6 +120,9 @@ import { AlmDocumentExportsService } from './alm-document-exports.service';
 // Controllers
 import { AlmController } from './alm.controller';
 import { CaelController } from './cael.controller';
+import { EwsController } from './ews/ews.controller';
+import { EwsSnapshotService } from './ews/ews-snapshot.service';
+import { EwsSchedulerService } from './ews/ews-scheduler.service';
 import { AlmAdvisorController } from './alm-advisor.controller';
 import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAnalystService } from './alm-analyst.service';
@@ -151,6 +154,7 @@ import { HJMModule } from './quant/hjm.module';
     ModelRegistryModule,
   ],
   controllers: [
+    EwsController,
     AlmController,
     CaelController,
     AlmAdvisorController,
@@ -212,6 +216,8 @@ import { HJMModule } from './quant/hjm.module';
     PortfolioVaRService,
     CapitalOptimizerService,
     AssetEWSService,
+    EwsSnapshotService,
+    EwsSchedulerService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,
@@ -334,6 +340,7 @@ import { HJMModule } from './quant/hjm.module';
     PortfolioVaRService,
     CapitalOptimizerService,
     AssetEWSService,
+    EwsSnapshotService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,

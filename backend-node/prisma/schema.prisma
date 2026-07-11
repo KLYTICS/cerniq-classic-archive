@@ -264,6 +264,7 @@ model Institution {
   conversations         ConversationHistory[]
   examAssessments       ExamReadinessAssessment[]
   rateAlertThresholds   RateAlertThreshold[]
+  ewsSnapshots          EwsSnapshot[]
 
   @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
@@ -328,6 +329,58 @@ model LiquidityPosition {
   @@unique([institutionId, date])
   @@index([institutionId])
   @@map("liquidity_positions")
+}
+
+// ===== Early-Warning System persistence (Wave 1, W1.3) =====
+
+enum EwsAlertLevel {
+  GREEN
+  YELLOW
+  RED
+  DATA_UNAVAILABLE
+}
+
+/// Persisted output of AssetEWSService.computeEWS — one row per institution
+/// per day (idempotent daily capture: the scheduler re-running upserts,
+/// never duplicates). Turns the on-demand 12-indicator composite into
+/// history + trend + threshold-crossing alerts (roadmap W1.3: "the
+/// difference between a number and a product surface"). D1: a composite
+/// the service refused to grade persists as compositeScore null +
+/// DATA_UNAVAILABLE — history never backfills a fabricated score.
+model EwsSnapshot {
+  id             String        @id @default(cuid())
+  institutionId  String        @map("institution_id")
+  /// Calendar day of the capture (idempotency key with institutionId).
+  snapshotDate   DateTime      @map("snapshot_date") @db.Date
+  computedAt     DateTime      @default(now()) @map("computed_at")
+  compositeScore Int?          @map("composite_score")
+  alertLevel     EwsAlertLevel @map("alert_level")
+  anomalyScore   Float?        @map("anomaly_score")
+  /// Sum of indicator weights actually measured (of 100) — the D1
+  /// denominator disclosure behind the composite.
+  measuredWeight Int           @map("measured_weight")
+  /// Full EWSIndicator[] as computed (values, bands, contributions).
+  indicators     Json
+  /// DataGap[] carried from the compute — never dropped.
+  gaps           Json?
+  /// Which pipeline wrote the row.
+  source         String        @default("scheduled")
+
+  // ── Trend vs the prior snapshot (all null on the first capture) ──
+  priorSnapshotId String? @map("prior_snapshot_id")
+  compositeDelta  Int?    @map("composite_delta")
+  /// e.g. "GREEN→YELLOW"; null when the band did not change.
+  bandTransition  String? @map("band_transition")
+  /// EwsAlert[] threshold crossings raised by this capture.
+  alertsRaised    Json?   @map("alerts_raised")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, snapshotDate])
+  @@index([institutionId, snapshotDate(sort: Desc)])
+  @@map("ews_snapshots")
 }
 
 // ===== Quant Powerhouse Models =====

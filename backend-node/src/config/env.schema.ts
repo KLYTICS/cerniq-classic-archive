@@ -177,6 +177,10 @@ const envSchema = z
       .optional()
       .transform((v) => (v ? Number(v) : undefined))
       .pipe(z.number().int().min(1).max(730).optional()),
+    // Kill switch for the daily EWS snapshot cron (W1.3). Separate from
+    // AGENT_SCHEDULER_DISABLED — different blast radius. Interpreted by
+    // src/alm/ews/ews-scheduler-flag.util.ts only.
+    EWS_SCHEDULER_DISABLED: z.enum(['true', 'false', '1', '0']).optional(),
 
     // ── Cache ────────────────────────────────────────────────────────
     // Default TTL for AI response cache entries. `parseInt` on bad input

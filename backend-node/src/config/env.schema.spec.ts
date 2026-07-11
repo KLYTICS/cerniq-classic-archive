@@ -275,6 +275,25 @@ describe('env.schema', () => {
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
+    it('accepts EWS_SCHEDULER_DISABLED only in canonical truthy/falsy form', () => {
+      for (const v of ['true', 'false', '1', '0']) {
+        Object.assign(process.env, {
+          ...VALID_ENV,
+          EWS_SCHEDULER_DISABLED: v,
+        });
+        const env = validateEnv();
+        expect(env.EWS_SCHEDULER_DISABLED).toBe(v);
+      }
+    });
+
+    it('rejects EWS_SCHEDULER_DISABLED=off (avoids truthy ambiguity)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        EWS_SCHEDULER_DISABLED: 'off',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
     it('accepts FRED_API_KEY as an arbitrary string (round-trip: treasury-rates + pr-macro-feed)', () => {
       Object.assign(process.env, {
         ...VALID_ENV,

@@ -587,8 +587,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     modelKey: 'risk.early-warning',
     displayName: 'Early Warning System',
     description:
-      'Isolation forest anomaly detection across financial indicators.',
-    version: '1.0.0',
+      '12-indicator asset-quality composite with GREEN/YELLOW/RED bands and anomaly heuristic. W1.3 (v1.1.0): persisted as daily EwsSnapshot rows (idempotent per institution per day) with trend delta vs prior, band-transition / indicator-escalation / composite-drop alerts, and a 06:30 AST scheduled capture (EWS_SCHEDULER_DISABLED kill switch).',
+    version: '1.1.0',
     category: 'RISK_METRICS',
     riskTier: 'TIER_2',
     status: 'APPROVED',
@@ -601,6 +601,7 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
       '7 of 12 indicators (delinquency trend, LTV, DSCR, OREO growth, consumer 60d, allowance coverage, peer gap) are not yet wired — return null + WARNING gap, never a constant',
       'Refuses to grade below 50% measured indicator weight; composite scores only over measured indicators (57/100)',
       'Derived indicators are loss-rate proxies, not direct delinquency measurements',
+      'Alert thresholds (composite drop 10 pts, band/indicator transitions) are DISCLOSED config pending board calibration; DATA_UNAVAILABLE is never compared numerically — grading loss/restoration are their own alert types',
     ],
   },
 
@@ -901,6 +902,11 @@ export class ModelRegistrySeeder implements OnModuleInit {
         goldenFile: 'pr-macro-overlay.json',
         label: 'PR macro overlay derivation golden test (pr-macro-snapshot)',
         fixture: 'pr-macro-snapshot',
+      },
+      {
+        modelKey: 'risk.early-warning',
+        goldenFile: 'pr-cooperativa-demo.ews.json',
+        label: 'EWS 12-indicator composite golden test (pr-cooperativa-demo)',
       },
     ];
 
