@@ -133,6 +133,55 @@ describe('auth-cookie.util', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // BUG-001 regression — config must NOT hardcode SameSite=lax
+  // ---------------------------------------------------------------------------
+  // The auto-detection in resolveCookieSameSite() is correct, but it is only
+  // reachable when AUTH_COOKIE_SAMESITE is left UNSET. In production the deploy
+  // configs (.env.production.template, docker-compose.prod.yml) used to set it
+  // to `lax`, which short-circuited the auto-detection and made the browser drop
+  // the auth cookie on every cerniq.io → api.cerniq.io request (silent login
+  // failure). These tests pin the runtime contract the config fix relies on:
+  // env var UNSET + cross-domain production MUST yield SameSite=None + Secure.
+  describe('BUG-001 regression: cross-domain prod with SAMESITE unset', () => {
+    it('yields SameSite=none when the env var is unset (auto-detection reachable)', () => {
+      const mod = loadModule({
+        NODE_ENV: 'production',
+        FRONTEND_URL: 'https://cerniq.io',
+        BACKEND_URL: 'https://api.cerniq.io',
+        AUTH_COOKIE_SAMESITE: undefined, // the config fix: leave it unset
+      });
+      const opts = mod.getAuthCookieOptions();
+      expect(opts.sameSite).toBe('none');
+      // Browsers reject SameSite=None without Secure — the cookie would be
+      // silently dropped, so Secure MUST be forced on regardless of env.
+      expect(opts.secure).toBe(true);
+    });
+
+    it('an empty-string env var does not count as "set" — still auto-detects none', () => {
+      const mod = loadModule({
+        NODE_ENV: 'production',
+        FRONTEND_URL: 'https://cerniq.io',
+        BACKEND_URL: 'https://api.cerniq.io',
+        AUTH_COOKIE_SAMESITE: '', // Railway "unset" can surface as empty string
+      });
+      expect(mod.getAuthCookieOptions().sameSite).toBe('none');
+    });
+
+    it('reproduces BUG-001: an explicit lax DOES break cross-domain (kept only as opt-in override)', () => {
+      const mod = loadModule({
+        NODE_ENV: 'production',
+        FRONTEND_URL: 'https://cerniq.io',
+        BACKEND_URL: 'https://api.cerniq.io',
+        AUTH_COOKIE_SAMESITE: 'lax', // the defect — now must be a deliberate choice, never a config default
+      });
+      // This is the broken state. We assert it explicitly so the override path
+      // is documented and any future "default to lax" change is caught by the
+      // unset-case tests above going red.
+      expect(mod.getAuthCookieOptions().sameSite).toBe('lax');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Secure flag
   // ---------------------------------------------------------------------------
 

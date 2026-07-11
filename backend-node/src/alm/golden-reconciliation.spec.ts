@@ -26,6 +26,12 @@ import { DurationService } from './duration.service';
 import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { CECLService } from './cecl.service';
+import { AssetEWSService } from './asset-ews.service';
+import { MacroOverlayService } from './macro-overlay.service';
+import { PrMacroFeedService } from './pr-macro-feed.service';
+import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
+import { CapitalPlanningService } from './cooperativa/capital-planning.service';
+import { CaelComplianceService } from './cael-compliance.service';
 import { getFixture } from './data/fixtures';
 
 const GOLDEN_DIR = join(__dirname, '..', '..', 'test', 'golden');
@@ -172,12 +178,30 @@ function loadOrCapture(filename: string, actual: unknown): unknown {
   return JSON.parse(readFileSync(path, 'utf-8'));
 }
 
+/**
+ * W1.2: the macro overlay wired with a PINNED clock (one day after the
+ * committed snapshot's verification pass) so staleness evaluation never
+ * depends on when the suite runs — goldens must be time-independent.
+ * FRED_API_KEY is cleared so the live-refresh path can't leak in.
+ */
+function makePinnedMacroOverlay(): MacroOverlayService {
+  const feed = new PrMacroFeedService();
+  const base = new Date(`${PR_MACRO_SNAPSHOT.compiledAsOf}T00:00:00Z`);
+  feed.nowFn = () => new Date(base.getTime() + 86_400_000);
+  return new MacroOverlayService(feed);
+}
+
 describe('Golden reconciliation: pr-cooperativa-demo', () => {
   let service: AlmEnterpriseService;
   let stress: StressTestingService;
   let cecl: CECLService;
+  let overlay: MacroOverlayService;
+  let ews: AssetEWSService;
 
   beforeEach(() => {
+    delete process.env.FRED_API_KEY;
+    delete process.env.CECL_MACRO_OVERLAY_MODE;
+    delete process.env.PR_MACRO_STALENESS_DAYS;
     const prisma = makeFakePrismaFromFixture();
     service = new AlmEnterpriseService(
       prisma,
@@ -185,7 +209,9 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       new DurationService(),
     );
     stress = new StressTestingService(prisma, service);
-    cecl = new CECLService(prisma);
+    overlay = makePinnedMacroOverlay();
+    cecl = new CECLService(prisma, overlay);
+    ews = new AssetEWSService(prisma);
   });
 
   it('getCOSSECCompliance produces the canonical snapshot', async () => {
@@ -233,6 +259,76 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
       await cecl.getCooperativaCECLAnalysis(INSTITUTION_ID),
     );
     const expected = loadOrCapture('pr-cooperativa-demo.cecl.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('deriveCurrentOverlay produces the canonical snapshot (W1.2 macro overlay)', async () => {
+    const actual = normalize(await overlay.deriveCurrentOverlay());
+    const expected = loadOrCapture('pr-macro-overlay.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('computeEWS produces the canonical snapshot (W1.3 early-warning composite)', async () => {
+    const actual = normalize(await ews.computeEWS(INSTITUTION_ID));
+    const expected = loadOrCapture('pr-cooperativa-demo.ews.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('incurred-loss (Reg 8665) produces the canonical snapshot', async () => {
+    const actual = normalize(
+      await cecl.getCECLAnalysis(INSTITUTION_ID, 'incurredloss'),
+    );
+    const expected = loadOrCapture(
+      'pr-cooperativa-demo.incurred-loss.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it('capital glide-path (W1.4) produces the canonical snapshot', async () => {
+    const cossec = await service.getCOSSECCompliance(INSTITUTION_ID);
+    const planner = new CapitalPlanningService();
+    // Pinned planning assumptions so the golden is deterministic regardless of
+    // the service defaults; the math runs on the real demo balance sheet.
+    const actual = normalize(
+      planner.planFromCossecSummary(cossec.summary, {
+        annualAssetGrowthPct: 4,
+        annualRoaPct: 0.6,
+        surplusRetentionPct: 100,
+        horizonYears: 5,
+        periodsPerYear: 4,
+      }),
+    );
+    const expected = loadOrCapture(
+      'pr-cooperativa-demo.capital-glide-path.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it('CAEL compliance (W1.1 Slice 2) produces the canonical snapshot', async () => {
+    // Run the real engines, then evaluate the three quarterly CAEL variants —
+    // drift-locks the compute layer against the live COSSEC + allowance output.
+    const cossec = await service.getCOSSECCompliance(INSTITUTION_ID);
+    const incurred = await cecl.getCECLAnalysis(INSTITUTION_ID, 'incurredloss');
+    const warm = await cecl.getCECLAnalysis(INSTITUTION_ID, 'warm');
+    const cael = new CaelComplianceService();
+    const results = [
+      cael.evaluateCaelCompliance(
+        cael.caelInputsFromEngines('reg7790', cossec.summary, incurred),
+      ),
+      cael.evaluateCaelCompliance(
+        cael.caelInputsFromEngines('cecl', cossec.summary, warm),
+      ),
+      cael.evaluateCaelCompliance(
+        cael.caelInputsFromEngines('piloto', cossec.summary, null),
+      ),
+    ];
+    const actual = normalize(results);
+    const expected = loadOrCapture(
+      'pr-cooperativa-demo.cael-compliance.json',
+      actual,
+    );
     expect(actual).toEqual(expected);
   });
 });

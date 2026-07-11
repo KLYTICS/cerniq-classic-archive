@@ -1,4 +1,7 @@
 import { CECLService } from './cecl.service';
+import { MacroOverlayService } from './macro-overlay.service';
+import { PrMacroFeedService } from './pr-macro-feed.service';
+import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
 
 describe('CECLService', () => {
   let svc: CECLService;
@@ -321,6 +324,129 @@ describe('CECLService', () => {
     expect(result.totalAllowance).toBeGreaterThan(0);
   });
 
+  // ── calculateIncurredLoss (Reg 8665 §2.12.2.5, Wave 1 W1.1) ─
+  describe('calculateIncurredLoss (Reg 8665 §2.12.2.5)', () => {
+    it('returns the incurred-loss output shape + methodology label', () => {
+      const result = svc.calculateIncurredLoss(segments);
+      expect(result.methodology).toBe('Incurred Loss (Reg 8665)');
+      expect(result.overallStatus).toBe('computed');
+      expect(result.segments.length).toBe(2);
+    });
+
+    it('computes allowance = balance × (lossRate + qFactor) × LEP (default 1yr, undiscounted)', () => {
+      const result = svc.calculateIncurredLoss(segments);
+      // Consumer: (0.02 + 0.005) × 1.0 = 0.025 → 100M × 0.025 = 2,500,000
+      // Commercial: (0.01 + 0.002) × 1.0 = 0.012 → 200M × 0.012 = 2,400,000
+      const consumer = result.segments.find(
+        (s) => s.segmentName === 'Consumer',
+      )!;
+      const commercial = result.segments.find(
+        (s) => s.segmentName === 'Commercial',
+      )!;
+      expect(consumer.expectedLoss).toBeCloseTo(2_500_000, 0);
+      expect(commercial.expectedLoss).toBeCloseTo(2_400_000, 0);
+      expect(result.totalAllowance).toBeCloseTo(4_900_000, 0);
+      expect(result.weightedCoverageRatio).toBeCloseTo(
+        4_900_000 / 300_000_000,
+        6,
+      );
+    });
+
+    it('is STRICTLY LESS than the lifetime CECL/WARM allowance on a multi-year book', () => {
+      // The whole point of the dual filing: the 1yr incurred-loss horizon is a
+      // smaller number than WARM's remaining-life horizon for maturities > ~1yr.
+      const incurred = svc.calculateIncurredLoss(segments);
+      const warm = svc.calculateWARM(segments);
+      expect(incurred.totalAllowance).toBeLessThan(warm.totalAllowance);
+    });
+
+    it('scales LINEARLY with the loss-emergence period (computed, not cached)', () => {
+      const oneYear = svc.calculateIncurredLoss(segments, {
+        lossEmergencePeriodYears: 1,
+      });
+      const halfYear = svc.calculateIncurredLoss(segments, {
+        lossEmergencePeriodYears: 0.5,
+      });
+      expect(halfYear.totalAllowance).toBeCloseTo(
+        oneYear.totalAllowance / 2,
+        0,
+      );
+    });
+
+    it('ALWAYS discloses the provisional LEP + Reg 8665 basis as a WARNING gap (D1)', () => {
+      const result = svc.calculateIncurredLoss(segments);
+      expect(result.overallStatus).toBe('computed'); // WARNING does not block
+      const gap = result.gaps?.find(
+        (g) => g.field === 'cecl.incurredLoss.lossEmergencePeriod',
+      );
+      expect(gap).toBeDefined();
+      expect(gap!.severity).toBe('WARNING');
+      expect(gap!.context).toMatchObject({ lossEmergencePeriodYears: 1 });
+      // Bilingual, Spanish-first; names the UNVERIFIED reg source.
+      expect(gap!.action).toMatch(/8665/);
+      expect(gap!.action).toMatch(/PROVISIONAL/);
+    });
+
+    it('discloses the incurred-loss (Reg 8665) accounting basis', () => {
+      const result = svc.calculateIncurredLoss(segments);
+      expect(result.accountingBasis?.framework).toMatch(/8665/);
+      expect(result.accountingBasis?.framework).toMatch(/incurred loss/i);
+    });
+
+    it('D1: refuses to compute on empty segments — data_unavailable + CRITICAL gap, no phantom zero', () => {
+      const result = svc.calculateIncurredLoss([]);
+      expect(result.overallStatus).toBe('data_unavailable');
+      expect(result.totalAllowance).toBe(0);
+      expect(result.segments).toEqual([]);
+      expect(result.gaps?.[0]).toMatchObject({ severity: 'CRITICAL' });
+    });
+
+    it('D1: all-zero balances are treated as no data, not a $0 allowance', () => {
+      const result = svc.calculateIncurredLoss([
+        {
+          segmentName: 'Empty',
+          balance: 0,
+          weightedAvgMaturity: 3,
+          historicalLossRate: 0.02,
+        },
+      ]);
+      expect(result.overallStatus).toBe('data_unavailable');
+    });
+
+    it('falls back to the disclosed 1yr default when LEP is non-positive', () => {
+      const result = svc.calculateIncurredLoss(segments, {
+        lossEmergencePeriodYears: 0,
+      });
+      const dflt = svc.calculateIncurredLoss(segments);
+      expect(result.totalAllowance).toBeCloseTo(dflt.totalAllowance, 0);
+    });
+
+    it('clamps an absurd LEP to 10 years', () => {
+      const huge = svc.calculateIncurredLoss(segments, {
+        lossEmergencePeriodYears: 1000,
+      });
+      const tenYear = svc.calculateIncurredLoss(segments, {
+        lossEmergencePeriodYears: 10,
+      });
+      expect(huge.totalAllowance).toBeCloseTo(tenYear.totalAllowance, 0);
+    });
+
+    it('caps the per-segment incurred-loss rate at 100% for extreme inputs', () => {
+      const result = svc.calculateIncurredLoss([
+        {
+          segmentName: 'Distressed',
+          balance: 10_000_000,
+          weightedAvgMaturity: 2,
+          historicalLossRate: 1, // 100% annual loss rate
+          qualitativeAdj: 0.1,
+        },
+      ]);
+      // (1 + 0.1) × LEP clamps to 1.0 → allowance == balance, never more.
+      expect(result.segments[0].coverageRatio).toBeLessThanOrEqual(1);
+      expect(result.totalAllowance).toBeCloseTo(10_000_000, 0);
+    });
+  });
+
   // ── getCECLAnalysis: routing by methodology ────────────────
   describe('getCECLAnalysis', () => {
     // D1 (2026-04-07): the previous behavior fell back to DEMO segments
@@ -386,6 +512,29 @@ describe('CECLService', () => {
       const service = new CECLService(mockPrisma);
       const result = await service.getCECLAnalysis('inst-1', 'pdlgd');
       expect(result.methodology).toBe('PD×LGD');
+    });
+
+    it('routes to incurred-loss method when specified', async () => {
+      const mockPrisma = {
+        loanSegment: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              segmentName: 'Loans',
+              balance: 100_000,
+              weightedAvgRate: 0.06,
+              weightedAvgMaturity: 5,
+              historicalLossRate: 0.02,
+              lgd: 0.4,
+              qualitativeAdj: 0,
+            },
+          ]),
+          createMany: jest.fn(),
+          deleteMany: jest.fn(),
+        },
+      } as any;
+      const service = new CECLService(mockPrisma);
+      const result = await service.getCECLAnalysis('inst-1', 'incurredloss');
+      expect(result.methodology).toBe('Incurred Loss (Reg 8665)');
     });
 
     it('defaults to WARM when methodology is not specified', async () => {
@@ -463,6 +612,87 @@ describe('CECLService', () => {
       expect(result.gaps?.some((g) => g.field === 'cecl.macroOverlay')).toBe(
         true,
       );
+    });
+
+    // ── W1.2 Slice 2: data-derived macro overlay wiring ──────
+    describe('macro overlay wiring (W1.2 Slice 2)', () => {
+      const mkWiredService = (segments: any[]) => {
+        const mockPrisma = {
+          loanSegment: {
+            findMany: jest.fn().mockResolvedValue(segments),
+            createMany: jest.fn(),
+            deleteMany: jest.fn(),
+          },
+        } as any;
+        const feed = new PrMacroFeedService();
+        // Pin the clock one day after the snapshot's verification pass so
+        // staleness never fires and the output is deterministic.
+        const base = new Date(`${PR_MACRO_SNAPSHOT.compiledAsOf}T00:00:00Z`);
+        feed.nowFn = () => new Date(base.getTime() + 86_400_000);
+        return new CECLService(mockPrisma, new MacroOverlayService(feed));
+      };
+
+      beforeEach(() => {
+        delete process.env.CECL_MACRO_OVERLAY_MODE;
+        delete process.env.FRED_API_KEY;
+        delete process.env.PR_MACRO_STALENESS_DAYS;
+      });
+
+      afterEach(() => {
+        delete process.env.CECL_MACRO_OVERLAY_MODE;
+      });
+
+      it('CONTINUITY: derived-mode numbers are identical to the legacy hard-coded numbers at MSI 0', async () => {
+        // The committed snapshot's macro state is benign (at-or-better than
+        // reference) → MSI 0 → the derived overlay must reproduce the
+        // constants exactly. This is the spec that makes flipping the basis
+        // a provenance change, not a number change.
+        const legacy =
+          await mkService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        const derived =
+          await mkWiredService(prSegments).getCooperativaCECLAnalysis('inst-1');
+
+        expect(derived.totalAllowance).toBe(legacy.totalAllowance);
+        expect(derived.weightedCoverageRatio).toBe(
+          legacy.weightedCoverageRatio,
+        );
+        expect(derived.macroScenarioBreakdown).toEqual(
+          legacy.macroScenarioBreakdown,
+        );
+        expect(derived.segments).toEqual(legacy.segments);
+      });
+
+      it('derived mode stamps the macroOverlay provenance block + the DERIVED gap', async () => {
+        const result =
+          await mkWiredService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        expect(result.macroOverlay?.basis).toBe('derived-from-macro');
+        expect(result.macroOverlay?.macroStressIndex).toBe(0);
+        expect(result.macroOverlay?.inputs?.prUnemploymentPct).toBe(
+          PR_MACRO_SNAPSHOT.inputs.prUnemploymentPct,
+        );
+        expect(result.macroOverlay?.provenance).toContain('pr-macro-snapshot');
+        const gap = result.gaps?.find((g) => g.field === 'cecl.macroOverlay');
+        expect(gap?.action).toMatch(/DERIVAD/); // derived disclosure…
+        expect(gap?.action).not.toMatch(/hard-coded/); // …not the legacy one
+      });
+
+      it('CECL_MACRO_OVERLAY_MODE=hardcoded kill switch → legacy path even when wired', async () => {
+        process.env.CECL_MACRO_OVERLAY_MODE = 'hardcoded';
+        const result =
+          await mkWiredService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        expect(result.macroOverlay).toBeUndefined();
+        const gap = result.gaps?.find((g) => g.field === 'cecl.macroOverlay');
+        expect(gap?.action).toMatch(/PROVISIONAL/);
+        expect(gap?.action).toMatch(/2\.1x/); // the legacy hard-coded disclosure
+      });
+
+      it('no overlay injected (legacy constructors) → no macroOverlay block, legacy gap intact', async () => {
+        const result =
+          await mkService(prSegments).getCooperativaCECLAnalysis('inst-1');
+        expect(result.macroOverlay).toBeUndefined();
+        const gap = result.gaps?.find((g) => g.field === 'cecl.macroOverlay');
+        expect(gap?.action).toMatch(/calibración PROVISIONAL/);
+      });
     });
 
     it('excludes an unclassified, data-less segment from allowance + coverage and discloses it (D1)', async () => {

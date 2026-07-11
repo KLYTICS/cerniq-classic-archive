@@ -403,3 +403,25 @@ Market math: 57+ of 91 coops (~63%) hold mortgages; coops >$100M hold 89% of the
 ---
 
 *Document compiled via parallel web research, 2026-06-06. Primary sources fetched directly where noted (COSSEC Q3-2025 statistical PDF, FHLBNY membership pages, liga.coop staff pages, LexJuris statute texts). Refresh cadence suggestion: quarterly, aligned to COSSEC statistical report publication (~75 days after quarter close).*
+
+---
+
+## 10. Cross-Validation Appendix (independent second research pass, 2026-06-06)
+
+A second, independent four-agent web-research sweep was run over all eight sections to validate this document. **Result: the registry figures, top-20 ranking, regulatory framework, competitor gap analysis, data-source map, core-banking findings, key people, and FHLBNY narrative were all independently corroborated** against COSSEC's Q3-2025 statistical PDF, liga.coop, ejecutivos.coop, the FOMB COSSEC Fiscal Plan, FHLBNY/Inclusiv, and BLS/Census/FHFA. The second pass adds the following net-new items and one discrepancy to chase.
+
+### 10.1 Net-new findings (fold into the relevant sections on next edit)
+
+- **§5 — Economic Activity Index publisher changed.** The Índice de Actividad Económica is **no longer produced by EDB/BDE alone**: as of **November 2025 the DDEC (Departamento de Desarrollo Económico y Comercio), Office of Strategy & Business Intelligence took over production**, renamed it **PR-EAI / IAE-PR**, and modernized the methodology. Same 4 coincident variables (payroll employment, cement sales, electric generation, gasoline). Recent values: FY2024 avg ≈128.5 (+2.9% YoY); Oct 2025 = 127.9, Nov 2025 = 128.1 (SA). Still PDF-only (now on docs.pr.gov under DDEC; legacy EDB-EAI PDFs remain on bde.pr.gov). Source: [DDEC announcement](https://www.desarrollo.pr.gov/en/noticias/ddec-consolida-su-oficina-de-estrategia-e-inteligencia-de-negocios-y-presenta-indicadores-clave-sobre-la-actividad-economica-de-puerto-rico), [PR-EAI Oct/Nov 2025 PDF](https://docs.pr.gov/files/DDEC/%C3%8Dndice%20de%20Actividad%20Econ%C3%B3mica/Reportes/PR-EAI%20Report%20October%20&%20November%202025.pdf).
+- **§8.2 — FHLBNY capital stock (partially fills the UNVERIFIED gap).** Independent sourcing indicates **Activity-Based Capital Stock = 4.50% of each advance**, plus membership stock on approval. Still confirm exact percentages against the live FHLBNY Capital Plan before quoting. Source: [FHLBNY About Membership](https://www.fhlbny.com/become-a-member/about-membership).
+- **§4 — competitor "long tail" enumerated.** Second pass adds detail on the secondary vendors already footnoted in §4.1: Mark H. Smith product is **ALMPro®** (tiers: Classic <$50M, Plus, Premier $200M+); Abrigo ALM is built on the 2019 **FARIN** acquisition; ZM Financial is now **Moody's Analytics ERS** (acquired Dec 2020); QuantyPhi markets a **Call-Report-data "simplified ALM" tier** for small CUs (CUInsight, May 2026) — CERNIQ's analog should be **AITSA/COSSEC-filing-data-driven** simplified modeling. The universal gap (zero Spanish, zero PR clients, zero COSSEC output, no published pricing) was re-confirmed across all eleven vendors.
+- **§1 — concentration math re-confirmed exactly**: 40 coops >$100M = $10,455M = 84.2% of system; top-20 ranking matched line-for-line with this document's §1.3.
+
+### 10.2 Discrepancy to resolve
+
+- **BLS LAUS series prefix.** This document (§5) cites `LASST720000000000003`; the second pass confirmed the FRED-exposed form as **`LAUST720000000000003`** (with `PRURN` as the short alias) and the CES/SAE example `SMU72000002023600001` (All Employees, Construction of Buildings, PR). Both `LAS…`/`LAU…` state-series forms appear in the wild — **resolve via the BLS Series-ID builder before hardcoding** any series in the ingest layer. (Already tracked in §9 spirit; added here explicitly.)
+
+### 10.3 Items the second pass also flagged UNVERIFIED (consistent with §9)
+Exact per-coop municipios for a few entries; the 8% capital-adequacy ratio against statute text; Ley 15-2026 full text; current PRSTRT/Parallel18 leadership; exact FHFA PR dataset filename/column; Symitar/Corelation/CU*Answers PR penetration; whether PR coop cores emit AIRES-format files (no evidence — COSSEC/AITSA filing + flat-file extract is the verified mechanic).
+
+*Second-pass note: the strong agreement between two independent research sweeps materially raises confidence in §§1–8. Treat the §9/§10.3 UNVERIFIED items as the live backlog before any figure is used in sales, legal, or contract contexts.*

@@ -23,6 +23,10 @@ import { DurationService } from './duration.service';
 import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
 import { YieldCurveService } from './yield-curve.service';
 import { CECLService } from './cecl.service';
+import { MacroOverlayService } from './macro-overlay.service';
+import { PrMacroFeedService } from './pr-macro-feed.service';
+import { CaelComplianceService } from './cael-compliance.service';
+import { CaelArtifactService } from './cael-artifact.service';
 import { FTPService } from './ftp.service';
 import { DepositBetaService } from './deposit-beta.service';
 import { LiquidityAdvancedService } from './liquidity-advanced.service';
@@ -115,6 +119,10 @@ import { PreviewReportService } from './preview-report.service';
 import { AlmDocumentExportsService } from './alm-document-exports.service';
 // Controllers
 import { AlmController } from './alm.controller';
+import { CaelController } from './cael.controller';
+import { EwsController } from './ews/ews.controller';
+import { EwsSnapshotService } from './ews/ews-snapshot.service';
+import { EwsSchedulerService } from './ews/ews-scheduler.service';
 import { AlmAdvisorController } from './alm-advisor.controller';
 import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAnalystService } from './alm-analyst.service';
@@ -146,7 +154,9 @@ import { HJMModule } from './quant/hjm.module';
     ModelRegistryModule,
   ],
   controllers: [
+    EwsController,
     AlmController,
+    CaelController,
     AlmAdvisorController,
     AlmAdvisorV2Controller,
     AlmAnalystController,
@@ -178,6 +188,10 @@ import { HJMModule } from './quant/hjm.module';
     ScenarioPersistenceService,
     YieldCurveService,
     CECLService,
+    MacroOverlayService,
+    PrMacroFeedService,
+    CaelComplianceService,
+    CaelArtifactService,
     FTPService,
     DepositBetaService,
     LiquidityAdvancedService,
@@ -202,6 +216,8 @@ import { HJMModule } from './quant/hjm.module';
     PortfolioVaRService,
     CapitalOptimizerService,
     AssetEWSService,
+    EwsSnapshotService,
+    EwsSchedulerService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,
@@ -298,6 +314,10 @@ import { HJMModule } from './quant/hjm.module';
     ScenarioPersistenceService,
     YieldCurveService,
     CECLService,
+    MacroOverlayService,
+    PrMacroFeedService,
+    CaelComplianceService,
+    CaelArtifactService,
     FTPService,
     DepositBetaService,
     LiquidityAdvancedService,
@@ -320,6 +340,7 @@ import { HJMModule } from './quant/hjm.module';
     PortfolioVaRService,
     CapitalOptimizerService,
     AssetEWSService,
+    EwsSnapshotService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,

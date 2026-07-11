@@ -13,6 +13,33 @@ import {
 import { PortfolioService } from '../portfolio/portfolio.service';
 import { MarketDataService } from '../market-data/market-data.service';
 
+// ─── Seeded PRNG (SR 11-7 reproducibility) ───────────────────
+// A Monte Carlo over the global unseeded Math.random() is non-reproducible — a
+// model-validation red flag. Seed an xorshift32 stream from the request so the
+// same simulation parameters always yield the same VaR / percentiles.
+function createSeededRng(seed: number): () => number {
+  let state = seed | 0 || 0x9e3779b9;
+  return () => {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 0xffffffff;
+  };
+}
+
+/** FNV-1a hash of the request's numeric params → a stable uint32 seed. */
+function seedFromParams(...nums: number[]): number {
+  let h = 0x811c9dc5;
+  for (const n of nums) {
+    const s = String(n);
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+  }
+  return h >>> 0;
+}
+
 @Injectable()
 export class RiskService {
   private readonly logger = new Logger(RiskService.name);
@@ -36,13 +63,25 @@ export class RiskService {
 
     const finalValues: number[] = [];
 
+    // Seeded for reproducibility (SR 11-7): identical request → identical run.
+    const rng = createSeededRng(
+      seedFromParams(
+        request.initialValue,
+        request.meanDailyReturn,
+        request.dailyVolatility,
+        request.numSimulations,
+        request.timeHorizon,
+        request.confidenceLevel,
+      ),
+    );
+
     for (let i = 0; i < request.numSimulations; i++) {
       let value = request.initialValue;
 
       for (let day = 0; day < request.timeHorizon; day++) {
         // Box-Muller transform for normal distribution
-        const u1 = Math.random();
-        const u2 = Math.random();
+        const u1 = Math.max(rng(), 1e-12); // guard against log(0)
+        const u2 = rng();
         const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 
         const dailyReturn =
@@ -210,35 +249,30 @@ export class RiskService {
       throw new Error('Portfolio has no positions');
     }
 
-    // For simplicity, using placeholder values
-    // In production, would calculate from historical portfolio returns
-    const dailyReturns = [0.01, -0.02, 0.015, -0.01, 0.02, 0.005, -0.015]; // Mock data
-
-    const varResult = await this.calculateVaR({
-      portfolioValue: portfolio.totalValue,
-      returns: dailyReturns,
-      confidenceLevel: 0.95,
-    });
-
-    // Calculate annualized volatility
-    const returns = dailyReturns;
-    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-    const variance =
-      returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) /
-      returns.length;
-    const dailyVol = Math.sqrt(variance);
-    const annualizedVol = dailyVol * Math.sqrt(252); // 252 trading days
-
+    // HONEST MINIMUM: the return-history-dependent risk metrics require a real
+    // daily-return series (and benchmark/market data for beta), which is NOT
+    // yet wired. We refuse to fabricate them. The previous implementation
+    // computed VaR/CVaR/volatility/Sharpe from a HARDCODED mock return series
+    // and pinned beta=1.0 / maxDrawdown=0 — fabricated risk numbers served from
+    // a live endpoint. Those fields are now null + disclosed.
     return {
       portfolioId,
       totalValue: portfolio.totalValue,
-      var95: varResult.var,
-      cvar95: varResult.cvar,
-      volatility: annualizedVol * 100, // Convert to percentage
-      sharpeRatio: mean > 0 ? (mean / dailyVol) * Math.sqrt(252) : 0,
-      beta: 1.0, // Would need market data
-      maxDrawdown: 0, // Would need historical portfolio values
-      diversificationRatio: Math.sqrt(portfolio.positions.length), // Simplified
+      var95: null,
+      cvar95: null,
+      volatility: null,
+      sharpeRatio: null,
+      beta: null,
+      maxDrawdown: null,
+      // Crude structural proxy from the real position count — NOT a
+      // correlation-based diversification ratio (disclosed below).
+      diversificationRatio: Math.sqrt(portfolio.positions.length),
+      status: 'data_unavailable',
+      disclosures: [
+        'VaR, CVaR, volatility and Sharpe ratio require a portfolio daily-return history, which is not yet wired — returned as null rather than computed from placeholder returns.',
+        'Beta requires market (benchmark) data and maxDrawdown requires historical portfolio values; neither is wired — returned as null.',
+        'diversificationRatio is a simplified sqrt(positionCount) proxy, not a correlation-based measure.',
+      ],
     };
   }
 

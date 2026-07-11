@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import {
   COOPERATIVA_PRODUCT_REGISTRY,
@@ -7,6 +7,8 @@ import {
   matchProductType,
   type CooperativaProductType,
 } from './cooperativa/product-registry';
+import { MacroOverlayService } from './macro-overlay.service';
+import { getMacroOverlayMode } from './macro-overlay-config.util';
 import type { DataGap } from './reports/data-gap';
 
 // ─── Macro Scenario Weights (FASB 326 guidance) ──────────────
@@ -41,6 +43,30 @@ const PD_MULTIPLIERS = {
   adverse: 1.8,
   severely_adverse: 3.0,
 };
+
+// ─── Incurred-Loss horizon (Reglamento 8665 §2.12.2.5) ───────
+
+/**
+ * Loss-Emergence Period (LEP), in years, for the incurred-loss allowance basis.
+ *
+ * The incurred-loss method (legacy ALLL under ASC 450-20, mapped to COSSEC
+ * Reglamento 8665 §2.12.2.5) recognizes losses *already incurred but not yet
+ * confirmed* over a short emergence window — in contrast to CECL/WARM, which
+ * recognizes *lifetime* expected losses scaled by remaining maturity. The one
+ * structural difference between the two allowances is this horizon multiplier:
+ *
+ *   incurred-loss = balance × (historicalLossRate + qualitativeAdj) × LEP
+ *   CECL / WARM   = balance × (historicalLossRate + qualitativeAdj) × WARL × pvFactor
+ *
+ * DISCLOSED CONFIG (D1): the exact LEP and any phase-in in Reglamento 8665
+ * §2.12.2.5 are UNVERIFIED — the operative text is a non-OCR scan (Market Bible
+ * §9 item 3 / CC-2023-01). Until the OCR'd circular is obtained we default to a
+ * 12-month emergence period (the conventional ASC 450-20 ALLL window) and emit a
+ * WARNING DataGap on every incurred-loss computation so an examiner sees the
+ * assumption rather than inferring a verified figure. NEVER ship this value
+ * silently — it is an estimate presented as an estimate.
+ */
+const INCURRED_LOSS_EMERGENCE_PERIOD_YEARS = 1.0;
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -87,6 +113,25 @@ export interface CECLSummary {
     regulatoryContext: string;
     effectiveNote: string;
   };
+  /**
+   * W1.2 (cooperativa path, derived mode only): provenance of the PR macro
+   * overlay actually applied — which basis produced the multipliers/weights,
+   * from which macro inputs, at what stress index. Absent = the legacy
+   * hard-coded constants were used (pre-W1.2 consumers, or the
+   * CECL_MACRO_OVERLAY_MODE=hardcoded kill switch), keeping legacy output
+   * byte-identical.
+   */
+  macroOverlay?: {
+    basis: 'derived-from-macro' | 'hardcoded-fallback';
+    macroStressIndex: number | null;
+    inputs: {
+      prUnemploymentPct: number;
+      prHpiYoyPct: number;
+      prNetMigrationPct: number;
+      asOf?: string;
+    } | null;
+    provenance: string;
+  };
   gaps?: import('./reports/data-gap').DataGap[];
 }
 
@@ -105,7 +150,16 @@ export interface CECLForecast {
 export class CECLService {
   private readonly logger = new Logger(CECLService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  /**
+   * W1.2: the macro overlay is optional so the five direct `new
+   * CECLService(prisma)` sites (specs, CLI scripts, demo harness) keep
+   * compiling; AlmModule DI wires it. Absent → legacy hard-coded PR
+   * constants, byte-identical output.
+   */
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly macroOverlay?: MacroOverlayService,
+  ) {}
 
   // ─── WARM Method (Weighted Average Remaining Life) ─────────
 
@@ -241,6 +295,121 @@ export class CECLService {
       segments: results,
       overallStatus: 'computed',
     };
+  }
+
+  // ─── Incurred-Loss Method (Reglamento 8665 §2.12.2.5) ──────
+
+  /**
+   * Incurred-loss allowance (COSSEC Reglamento 8665 §2.12.2.5 / legacy
+   * ASC 450-20 ALLL). Mirrors {@link calculateWARM}'s inputs but applies a short
+   * loss-emergence horizon instead of remaining life, producing the incurred-loss
+   * leg of the CAEL dual filing (Wave 1, W1.1). Per the confirmed 12-month-LEP
+   * convention: `allowance = balance × (lossRate + qFactor) × LEP`, no PV discount,
+   * no forward-looking macro overlay — the honest, backward-looking contrast to
+   * CECL's lifetime number.
+   *
+   * D1: refuses to compute on empty / all-zero-balance segments (returns
+   * `data_unavailable` + CRITICAL gap) and ALWAYS attaches a WARNING gap
+   * disclosing that the LEP and exact §2.12.2.5 basis are provisional config
+   * pending the OCR'd circular. WARNING gaps render the report; they do not block.
+   */
+  calculateIncurredLoss(
+    segments: Array<{
+      segmentName: string;
+      balance: number;
+      weightedAvgMaturity: number;
+      historicalLossRate: number;
+      lgd?: number;
+      qualitativeAdj?: number;
+      discountRate?: number;
+    }>,
+    options: { lossEmergencePeriodYears?: number } = {},
+  ): CECLSummary {
+    const methodology = 'Incurred Loss (Reg 8665)';
+
+    // D1: same empty-segment guard as WARM — an institution with no loan data
+    // gets `data_unavailable`, never a "valid" $0 incurred-loss allowance.
+    if (segments.length === 0 || segments.every((s) => !s.balance)) {
+      this.logger.warn({
+        event: 'cecl_data_unavailable',
+        methodology,
+        reason: 'EMPTY_SEGMENTS',
+      });
+      return this.dataUnavailableSummary(methodology, 'no segments provided');
+    }
+
+    const lep = this.resolveLossEmergencePeriod(
+      options.lossEmergencePeriodYears,
+    );
+
+    const results: CECLSegmentResult[] = segments.map((rawSeg) => {
+      const seg = this.validateSegment(rawSeg);
+      // Annual adjusted loss rate, identical to WARM (historical + qualitative).
+      const adjRate = seg.historicalLossRate + seg.qualitativeAdj;
+      // Incurred-loss horizon = emergence period, NOT remaining life. No PV
+      // discount (ASC 450-20 incurred losses are undiscounted), no macro overlay.
+      const incurredLossRate = Math.min(Math.max(adjRate, 0) * lep, 1);
+      const expectedLoss = seg.balance * incurredLossRate;
+
+      return {
+        segmentName: seg.segmentName,
+        balance: seg.balance,
+        methodology,
+        historicalLossRate: seg.historicalLossRate,
+        qualitativeAdj: seg.qualitativeAdj,
+        adjustedLossRate: adjRate,
+        expectedLoss,
+        allowanceRequired: expectedLoss,
+        coverageRatio: seg.balance > 0 ? expectedLoss / seg.balance : 0,
+      };
+    });
+
+    const totalBalance = results.reduce((sum, r) => sum + Number(r.balance), 0);
+    const totalAllowance = results.reduce(
+      (sum, r) => sum + r.allowanceRequired,
+      0,
+    );
+
+    return {
+      totalBalance,
+      totalAllowance,
+      weightedCoverageRatio:
+        totalBalance > 0 ? totalAllowance / totalBalance : 0,
+      methodology,
+      segments: results,
+      overallStatus: 'computed',
+      accountingBasis: {
+        framework:
+          'Reglamento 8665 §2.12.2.5 (pérdida incurrida) — base de medición RAP / Reg 8665 §2.12.2.5 (incurred loss) — RAP measurement basis',
+        regulatoryContext:
+          'Base de pérdida incurrida para el CAEL (Reglamento 7790); coexiste con el cómputo CECL (ASC 326) durante la transición RAP→GAAP (~2028). / Incurred-loss basis for CAEL (Reg 7790); coexists with the CECL (ASC 326) computation during the RAP→GAAP transition (~2028).',
+        effectiveNote: `Horizonte de emergencia de pérdida (LEP) = ${lep} año(s); sin descuento a valor presente. / Loss-emergence period (LEP) = ${lep} year(s); undiscounted.`,
+      },
+      gaps: [
+        {
+          field: 'cecl.incurredLoss.lossEmergencePeriod',
+          reason: 'COSSEC_INPUTS_INSUFFICIENT',
+          severity: 'WARNING',
+          action: `El período de emergencia de pérdida (${lep} año) y la base exacta del Reglamento 8665 §2.12.2.5 son configuración PROVISIONAL — el texto operativo es un escaneo sin OCR (CC-2023-01); confirmar con COSSEC antes de presentar. / The loss-emergence period (${lep}yr) and the exact Reglamento 8665 §2.12.2.5 basis are PROVISIONAL config — the operative text is a non-OCR scan (CC-2023-01); confirm with COSSEC before filing.`,
+          context: {
+            lossEmergencePeriodYears: lep,
+            source: 'Reg 8665 §2.12.2.5 (UNVERIFIED)',
+          },
+        },
+      ],
+    };
+  }
+
+  /**
+   * Clamp the loss-emergence period to a sane 0–10yr window; falls back to the
+   * disclosed 12-month default when the input is absent or non-positive.
+   */
+  private resolveLossEmergencePeriod(input?: number): number {
+    const v = Number(input);
+    if (!Number.isFinite(v) || v <= 0) {
+      return INCURRED_LOSS_EMERGENCE_PERIOD_YEARS;
+    }
+    return Math.min(v, 10);
   }
 
   /**
@@ -506,6 +675,9 @@ export class CECLService {
         return this.calculateVintage(segmentData);
       case 'pdlgd':
         return this.calculatePDxLGD(segmentData);
+      case 'incurredloss':
+      case 'incurred-loss':
+        return this.calculateIncurredLoss(segmentData);
       default:
         return this.calculateWARM(segmentData);
     }
@@ -670,24 +842,53 @@ export class CECLService {
       };
     }
 
+    // W1.2: derived mode routes the multipliers/weights through the
+    // data-derived macro overlay (continuity guarantee: at the reference
+    // macro state the derivation reduces exactly to the constants below, so
+    // flipping the basis never silently moves the allowance). The kill
+    // switch (CECL_MACRO_OVERLAY_MODE=hardcoded) and non-DI consumers fall
+    // through to the legacy inline constants, byte-identical.
+    const overlayResult =
+      this.macroOverlay && getMacroOverlayMode() === 'derived'
+        ? await this.macroOverlay.deriveCurrentOverlay()
+        : null;
+
     const summary = this.calculatePDxLGD(eligible, {
-      pdMultipliers: { ...PR_PD_MULTIPLIERS },
-      scenarioWeights: { ...PR_SCENARIO_WEIGHTS },
+      pdMultipliers: overlayResult
+        ? { ...overlayResult.pdMultipliers }
+        : { ...PR_PD_MULTIPLIERS },
+      scenarioWeights: overlayResult
+        ? { ...overlayResult.scenarioWeights }
+        : { ...PR_SCENARIO_WEIGHTS },
       overlayLabel: 'PR',
     });
 
     // D1: always disclose that the PR macro overlay itself is a PROVISIONAL
     // calibration (an estimate presented as an estimate), independent of
-    // whether per-segment registry PD/LGD defaults were applied.
-    gaps.push({
-      field: 'cecl.macroOverlay',
-      reason: 'COSSEC_INPUTS_INSUFFICIENT',
-      severity: 'WARNING',
-      action:
-        'Los multiplicadores macro de PR (adverso 2.1x, severo 3.6x) y los pesos de escenario (45/35/20) son una calibración PROVISIONAL (post-María / migración); los valores definitivos requieren validación COSSEC/NCUA o calibración con datos propios. / The PR macro overlay multipliers (adverse 2.1x, severe 3.6x) and scenario weights (45/35/20) are a PROVISIONAL calibration; definitive values require COSSEC/NCUA validation or institution-specific calibration.',
-    });
+    // whether per-segment registry PD/LGD defaults were applied. Derived
+    // mode discloses through the overlay's own gaps (basis, stress index,
+    // staleness); legacy mode keeps the original hard-coded disclosure.
+    if (overlayResult) {
+      gaps.push(...overlayResult.gaps);
+    } else {
+      gaps.push({
+        field: 'cecl.macroOverlay',
+        reason: 'COSSEC_INPUTS_INSUFFICIENT',
+        severity: 'WARNING',
+        action:
+          'Los multiplicadores macro de PR (adverso 2.1x, severo 3.6x) y los pesos de escenario (45/35/20) son una calibración PROVISIONAL (post-María / migración); los valores definitivos requieren validación COSSEC/NCUA o calibración con datos propios. / The PR macro overlay multipliers (adverse 2.1x, severe 3.6x) and scenario weights (45/35/20) are a PROVISIONAL calibration; definitive values require COSSEC/NCUA validation or institution-specific calibration.',
+      });
+    }
 
     return {
+      ...(overlayResult && {
+        macroOverlay: {
+          basis: overlayResult.basis,
+          macroStressIndex: overlayResult.macroStressIndex,
+          inputs: overlayResult.inputs,
+          provenance: overlayResult.provenance,
+        },
+      }),
       ...summary,
       accountingBasis: {
         framework: 'ASC 326 (FASB ASU 2016-13, CECL) — GAAP measurement basis',

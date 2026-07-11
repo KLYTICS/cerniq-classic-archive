@@ -11,10 +11,18 @@ export interface NamedScenario {
   id: string;
   name: string;
   nameEs: string;
-  type: 'parallel' | 'steepening' | 'flattening' | 'pr_specific';
+  type: 'parallel' | 'steepening' | 'flattening' | 'pr_specific' | 'macro';
   rateShiftBps: number;
   depositShockPct: number; // e.g., -5 means 5% deposit outflow
   creditShockPct: number; // e.g., +2 means 2% increase in defaults
+  /**
+   * Loan segment the credit shock targets. Omitted / `'all'` ⇒ applied to the
+   * whole loan book (the historical behaviour for every existing scenario).
+   * `'consumer'` / `'residential'` / `'commercial'` ⇒ applied only to that
+   * segment's balance, so the credit loss reflects where the deterioration
+   * actually lands (SIC 2026 hits the consumer book, not mortgages/commercial).
+   */
+  creditShockSegment?: 'consumer' | 'residential' | 'commercial' | 'all';
   description: string;
   descriptionEs: string;
   regulatoryBasis: string;
@@ -161,5 +169,25 @@ export const COSSEC_SCENARIOS: NamedScenario[] = [
     descriptionEs:
       'Tasas -50pbs, depósitos -3%, morosidad +2.5% concentrada en comercial — caída de ingresos turísticos (recesión)',
     regulatoryBasis: 'CERNIQ PR Scenario Library — tourism dependency analysis',
+  },
+  {
+    // Global macro shock (rate + credit + deposit) — distinct from the curve-shape
+    // types and from `pr_specific`. The `macro` type is treated by the engine like a
+    // parallel rate move (only `steepening` is special-cased) with the credit/deposit
+    // shocks layered on via their own fields.
+    id: 'sic_2026_global_restructuring',
+    name: 'SIC 2026 — Global Restructuring',
+    nameEs: 'SIC 2026 — Reestructuración Global',
+    type: 'macro',
+    rateShiftBps: 200,
+    depositShockPct: -5,
+    creditShockPct: 3,
+    creditShockSegment: 'consumer',
+    description:
+      'Combined macro shock — +200bps parallel rate rise, +3% consumer default-rate increase (applied to the consumer loan book), and 5% deposit runoff over 12 months. Models the Strategic Investment Conference 2026 "Global Restructuring" theme.',
+    descriptionEs:
+      'Choque macro combinado — alza paralela de tasas +200pbs, aumento de morosidad de consumo +3% y fuga de depósitos 5% en 12 meses. Modela el tema "Reestructuración Global" de la Strategic Investment Conference 2026.',
+    regulatoryBasis:
+      'CERNIQ Macro Scenario Library — Mauldin SIC 2026 (The Global Restructuring)',
   },
 ];

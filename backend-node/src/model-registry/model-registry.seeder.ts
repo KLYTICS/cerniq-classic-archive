@@ -131,6 +131,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     limitations: ['Refuses on empty segments (D1)', 'No DEMO segment fallback'],
   },
   {
+    modelKey: 'credit.incurred-loss',
+    displayName: 'Incurred-Loss Allowance (Reg 8665 §2.12.2.5)',
+    description:
+      'Legacy incurred-loss ALLL (COSSEC Reglamento 8665 §2.12.2.5 / ASC 450-20): balance × (historicalLossRate + qualitativeAdj) × loss-emergence period. The incurred-loss leg of the CAEL dual filing (W1.1) — the backward-looking contrast to lifetime CECL.',
+    version: '0.1.0',
+    category: 'CREDIT_RISK',
+    riskTier: 'TIER_1',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/cecl.service.ts',
+    entryFunction: 'calculateIncurredLoss',
+    requiredInputs: ['loanSegments'],
+    limitations: [
+      'Refuses on empty segments (D1)',
+      'Loss-emergence period default 1yr is DISCLOSED config (WARNING gap) — exact Reg 8665 §2.12.2.5 basis UNVERIFIED (non-OCR scan, CC-2023-01)',
+      'Undiscounted; no forward-looking macro overlay (by design — incurred vs CECL)',
+    ],
+  },
+  {
     modelKey: 'credit.cecl-vintage',
     displayName: 'CECL — Vintage/Cohort Method',
     description: 'Vintage loss emergence with Weibull fit to cohort data.',
@@ -173,6 +192,26 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     limitations: [
       'Provisional PD/LGD cold-start defaults from the product registry when the institution has no historical loss data — disclosed via WARNING DataGap, never silently substituted (D1). Final calibration needs institution loss history or a COSSEC/NCUA PR pooled-loss dataset.',
       'Returns data_unavailable when there are no CECL-eligible loan segments (D1).',
+    ],
+  },
+  {
+    modelKey: 'credit.macro-overlay-pr',
+    displayName: 'PR Macro Overlay (data-derived CECL calibration)',
+    description:
+      'Derives the PR CECL PD multipliers + scenario weights from macro inputs (unemployment, HPI YoY, net migration) via a macro-stress index, reducing exactly to the provisional constants at a reference state. Slice 2 (v0.2.0): wired into CECLService.getCooperativaCECLAnalysis, fed by the committed pr-macro-snapshot (per-series BLS/FHFA/Census provenance) with optional FRED PRURN live refresh; CECL_MACRO_OVERLAY_MODE=hardcoded is the ops kill switch.',
+    version: '0.2.0',
+    category: 'CREDIT_RISK',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/macro-overlay.service.ts',
+    entryFunction: 'deriveCurrentOverlay',
+    requiredInputs: ['prUnemploymentPct', 'prHpiYoyPct', 'prNetMigrationPct'],
+    limitations: [
+      'Sensitivity coefficients + reference macro state are DISCLOSED config (WARNING gap), PROVISIONAL pending COSSEC/NCUA validation',
+      'Stress-only: a better-than-reference macro state never softens the overlay below the provisional base',
+      'Committed snapshot refreshes via operator protocol (quarterly cadence; STALE_SNAPSHOT gap past PR_MACRO_STALENESS_DAYS); only unemployment has a live path (FRED PRURN) — FHFA HPI + Census migration are snapshot-only',
+      'Raw BLS LAUS series-ID prefix unresolved (Market Bible §10.2) — live refresh deliberately uses FRED PRURN instead',
     ],
   },
   {
@@ -462,6 +501,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     entryFunction: 'generateCertification',
     requiredInputs: ['balanceSheetItems'],
   },
+  {
+    modelKey: 'reg.cael-pr',
+    displayName: 'CAEL-PR Filing Framework (Reg 7790 / CECL / Piloto)',
+    description:
+      'COSSEC CAEL filing framework — Capital/Asset-quality/Earnings/Liquidity ratio dictionary for the three quarterly AITSA report variants (Reglamento 7790 incurred-loss, CAEL-with-CECL, and the Net Equity Ratio "Piloto"). Declarative half of W1.1; the compute + dual-output renderer land in Slice 2.',
+    version: '0.1.0',
+    category: 'REGULATORY',
+    riskTier: 'TIER_1',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/frameworks/cael-pr.framework.ts',
+    entryFunction: 'getCaelFramework',
+    requiredInputs: ['balanceSheetItems', 'loanSegments'],
+    limitations: [
+      'CAEL composite weighting + rating bands UNVERIFIED (Reg 7790 / CC-2023-01 non-OCR scans) — provisional ratios flagged per-ratio, disclosed via WARNING gap at compute time',
+      'Statutory thresholds (Ley 255 capital 8%, CC-2021-02 liquidity 5%) are NOT provisional',
+      'Compute layer (calculateCAELCompliance) + dual-output renderer deferred to Slice 2',
+    ],
+  },
 
   // ───────────────── CAPITAL ─────────────────
   {
@@ -491,6 +549,25 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     entryFunction: 'optimize',
     requiredInputs: ['balanceSheetItems', 'riskAppetite'],
   },
+  {
+    modelKey: 'capital.glide-path-planner',
+    displayName: 'Capital Indivisible Glide-Path Planner',
+    description:
+      'Forward-looking COSSEC capital projection (Wave 1, W1.4): projects the Net-Equity ratio (CAEL Piloto 4% floor) and the statutory indivisible-capital-over-RWA ratio (Ley 255 §6.02, 8%) period-by-period from retained net surplus + asset growth, with a stressed-recovery variant.',
+    version: '0.1.0',
+    category: 'CAPITAL',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/cooperativa/capital-planning.service.ts',
+    entryFunction: 'projectGlidePath',
+    requiredInputs: ['equity', 'totalAssets', 'riskWeightedAssets'],
+    limitations: [
+      'Deterministic projection; growth/ROA/surplus-retention are DISCLOSED planning assumptions (WARNING gap), not measured data',
+      'RWA grows proportionally with assets (disclosed simplification)',
+      'Refuses on missing balance sheet (D1); statutory leg skipped + gap when RWA absent',
+    ],
+  },
 
   // ───────────────── RISK METRICS ─────────────────
   {
@@ -510,8 +587,8 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     modelKey: 'risk.early-warning',
     displayName: 'Early Warning System',
     description:
-      'Isolation forest anomaly detection across financial indicators.',
-    version: '1.0.0',
+      '12-indicator asset-quality composite with GREEN/YELLOW/RED bands and anomaly heuristic. W1.3 (v1.1.0): persisted as daily EwsSnapshot rows (idempotent per institution per day) with trend delta vs prior, band-transition / indicator-escalation / composite-drop alerts, and a 06:30 AST scheduled capture (EWS_SCHEDULER_DISABLED kill switch).',
+    version: '1.1.0',
     category: 'RISK_METRICS',
     riskTier: 'TIER_2',
     status: 'APPROVED',
@@ -524,6 +601,7 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
       '7 of 12 indicators (delinquency trend, LTV, DSCR, OREO growth, consumer 60d, allowance coverage, peer gap) are not yet wired — return null + WARNING gap, never a constant',
       'Refuses to grade below 50% measured indicator weight; composite scores only over measured indicators (57/100)',
       'Derived indicators are loss-rate proxies, not direct delinquency measurements',
+      'Alert thresholds (composite drop 10 pts, band/indicator transitions) are DISCLOSED config pending board calibration; DATA_UNAVAILABLE is never compared numerically — grading loss/restoration are their own alert types',
     ],
   },
 
@@ -786,6 +864,8 @@ export class ModelRegistrySeeder implements OnModuleInit {
       modelKey: string;
       goldenFile: string;
       label: string;
+      /** Source fixture for validationMetadata (default: pr-cooperativa-demo). */
+      fixture?: string;
     }> = [
       {
         modelKey: 'reg.cossec-compliance',
@@ -807,6 +887,27 @@ export class ModelRegistrySeeder implements OnModuleInit {
         goldenFile: 'pr-cooperativa-demo.nii-sensitivity.json',
         label: 'NII sensitivity golden test (pr-cooperativa-demo)',
       },
+      {
+        modelKey: 'credit.incurred-loss',
+        goldenFile: 'pr-cooperativa-demo.incurred-loss.json',
+        label: 'Incurred-loss (Reg 8665) golden test (pr-cooperativa-demo)',
+      },
+      {
+        modelKey: 'capital.glide-path-planner',
+        goldenFile: 'pr-cooperativa-demo.capital-glide-path.json',
+        label: 'Capital glide-path golden test (pr-cooperativa-demo)',
+      },
+      {
+        modelKey: 'credit.macro-overlay-pr',
+        goldenFile: 'pr-macro-overlay.json',
+        label: 'PR macro overlay derivation golden test (pr-macro-snapshot)',
+        fixture: 'pr-macro-snapshot',
+      },
+      {
+        modelKey: 'risk.early-warning',
+        goldenFile: 'pr-cooperativa-demo.ews.json',
+        label: 'EWS 12-indicator composite golden test (pr-cooperativa-demo)',
+      },
     ];
 
     const goldenDir = path.resolve(__dirname, '../../test/golden');
@@ -818,7 +919,7 @@ export class ModelRegistrySeeder implements OnModuleInit {
     }
 
     let linked = 0;
-    for (const { modelKey, goldenFile, label } of GOLDEN_MAP) {
+    for (const { modelKey, goldenFile, label, fixture } of GOLDEN_MAP) {
       try {
         const filePath = path.join(goldenDir, goldenFile);
         if (!fs.existsSync(filePath)) continue;
@@ -854,7 +955,7 @@ export class ModelRegistrySeeder implements OnModuleInit {
           producedBy: 'golden-reconciliation-spec',
           producedAt: new Date(),
           validationMetadata: {
-            fixture: 'pr-cooperativa-demo',
+            fixture: fixture ?? 'pr-cooperativa-demo',
             driftDetection: 'UPDATE_GOLDEN=1 to regenerate',
           },
         });

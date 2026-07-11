@@ -66,7 +66,13 @@
 - [x] Input validation audit completed — findings documented below
 - [x] DTO class-validator decorators added to 6 files: risk, advanced-risk, portfolio, valuation, ticker, chart (15+ request DTOs)
 - [x] Hardcoded prospect emails extracted to `PROSPECT_SEED_DATA` env var
-- [ ] Full BUG-001 production verification matrix (6 tests — requires live deployment)
+- [~] BUG-001 production verification matrix (6 tests) — **codebase-verified; 3 live tests blocked on frontend redeploy** (cerniq.io intentionally offline since 2026-06-07; Vercel project removed)
+  - [x] (T3) Cookie has correct SameSite per scenario — unit-verified in `auth-cookie.util.spec.ts` (38 tests incl. the BUG-001 regression block: env unset + cross-domain prod ⇒ `none` + `Secure`)
+  - [x] (T4) CORS preflight returns the specific request origin, never `*` — `main.ts:153` uses `origin: corsOriginCallback` + `credentials: true` (a wildcard is illegal with credentials); echo logic covered by `origin-allowlist.spec.ts`
+  - [x] (T5, server side) `credentials: include` is accepted — `enableCors({ credentials: true, allowedHeaders: [Authorization, …] })`
+  - [ ] (T1) Live login cerniq.io → api.cerniq.io — **BLOCKED**: frontend offline by design; rerun after redeploy
+  - [ ] (T2) Live login from Vercel preview URL — **BLOCKED**: same, and requires `ALLOW_PREVIEW_ORIGINS=true` on the API
+  - [ ] (T6) Auth-protected API call succeeds with the cookie end-to-end — **BLOCKED**: needs a live browser session
 
 #### Security Audit Findings
 | Severity | Finding | Status |
@@ -77,7 +83,7 @@
 | LOW | `unsafe-inline` in CSP script-src (needed for analytics) | Accepted risk |
 
 #### CORS & Rate Limiting Verification
-- [x] CORS: explicit origins + wildcard for Vercel/Railway/Fly.io preview deploys
+- [x] CORS: explicit allowlist (`cerniq.io`/`cerniqtech.com` pattern) + opt-in Vercel preview regex gated by `ALLOW_PREVIEW_ORIGINS` — **no wildcard** (incompatible with `credentials: true`); the request origin is echoed per-request via `corsOriginCallback`
 - [x] Rate limiting: global 100/min, auth endpoints 3-5/min, password reset 3/hour
 - [x] Helmet CSP: configured with analytics vendor allowlist
 - [x] Cookies: HttpOnly + Secure (prod) + SameSite appropriate

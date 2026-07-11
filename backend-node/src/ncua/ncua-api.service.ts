@@ -85,8 +85,19 @@ export class NcuaApiService {
         error: err instanceof Error ? err.message : 'Unknown error',
       });
 
-      // Return demo data for development/testing when NCUA API is unreachable
-      return this.getDemoCreditUnionData(charterNumber);
+      // NEVER silently substitute fabricated NCUA data on an API failure — that
+      // would import a phantom credit union as real. Demo data is opt-in (dev
+      // only) via NCUA_DEMO_FALLBACK=1; by default, propagate the failure.
+      if (this.demoFallbackEnabled()) {
+        this.logger.warn({
+          msg: 'NCUA_DEMO_FALLBACK=1 — returning DEMO credit-union data (NOT real)',
+          charterNumber,
+        });
+        return this.getDemoCreditUnionData(charterNumber);
+      }
+      throw err instanceof Error
+        ? err
+        : new Error(`NCUA API unavailable for charter ${charterNumber}`);
     }
   }
 
@@ -131,7 +142,21 @@ export class NcuaApiService {
         error: err instanceof Error ? err.message : 'Unknown error',
       });
 
-      return this.getDemoCallReportData(charterNumber, quarter);
+      // Demo call-report financials are opt-in (dev only) — NEVER silently
+      // import a fabricated Form 5300 as a real regulatory filing.
+      if (this.demoFallbackEnabled()) {
+        this.logger.warn({
+          msg: 'NCUA_DEMO_FALLBACK=1 — returning DEMO call-report data (NOT real)',
+          charterNumber,
+          quarter,
+        });
+        return this.getDemoCallReportData(charterNumber, quarter);
+      }
+      throw err instanceof Error
+        ? err
+        : new Error(
+            `NCUA API unavailable for call report ${charterNumber}/${quarter}`,
+          );
     }
   }
 
@@ -218,12 +243,31 @@ export class NcuaApiService {
         error: err instanceof Error ? err.message : 'Unknown error',
       });
 
-      // Return demo results for development
-      return this.getDemoSearchResults(name, state);
+      if (this.demoFallbackEnabled()) {
+        this.logger.warn({
+          msg: 'NCUA_DEMO_FALLBACK=1 — returning DEMO search results (NOT real)',
+          name,
+          state,
+        });
+        return this.getDemoSearchResults(name, state);
+      }
+      throw err instanceof Error
+        ? err
+        : new Error(`NCUA search unavailable for "${name}"`);
     }
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Demo NCUA data is a DEV-ONLY fallback, opt-in via NCUA_DEMO_FALLBACK=1.
+   * In production (flag unset) an NCUA API failure PROPAGATES — CerniQ must
+   * never import a fabricated Form 5300 / charter record as real regulatory
+   * data when the upstream NCUA API is unreachable.
+   */
+  private demoFallbackEnabled(): boolean {
+    return process.env.NCUA_DEMO_FALLBACK === '1';
+  }
 
   private mapCreditUnionResponse(
     data: any,

@@ -239,6 +239,70 @@ describe('env.schema', () => {
       expect(() => validateEnv()).toThrow('process.exit called');
     });
 
+    it('accepts CECL_MACRO_OVERLAY_MODE only as the pinned enum', () => {
+      for (const v of ['derived', 'hardcoded']) {
+        Object.assign(process.env, {
+          ...VALID_ENV,
+          CECL_MACRO_OVERLAY_MODE: v,
+        });
+        const env = validateEnv();
+        expect(env.CECL_MACRO_OVERLAY_MODE).toBe(v);
+      }
+    });
+
+    it('rejects CECL_MACRO_OVERLAY_MODE=off (avoids ambiguous kill-switch strings)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        CECL_MACRO_OVERLAY_MODE: 'off',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('parses PR_MACRO_STALENESS_DAYS as an integer in [1, 730]', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        PR_MACRO_STALENESS_DAYS: '90',
+      });
+      const env = validateEnv();
+      expect(env.PR_MACRO_STALENESS_DAYS).toBe(90);
+    });
+
+    it('rejects PR_MACRO_STALENESS_DAYS=0 (a zero threshold means always-stale noise)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        PR_MACRO_STALENESS_DAYS: '0',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts EWS_SCHEDULER_DISABLED only in canonical truthy/falsy form', () => {
+      for (const v of ['true', 'false', '1', '0']) {
+        Object.assign(process.env, {
+          ...VALID_ENV,
+          EWS_SCHEDULER_DISABLED: v,
+        });
+        const env = validateEnv();
+        expect(env.EWS_SCHEDULER_DISABLED).toBe(v);
+      }
+    });
+
+    it('rejects EWS_SCHEDULER_DISABLED=off (avoids truthy ambiguity)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        EWS_SCHEDULER_DISABLED: 'off',
+      });
+      expect(() => validateEnv()).toThrow('process.exit called');
+    });
+
+    it('accepts FRED_API_KEY as an arbitrary string (round-trip: treasury-rates + pr-macro-feed)', () => {
+      Object.assign(process.env, {
+        ...VALID_ENV,
+        FRED_API_KEY: 'fred-test-key',
+      });
+      const env = validateEnv();
+      expect(env.FRED_API_KEY).toBe('fred-test-key');
+    });
+
     it('parses CACHE_AI_TTL_SECONDS as a positive integer', () => {
       Object.assign(process.env, {
         ...VALID_ENV,

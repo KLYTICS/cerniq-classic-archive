@@ -95,13 +95,19 @@ export class CorrelationMatrixDto {
 export class PortfolioRiskDto {
   portfolioId: string;
   totalValue: number;
-  var95: number;
-  cvar95: number;
-  volatility: number;
-  sharpeRatio: number;
-  beta: number;
-  maxDrawdown: number;
+  // Return-history-dependent metrics — null when the data source is not wired
+  // (never fabricated from placeholder returns / hardcoded values).
+  var95: number | null;
+  cvar95: number | null;
+  volatility: number | null;
+  sharpeRatio: number | null;
+  beta: number | null;
+  maxDrawdown: number | null;
   diversificationRatio: number;
+  /** 'data_unavailable' when return-history-dependent metrics can't be computed. */
+  status: 'ok' | 'data_unavailable';
+  /** Plain-language notes on which metrics are unavailable and why. */
+  disclosures?: string[];
 }
 
 export class StressTestScenarioDto {

@@ -158,6 +158,30 @@ const envSchema = z
       .transform((v) => (v ? Number(v) : undefined))
       .pipe(z.number().int().min(1000).optional()),
 
+    // ── PR macro overlay (Wave 1, W1.2) ──────────────────────────────
+    // FRED API key — consumed by treasury-rates.service.ts (yield curve)
+    // and pr-macro-feed.service.ts (PRURN unemployment refresh). Was read
+    // by treasury-rates since before the round-trip rule; declared here to
+    // close that latent gap (every process.env read gets a schema entry).
+    FRED_API_KEY: z.string().optional(),
+    // Ops kill switch for the data-derived CECL PR overlay. 'derived'
+    // (default when unset) uses MacroOverlayService.deriveCurrentOverlay;
+    // 'hardcoded' falls back to the legacy inline constants. Interpreted
+    // by a single helper: src/alm/macro-overlay-config.util.ts.
+    CECL_MACRO_OVERLAY_MODE: z.enum(['derived', 'hardcoded']).optional(),
+    // Days after the committed macro snapshot's compiledAsOf before the
+    // feed emits a STALE_SNAPSHOT WARNING gap. Default 120 (quarterly
+    // refresh cadence + slack) via resolveMacroStalenessDays().
+    PR_MACRO_STALENESS_DAYS: z
+      .string()
+      .optional()
+      .transform((v) => (v ? Number(v) : undefined))
+      .pipe(z.number().int().min(1).max(730).optional()),
+    // Kill switch for the daily EWS snapshot cron (W1.3). Separate from
+    // AGENT_SCHEDULER_DISABLED — different blast radius. Interpreted by
+    // src/alm/ews/ews-scheduler-flag.util.ts only.
+    EWS_SCHEDULER_DISABLED: z.enum(['true', 'false', '1', '0']).optional(),
+
     // ── Cache ────────────────────────────────────────────────────────
     // Default TTL for AI response cache entries. `parseInt` on bad input
     // previously yielded NaN, which ioredis interprets as "no TTL" —

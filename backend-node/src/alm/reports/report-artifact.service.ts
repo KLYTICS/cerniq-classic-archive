@@ -21,7 +21,14 @@ export interface CreateArtifactInput {
   institutionId: string;
   analysisRunId?: string;
   reportJobId?: string;
-  format: 'PDF_ES' | 'PDF_EN' | 'EXCEL' | 'JSON_BINDER' | 'CSV_TEMPLATE';
+  format:
+    | 'PDF_ES'
+    | 'PDF_EN'
+    | 'EXCEL'
+    | 'JSON_BINDER'
+    | 'CSV_TEMPLATE'
+    | 'CAEL_JSON'
+    | 'CAEL_HTML';
   language?: string;
   templateVersion?: string;
   content: Buffer;

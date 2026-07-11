@@ -1,4 +1,5 @@
 import { StressTestingService } from './stress-testing.service';
+import { buildSanJuanFederalDemo } from '../data/fixtures/builders/san-juan-federal.builder';
 
 describe('StressTestingService', () => {
   let service: StressTestingService;
@@ -476,6 +477,12 @@ describe('StressTestingService', () => {
       mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
         summary: { totalShares: 200, totalLoans: 150 },
       });
+      // Segment-aware scenarios (SIC 2026) pull the asset side once.
+      mockPrisma.balanceSheetItem.findMany = jest.fn().mockResolvedValue([
+        { subcategory: 'consumer_loans', balance: 60 },
+        { subcategory: 'residential_mortgages', balance: 60 },
+        { subcategory: 'commercial_loans', balance: 30 },
+      ]);
     });
 
     it('returns array of named scenario results', async () => {
@@ -526,6 +533,109 @@ describe('StressTestingService', () => {
         expect(r.scenario.nameEs.length).toBeGreaterThan(0);
         expect(r.scenario.descriptionEs.length).toBeGreaterThan(0);
       }
+    });
+
+    // ── SIC 2026 demo scenario, run on the dynamically-BUILT San Juan Federal book ──
+    // Everything below is computed from the builder output and the engine — no
+    // frozen output numbers. Proves (a) the +3% credit shock targets the CONSUMER
+    // segment, not the whole book, and (b) the loss is model-derived: change the
+    // consumer book and the loss moves with it.
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const assetSubcatTotal = (
+      fx: ReturnType<typeof buildSanJuanFederalDemo>,
+      subcat: string,
+    ) =>
+      fx.items
+        .filter((i) => i.category === 'asset' && i.subcategory === subcat)
+        .reduce((s, i) => s + i.balance, 0);
+
+    const wireEngineToFixture = (
+      fx: ReturnType<typeof buildSanJuanFederalDemo>,
+    ) => {
+      const totalLoans =
+        assetSubcatTotal(fx, 'consumer_loans') +
+        assetSubcatTotal(fx, 'residential_mortgages') +
+        assetSubcatTotal(fx, 'commercial_loans');
+      const totalDeposits = fx.items
+        .filter(
+          (i) =>
+            i.category === 'liability' &&
+            ['savings_deposits', 'time_deposits', 'demand_deposits'].includes(
+              i.subcategory,
+            ),
+        )
+        .reduce((s, i) => s + i.balance, 0);
+
+      mockAlmEnterprise.getCOSSECCompliance = jest.fn().mockResolvedValue({
+        summary: { totalShares: totalDeposits, totalLoans },
+      });
+      mockAlmEnterprise.calculateNIISensitivity = jest.fn().mockResolvedValue({
+        baseNII: 10,
+        scenarios: [
+          { shiftBps: 200, niImpact: -2.0, mveImpact: -2, niImpactPct: -20 },
+          { shiftBps: -200, niImpact: 1.6, mveImpact: 1.5, niImpactPct: 16 },
+        ],
+      });
+      mockPrisma.balanceSheetItem.findMany = jest
+        .fn()
+        .mockResolvedValue(
+          fx.items
+            .filter((i) => i.category === 'asset')
+            .map((i) => ({ subcategory: i.subcategory, balance: i.balance })),
+        );
+      return {
+        consumerLoans: assetSubcatTotal(fx, 'consumer_loans'),
+        totalLoans,
+        totalDeposits,
+      };
+    };
+
+    it('SIC 2026 targets the consumer segment for its credit shock (not the whole book)', async () => {
+      const fx = buildSanJuanFederalDemo();
+      const { consumerLoans, totalLoans, totalDeposits } =
+        wireEngineToFixture(fx);
+
+      const sic = (await service.runCOSSECScenarios('inst-1')).find(
+        (r) => r.scenario.id === 'sic_2026_global_restructuring',
+      );
+      expect(sic).toBeDefined();
+
+      // credit loss = CONSUMER book × +3%, derived from the built fixture
+      expect(sic!.creditLoss).toBeCloseTo(round2(consumerLoans * 0.03), 2);
+      // and that is strictly less than a whole-book application would be
+      expect(sic!.creditLoss).toBeLessThan(round2(totalLoans * 0.03));
+      // deposit impact = 5% runoff × 150bps marginal funding cost
+      expect(sic!.depositImpact).toBeCloseTo(
+        round2(totalDeposits * 0.05 * 0.015),
+        2,
+      );
+      // total = nii − depositImpact − creditLoss (relationship, not a literal)
+      expect(sic!.totalImpact).toBeCloseTo(
+        round2(sic!.niiImpact - sic!.depositImpact - sic!.creditLoss),
+        2,
+      );
+      expect(['pass', 'warn', 'fail']).toContain(sic!.passFailStatus);
+    });
+
+    it('SIC 2026 credit loss scales with the consumer segment balance (computed, not static)', async () => {
+      const sicLossForConsumer = async (consumerBalance: number) => {
+        mockPrisma.balanceSheetItem.findMany = jest.fn().mockResolvedValue([
+          { subcategory: 'consumer_loans', balance: consumerBalance },
+          { subcategory: 'residential_mortgages', balance: 60 },
+          { subcategory: 'commercial_loans', balance: 30 },
+        ]);
+        const sic = (await service.runCOSSECScenarios('inst-1')).find(
+          (r) => r.scenario.id === 'sic_2026_global_restructuring',
+        );
+        return sic!.creditLoss;
+      };
+
+      const loss40 = await sicLossForConsumer(40);
+      const loss120 = await sicLossForConsumer(120);
+      // loss = consumer balance × 3%; tripling the consumer book triples the loss
+      expect(loss40).toBeCloseTo(round2(40 * 0.03), 2);
+      expect(loss120).toBeCloseTo(loss40 * 3, 2);
     });
   });
 

@@ -84,7 +84,7 @@ Each `.env.example` file contains all variables with sensible development defaul
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `AUTH_COOKIE_SECURE` | ❌ | `false` (dev) | Set `true` in production |
-| `AUTH_COOKIE_SAMESITE` | ❌ | `lax` | Cookie SameSite policy |
+| `AUTH_COOKIE_SAMESITE` | ❌ | _auto_ | Leave unset — auto-detected: `none` cross-domain (cerniq.io → api.cerniq.io), `lax` same-site. An explicit value overrides auto-detection (backward-compat). |
 | `AUTH_COOKIE_DOMAIN` | ❌ | — | Cookie domain (e.g. `.cerniq.io`) |
 
 ---

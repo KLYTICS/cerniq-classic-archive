@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma.service';
 import { AlmEnterpriseService } from '../alm-enterprise.service';
 import {
   COSSEC_SCENARIOS,
+  NamedScenario,
   NamedScenarioResult,
 } from '../scenarios/cossec-scenarios';
 
@@ -18,6 +19,30 @@ function round(value: number, decimals: number): number {
   if (!Number.isFinite(value)) return 0;
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;
+}
+
+/** Per-segment loan balances ($M) used to target a scenario's credit shock. */
+interface LoanSegmentBalances {
+  consumer: number;
+  residential: number;
+  commercial: number;
+}
+
+/**
+ * The loan base a scenario's credit shock applies to. A scenario that names a
+ * target segment (e.g. SIC 2026 → 'consumer') hits only that segment's balance;
+ * everything else hits the whole book. Falls back to the whole book if the named
+ * segment is absent/zero so a real shock is never silently zeroed (D1).
+ */
+function resolveCreditShockBase(
+  scenario: NamedScenario,
+  totalLoans: number,
+  segments: LoanSegmentBalances | null,
+): number {
+  const seg = scenario.creditShockSegment;
+  if (!seg || seg === 'all' || !segments) return totalLoans;
+  const balance = segments[seg];
+  return balance > 0 ? balance : totalLoans;
 }
 
 /** Maximum Monte Carlo paths to prevent memory exhaustion */
@@ -494,6 +519,15 @@ export class StressTestingService {
     const totalDeposits = cossec?.summary?.totalShares ?? 0;
     const totalLoans = cossec?.summary?.totalLoans ?? 0;
 
+    // Only pay for the per-segment balance pull when a scenario actually targets
+    // a segment; otherwise the credit shock hits the whole book as before.
+    const segmentTargeted = COSSEC_SCENARIOS.some(
+      (s) => s.creditShockSegment && s.creditShockSegment !== 'all',
+    );
+    const loanSegments = segmentTargeted
+      ? await this.loadLoanSegmentBalances(institutionId)
+      : null;
+
     return COSSEC_SCENARIOS.map((scenario) => {
       // ── NII impact from rate shift ──
       // Find closest NII sensitivity scenario for interpolation
@@ -529,10 +563,16 @@ export class StressTestingService {
           : 0;
 
       // ── Credit shock ──
-      // Additional defaults applied to total loan portfolio
+      // Additional defaults applied to the targeted loan base (whole book, or
+      // the named segment for segment-aware scenarios like SIC 2026).
+      const creditShockBase = resolveCreditShockBase(
+        scenario,
+        totalLoans,
+        loanSegments,
+      );
       const creditLoss =
         scenario.creditShockPct !== 0
-          ? round(totalLoans * (scenario.creditShockPct / 100), 2)
+          ? round(creditShockBase * (scenario.creditShockPct / 100), 2)
           : 0;
 
       // ── Combined total impact ──
@@ -558,6 +598,34 @@ export class StressTestingService {
         passFailStatus,
       };
     });
+  }
+
+  /**
+   * Loan balances by segment for segment-aware credit shocks. Reads the asset
+   * side once and buckets by subcategory. Decimal columns are coerced with
+   * `Number(...)` (Prisma maps Decimal to objects that string-concatenate under
+   * `+`); a corrupt/non-finite balance is skipped rather than zeroed.
+   */
+  private async loadLoanSegmentBalances(
+    institutionId: string,
+  ): Promise<LoanSegmentBalances> {
+    const items = await this.prisma.balanceSheetItem.findMany({
+      where: { institutionId, category: 'asset' },
+      select: { subcategory: true, balance: true },
+    });
+    const rows = items as Array<{ subcategory: string; balance: unknown }>;
+    const sumOf = (subcategory: string): number =>
+      rows
+        .filter((i) => i.subcategory === subcategory)
+        .reduce((s: number, i) => {
+          const bal = Number(i.balance);
+          return Number.isFinite(bal) ? s + bal : s;
+        }, 0);
+    return {
+      consumer: sumOf('consumer_loans'),
+      residential: sumOf('residential_mortgages'),
+      commercial: sumOf('commercial_loans'),
+    };
   }
 
   // ─── NEV (Net Economic Value) Analysis ────────────────────────
