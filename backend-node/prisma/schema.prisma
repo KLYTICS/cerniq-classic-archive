@@ -265,6 +265,7 @@ model Institution {
   examAssessments       ExamReadinessAssessment[]
   rateAlertThresholds   RateAlertThreshold[]
   ewsSnapshots          EwsSnapshot[]
+  loanRecords           LoanRecord[]
 
   @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
@@ -440,6 +441,53 @@ model LoanSegment {
 
   @@index([institutionId, asOfDate])
   @@map("loan_segments")
+}
+
+// ===== Loan-level ingestion (Wave 2, W2.0 — the Tier-B linchpin) =====
+
+/// One loan on a point-in-time loan tape (instrument-level flat file — the
+/// industry-standard core-system export pattern, Bible §4.2/§6.1). A tape
+/// upload transactionally replaces the institution's records for that
+/// asOfDate, so re-uploads are idempotent.
+///
+/// D1: every optional column is nullable and NULLABILITY IS THE MISSINGNESS
+/// RECORD — the ingest never imputes a value (an imputed municipio would
+/// silently corrupt a concentration metric; an imputed rate would corrupt a
+/// weighted average). Aggregations disclose coverage from null counts.
+model LoanRecord {
+  id             String   @id @default(cuid())
+  institutionId  String   @map("institution_id")
+  /// Tape date — the point-in-time key.
+  asOfDate       DateTime @map("as_of_date") @db.Date
+  /// Core-system loan number (unique within one institution's tape).
+  externalLoanId String   @map("external_loan_id")
+  /// Product label as given on the tape (rolls up to LoanSegment.segmentName).
+  segmentName    String   @map("segment_name")
+  balance        Decimal  @db.Decimal(18, 2)
+
+  // ── Optional tape columns (null = not provided, disclosed via gaps) ──
+  /// Annual rate, decimal form (0.065 = 6.5%).
+  rate            Decimal?  @db.Decimal(8, 6)
+  originationDate DateTime? @map("origination_date") @db.Date
+  maturityDate    DateTime? @map("maturity_date") @db.Date
+  /// Collateral class label as given (COL-121 eligibility mapping is W2.1 —
+  /// its exact layout is UNVERIFIED, so no speculative enum here).
+  collateralType  String?   @map("collateral_type")
+  collateralValue Decimal?  @map("collateral_value") @db.Decimal(18, 2)
+  /// PR municipio — NEVER imputed (W2.2 concentration depends on honesty here).
+  municipio       String?
+  /// Days past due (0 = current).
+  delinquencyDays Int?      @map("delinquency_days")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, asOfDate, externalLoanId])
+  @@index([institutionId, asOfDate])
+  @@index([institutionId, municipio])
+  @@map("loan_records")
 }
 
 model DepositTier {
