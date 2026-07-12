@@ -49,6 +49,7 @@
     "demo:list": "npx ts-node scripts/provision-demo-portal.ts --list",
     "demo:sic": "npx ts-node scripts/sic-demo.ts",
     "cael:report": "npx ts-node scripts/cael-report.ts",
+    "market:quality-scan": "npx ts-node scripts/market-quality-scan.ts",
     "exports:test": "npx ts-node scripts/test-file-exports.ts"
   },
   "dependencies": {
@@ -91,6 +92,7 @@
     "csv-parser": "^3.2.0",
     "helmet": "^8.1.0",
     "ioredis": "^5.9.2",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "nestjs-pino": "^4.6.1",
     "openai": "^6.21.0",
@@ -123,6 +125,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
     "@types/passport-github2": "^1.2.9",

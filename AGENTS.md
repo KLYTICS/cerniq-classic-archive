@@ -32,6 +32,28 @@ npm run verify:production:platform
 
 ---
 
+## Auth unification (Supabase)
+
+| Phase | Status | Pickup |
+|---|---|---|
+| Backend accept + JWKS util | Done | `backend-node/src/auth/supabase-jwt.util.ts` |
+| Frontend Supabase login path | Done (env-gated) | `frontend/lib/supabase/` — needs `NEXT_PUBLIC_SUPABASE_*` |
+| Prod cutover | Pending | Railway: `AUTH_ALLOW_LEGACY=false`, JWKS URL, `KLYTICS_REQUIRE_*` |
+
+Docs: [docs/platform/auth-unification/README.md](docs/platform/auth-unification/README.md)
+
+## PR cooperativa market quality scan
+
+```bash
+cd backend-node && npm run market:quality-scan
+cd backend-node && npm run market:quality-scan -- --json=/tmp/market-scan.json --html=/tmp/market-scan.html
+cd backend-node && npm run market:quality-scan -- --self-test
+```
+
+Scores 13 curated COSSEC snapshots; inventories full outbound universe (~111). Uncovered = `data_unavailable` (D1).
+
+---
+
 ## Session ritual (multi-terminal shared tree)
 
 ```bash

@@ -15,6 +15,10 @@ import { RateAlertService } from './rate-alert.service';
 import { AlmRecalcService } from './alm-recalc.service';
 import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import {
+  readSupabaseVerifyEnv,
+  verifySupabaseAccessToken,
+} from '../auth/supabase-jwt.util';
+import {
   SubscribePayloadSchema,
   MarketDataSnapshot,
   MarketRateResult,
@@ -480,37 +484,21 @@ export class AlmRealtimeGateway
   private async tryVerifySupabaseToken(
     token: string,
   ): Promise<SocketUserCtx | null> {
-    const supabaseUrl = (process.env.SUPABASE_URL || '')
-      .trim()
-      .replace(/\/$/, '');
-    const anonKey =
-      (process.env.SUPABASE_ANON_KEY || '').trim() ||
-      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-    if (!supabaseUrl || !anonKey) return null;
-
-    try {
-      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) return null;
-      const user = (await response.json()) as { id?: string };
-      if (!user?.id) return null;
-      // Supabase tokens don't carry the platform `isMasterCeo` claim
-      // (that lives in PlatformAccessService and is applied by
-      // AuthGuard for HTTP requests). WS Supabase users get the
-      // normal-user flag here; cross-tenant master-CEO support over
-      // WS would require mirroring AuthGuard's PlatformAccessService
-      // lookup in this branch — a follow-up if needed.
-      return {
-        userId: user.id,
-        isMasterCeo: false,
-      };
-    } catch {
-      return null;
-    }
+    const verified = await verifySupabaseAccessToken(
+      token,
+      readSupabaseVerifyEnv(),
+    );
+    if (!verified) return null;
+    // Supabase tokens don't carry the platform `isMasterCeo` claim
+    // (that lives in PlatformAccessService and is applied by
+    // AuthGuard for HTTP requests). WS Supabase users get the
+    // normal-user flag here; cross-tenant master-CEO support over
+    // WS would require mirroring AuthGuard's PlatformAccessService
+    // lookup in this branch — a follow-up if needed.
+    return {
+      userId: verified.userId,
+      isMasterCeo: false,
+    };
   }
 
   private extractToken(client: Socket): string | null {

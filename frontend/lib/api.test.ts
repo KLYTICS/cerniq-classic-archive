@@ -28,11 +28,31 @@ vi.mock('./marketTransport', () => ({
   getMarketApiBase: vi.fn(() => 'https://market-api.test'),
 }));
 
+const isSupabaseAuthEnabledMock = vi.fn(() => false);
+const signInWithSupabasePasswordMock = vi.fn();
+const signOutSupabaseMock = vi.fn();
+
+vi.mock('./supabase/client', () => ({
+  isSupabaseAuthEnabled: () => isSupabaseAuthEnabledMock(),
+  getSupabaseBrowserClient: () => null,
+}));
+
+vi.mock('./supabase/session', () => ({
+  signInWithSupabasePassword: (...args: unknown[]) =>
+    signInWithSupabasePasswordMock(...args),
+  signOutSupabase: (...args: unknown[]) => signOutSupabaseMock(...args),
+  getSupabaseAccessToken: vi.fn().mockResolvedValue(''),
+  syncSupabaseAccessTokenToStorage: vi.fn().mockResolvedValue(''),
+}));
+
 describe('APIClient', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    isSupabaseAuthEnabledMock.mockReturnValue(false);
+    signInWithSupabasePasswordMock.mockReset();
+    signOutSupabaseMock.mockReset();
     mockAxiosInstance.delete.mockReset();
     mockAxiosInstance.get.mockReset();
     mockAxiosInstance.interceptors.request.use.mockReset();
@@ -489,10 +509,30 @@ describe('APIClient', () => {
     });
   });
 
-  it('routes email/password login through the backend even when Supabase envs are set', async () => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project.supabase.co');
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-key');
-    const fetchSpy = vi.spyOn(global, 'fetch');
+  it('routes email/password login through Supabase when public env is set', async () => {
+    isSupabaseAuthEnabledMock.mockReturnValue(true);
+    signInWithSupabasePasswordMock.mockResolvedValue({
+      accessToken: 'supabase-access-token',
+      userId: 'user-1',
+      email: 'analyst@example.com',
+    });
+    mockAxiosInstance.get.mockResolvedValueOnce({
+      data: { id: 'user-1', email: 'analyst@example.com' },
+    });
+    const { apiClient } = await import('./api');
+
+    const result = await apiClient.login('analyst@example.com', 'UltraSecret123!');
+
+    expect(signInWithSupabasePasswordMock).toHaveBeenCalled();
+    expect(result.user?.id).toBe('user-1');
+    expect(mockAxiosInstance.post).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/login'),
+      expect.anything(),
+    );
+  });
+
+  it('routes email/password login through Nest when Supabase env is unset', async () => {
+    isSupabaseAuthEnabledMock.mockReturnValue(false);
     const { apiClient } = await import('./api');
     mockAxiosInstance.post.mockResolvedValueOnce({
       data: { user: { id: 'user-1', email: 'analyst@example.com' } },
@@ -504,7 +544,6 @@ describe('APIClient', () => {
       expect.stringContaining('/api/auth/login'),
       expect.objectContaining({ email: 'analyst@example.com' }),
     );
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('routes email/password signup through the backend even when Supabase envs are set', async () => {

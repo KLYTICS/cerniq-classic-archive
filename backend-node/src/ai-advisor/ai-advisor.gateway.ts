@@ -16,6 +16,10 @@ import { ConversationHistoryService } from './conversation-history.service';
 import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
 import { AskQuestionSchema } from './ai-advisor.dto';
 import * as crypto from 'crypto';
+import {
+  readSupabaseVerifyEnv,
+  verifySupabaseAccessToken,
+} from '../auth/supabase-jwt.util';
 
 // ─── WebSocket payload types ────────────────────────────────
 
@@ -328,37 +332,21 @@ export class AiAdvisorGateway
   private async tryVerifySupabaseToken(
     token: string,
   ): Promise<SocketUserCtx | null> {
-    const supabaseUrl = (process.env.SUPABASE_URL || '')
-      .trim()
-      .replace(/\/$/, '');
-    const anonKey =
-      (process.env.SUPABASE_ANON_KEY || '').trim() ||
-      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-    if (!supabaseUrl || !anonKey) return null;
-
-    try {
-      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) return null;
-      const user = (await response.json()) as { id?: string };
-      if (!user?.id) return null;
-      // Supabase tokens don't carry the platform isMasterCeo claim —
-      // that lives in PlatformAccessService and is applied by
-      // AuthGuard for HTTP requests. WS Supabase users get the
-      // normal-user flag here; if cross-tenant master-CEO support is
-      // ever needed over WS, mirror AuthGuard's PlatformAccessService
-      // lookup in this branch.
-      return {
-        userId: user.id,
-        isMasterCeo: false,
-      };
-    } catch {
-      return null;
-    }
+    const verified = await verifySupabaseAccessToken(
+      token,
+      readSupabaseVerifyEnv(),
+    );
+    if (!verified) return null;
+    // Supabase tokens don't carry the platform isMasterCeo claim —
+    // that lives in PlatformAccessService and is applied by
+    // AuthGuard for HTTP requests. WS Supabase users get the
+    // normal-user flag here; if cross-tenant master-CEO support is
+    // ever needed over WS, mirror AuthGuard's PlatformAccessService
+    // lookup in this branch.
+    return {
+      userId: verified.userId,
+      isMasterCeo: false,
+    };
   }
 
   private extractToken(client: Socket): string | null {

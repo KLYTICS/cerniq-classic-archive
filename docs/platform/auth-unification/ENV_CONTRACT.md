@@ -19,4 +19,11 @@
 - KLYTICS_REQUIRE_ENTITLEMENT
 
 ## Backward Compatibility
-- AUTH_ALLOW_LEGACY=true|false
+- AUTH_ALLOW_LEGACY=true|false  (code default: false when unset)
+- AUTH_LEGACY_DEPRECATION_WARN=true|false
+
+## Production cutover flags
+- AUTH_ALLOW_LEGACY=false
+- KLYTICS_REQUIRE_ORG=true
+- KLYTICS_REQUIRE_ENTITLEMENT=true
+- SUPABASE_JWKS_URL=https://<project>.supabase.co/auth/v1/.well-known/jwks.json

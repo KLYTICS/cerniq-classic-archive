@@ -5,6 +5,11 @@ import { asRecord, unwrapApiData } from './api-response';
 import { ACCESS_REQUIRED_ROUTE } from './access';
 import { getStoredAdminKey } from './admin-session';
 import { buildLoginUrlForReturnUrl } from './auth-redirect';
+import { isSupabaseAuthEnabled } from './supabase/client';
+import {
+  signInWithSupabasePassword,
+  signOutSupabase,
+} from './supabase/session';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -681,6 +686,21 @@ class APIClient {
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
+    if (isSupabaseAuthEnabled()) {
+      const session = await signInWithSupabasePassword(email, password);
+      setAccessToken(session.accessToken);
+      // Nest profile/whoami still owns platform access + workspace provisioning.
+      const user = await this.getCurrentUser();
+      if (user) {
+        return { user };
+      }
+      return {
+        user: {
+          id: session.userId,
+          email: session.email,
+        } as AuthUser,
+      };
+    }
     const response = await this.client.post(`${NODE_API_URL}/api/auth/login`, {
       email: normalizeEmail(email),
       password,
@@ -700,6 +720,13 @@ class APIClient {
       await this.client.post(`${NODE_API_URL}/api/auth/logout`);
     } catch {
       // Best-effort server-side logout
+    }
+    if (isSupabaseAuthEnabled()) {
+      try {
+        await signOutSupabase();
+      } catch {
+        // Best-effort Supabase logout
+      }
     }
     clearAccessToken();
   }

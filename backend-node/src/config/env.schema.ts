@@ -30,8 +30,17 @@ const envSchema = z
     // ── Auth ─────────────────────────────────────────────────────────
     ADMIN_KEY: z.string().optional(),
     SUPABASE_URL: z.string().optional(),
+    SUPABASE_ANON_KEY: z.string().optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
     SUPABASE_JWT_SECRET: z.string().optional(),
+    SUPABASE_JWKS_URL: z.string().url().optional(),
+    SUPABASE_JWT_ISSUER: z.string().optional(),
+    SUPABASE_JWT_AUDIENCE: z.string().optional(),
+    AUTH_ALLOW_LEGACY: z.string().optional(),
+    AUTH_LEGACY_DEPRECATION_WARN: z.string().optional(),
+    KLYTICS_APP_ID: z.string().optional(),
+    KLYTICS_REQUIRE_ORG: z.string().optional(),
+    KLYTICS_REQUIRE_ENTITLEMENT: z.string().optional(),
 
     // ── OAuth ───────────────────────────────────────���────────────────
     GOOGLE_CLIENT_ID: z.string().optional(),
