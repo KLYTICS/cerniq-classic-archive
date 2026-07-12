@@ -15,6 +15,7 @@ set -euo pipefail
 API_URL="${1:-https://api.cerniq.io}"
 FRONTEND_URL="${2:-https://cerniq.io}"
 ADMIN_KEY="${ADMIN_KEY:-}"
+API_ONLY="${API_ONLY:-0}"
 
 PASS=0
 FAIL=0
@@ -61,18 +62,22 @@ echo "--- Core Endpoints ---"
 check "API Health (/health)"       "$API_URL/health"
 check "API Readiness (/ready)"     "$API_URL/ready"
 check "API Status (/api/status)"   "$API_URL/api/status"
-check "Frontend API (/api/health)" "$FRONTEND_URL/api/health"
-check "Frontend Root"              "$FRONTEND_URL"
-echo ""
+if [[ "$API_ONLY" != "1" ]]; then
+  check "Frontend API (/api/health)" "$FRONTEND_URL/api/health"
+  check "Frontend Root"              "$FRONTEND_URL"
+  echo ""
 
-# ---- Section 2: Key Pages ----
-echo "--- Key Pages ---"
-check "Pricing Page"               "$FRONTEND_URL/pricing"
-check "Login Page"                 "$FRONTEND_URL/login"
-check "Status Page"                "$FRONTEND_URL/status"
-check "Portal Page"                "$FRONTEND_URL/portal"
-check "ALM Page"                   "$FRONTEND_URL/alm"
-check "CSV Template"               "$FRONTEND_URL/templates/cerniq-balance-sheet-v1.csv"
+  # ---- Section 2: Key Pages ----
+  echo "--- Key Pages ---"
+  check "Pricing Page"               "$FRONTEND_URL/pricing"
+  check "Login Page"                 "$FRONTEND_URL/login"
+  check "Status Page"                "$FRONTEND_URL/status"
+  check "Portal Page"                "$FRONTEND_URL/portal"
+  check "ALM Page"                   "$FRONTEND_URL/alm"
+  check "CSV Template"               "$FRONTEND_URL/templates/cerniq-balance-sheet-v1.csv"
+else
+  echo "  (frontend checks skipped — API_ONLY=1)"
+fi
 echo ""
 
 # ---- Section 3: Security ----

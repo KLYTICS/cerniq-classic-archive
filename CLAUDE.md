@@ -62,6 +62,8 @@ Plus `vitest run --coverage --maxWorkers=1` (floor 60/52/55/62), `next build`, o
 
 Top-level shortcut: `npm run verify:local:critical` runs the full backend + frontend + critical-e2e chain.
 
+**E2E tiers:** `npm run verify:local:e2e` (Tier A, pre-push, no secrets) → `npm run verify:production:platform` (Tier B, requires `.env.production-e2e.local`). Runbook: [docs/ops/PRODUCTION_E2E_RUNBOOK.md](docs/ops/PRODUCTION_E2E_RUNBOOK.md). Pickup: [AGENTS.md](AGENTS.md).
+
 ---
 
 ## D24 ratchet pattern

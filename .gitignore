@@ -22,6 +22,7 @@ node_modules/
 .env.development.local
 !.env.example
 !.env.production.template
+!.env.production-e2e.example
 backend-node/.env
 backend-node/.env.*
 !backend-node/.env.example
