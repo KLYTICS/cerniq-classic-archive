@@ -14,6 +14,8 @@ CerniQ is a bilingual ALM platform for Puerto Rico cooperativas. Production: **c
 | **A — Local** | Pre-push, every session | `npm run verify:local:e2e` |
 | **B — Production full** | Pre-client, post-deploy | `npm run verify:production:platform` |
 | **B-fast** | Uptime check, no JWT | `npm run verify:production:fast` |
+| **Deploy frontend** | Post-merge to cerniq.io | `npm run deploy:prod:frontend` |
+| **Railway migrate** | After `railway login` | `npm run ops:railway:migrate` |
 | **Wave 1 API only** | After JWT bootstrap | `npm run verify:production:wave1` |
 
 **Runbook:** [docs/ops/PRODUCTION_E2E_RUNBOOK.md](docs/ops/PRODUCTION_E2E_RUNBOOK.md)  

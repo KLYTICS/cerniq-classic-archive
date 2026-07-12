@@ -73,7 +73,15 @@ set -a && source .env.production-e2e.local && set +a
 3. DevTools → **Application → Cookies** → copy the auth cookie value **or**  
    DevTools → **Network** → any `/api/` request → copy `Authorization: Bearer …` header.
 4. Paste into `.env.production-e2e.local` as `CERNIQ_E2E_JWT` (token only, no `Bearer` prefix).
-5. Resolve institution:
+5. Auto-write env file (validates JWT + picks cooperativa institution):
+
+```bash
+node scripts/bootstrap-production-e2e.mjs --jwt '<token>' --write
+# or after export CERNIQ_E2E_JWT=...
+npm run bootstrap:production-e2e -- --write
+```
+
+6. Resolve institution manually if needed:
    ```bash
    source .env.production-e2e.local
    curl -sf -H "Authorization: Bearer $CERNIQ_E2E_JWT" \
@@ -158,7 +166,12 @@ npm run smoke:production
 
 **Pass:** Playwright `production-critical.spec.ts` + public footer links green against production URLs.
 
-**Known prod blocker (2026-07-12):** `cerniq.io` returns Vercel **`DEPLOYMENT_NOT_FOUND`** — DNS points at Vercel but no deployment exists under the linked CLI team (`ekiess-projects` only lists `klytics.io`). Use **`npm run verify:production:backend`** until frontend is redeployed and domain re-linked.
+**Known prod deploy (2026-07-12):** deploy from **`frontend/`**, not repo root — root `vercel deploy --prod` fails with missing `routes-manifest.json` because build output is `frontend/.next`. Canonical:
+
+```bash
+npm run deploy:prod:frontend
+# or: cd frontend && vercel deploy --prod --yes && vercel alias set <url> cerniq.io
+```
 
 **Skip frontend in orchestrator:** `bash scripts/verify-production-platform.sh --skip-frontend`
 
