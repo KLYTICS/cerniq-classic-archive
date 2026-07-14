@@ -20,8 +20,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getPublicApiBase } from '@/lib/api-base';
+import {
+  getStoredOrganizationId,
+  setStoredOrganizationId,
+} from '@/lib/org-context';
 
-const STORAGE_KEY = 'cerniq:current_org_id';
 const API_BASE = getPublicApiBase();
 
 export interface OrgSummary {
@@ -39,28 +42,12 @@ export interface UseCurrentOrgResult {
   refetch: () => Promise<void>;
 }
 
-function readStoredOrgId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredOrgId(id: string | null): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (id) window.localStorage.setItem(STORAGE_KEY, id);
-    else window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // localStorage may be unavailable in privacy mode — swallow silently.
-  }
-}
-
 export function useCurrentOrg(): UseCurrentOrgResult {
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
-  const [orgId, setOrgIdState] = useState<string | null>(() => readStoredOrgId());
+  const [orgId, setOrgIdState] = useState<string | null>(() => {
+    const stored = getStoredOrganizationId();
+    return stored || null;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,11 +82,11 @@ export function useCurrentOrg(): UseCurrentOrgResult {
 
       // Auto-select: (1) keep the stored ID if it still matches something
       // in the list; (2) otherwise pick the first org; (3) otherwise null.
-      const stored = readStoredOrgId();
+      const stored = getStoredOrganizationId() || null;
       const valid = list.find((o) => o.id === stored);
       const next = valid?.id ?? list[0]?.id ?? null;
       setOrgIdState(next);
-      writeStoredOrgId(next);
+      setStoredOrganizationId(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load organizations');
     } finally {
@@ -113,7 +100,7 @@ export function useCurrentOrg(): UseCurrentOrgResult {
 
   const setOrgId = useCallback((id: string) => {
     setOrgIdState(id);
-    writeStoredOrgId(id);
+    setStoredOrganizationId(id);
   }, []);
 
   return { orgs, orgId, setOrgId, loading, error, refetch: fetchOnce };

@@ -45,6 +45,12 @@ vi.mock('./supabase/session', () => ({
   syncSupabaseAccessTokenToStorage: vi.fn().mockResolvedValue(''),
 }));
 
+const getStoredOrganizationIdMock = vi.fn(() => '');
+
+vi.mock('./org-context', () => ({
+  getStoredOrganizationId: () => getStoredOrganizationIdMock(),
+}));
+
 describe('APIClient', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -53,6 +59,8 @@ describe('APIClient', () => {
     isSupabaseAuthEnabledMock.mockReturnValue(false);
     signInWithSupabasePasswordMock.mockReset();
     signOutSupabaseMock.mockReset();
+    getStoredOrganizationIdMock.mockReset();
+    getStoredOrganizationIdMock.mockReturnValue('');
     mockAxiosInstance.delete.mockReset();
     mockAxiosInstance.get.mockReset();
     mockAxiosInstance.interceptors.request.use.mockReset();
@@ -82,6 +90,16 @@ describe('APIClient', () => {
     const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
     expect(mockInstance.interceptors.request.use).toHaveBeenCalled();
     expect(mockInstance.interceptors.response.use).toHaveBeenCalled();
+  });
+
+  it('request interceptor attaches x-organization-id when org is stored', async () => {
+    getStoredOrganizationIdMock.mockReturnValue('org-abc');
+    await import('./api');
+
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    const [handler] = mockInstance.interceptors.request.use.mock.calls[0];
+    const cfg = handler({ headers: {} });
+    expect(cfg.headers['x-organization-id']).toBe('org-abc');
   });
 
   it('exports apiClient with expected methods', async () => {

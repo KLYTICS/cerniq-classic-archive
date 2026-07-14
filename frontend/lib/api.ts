@@ -4,6 +4,7 @@ import { getPublicApiBase, getPublicApiUrl } from './api-base';
 import { asRecord, unwrapApiData } from './api-response';
 import { ACCESS_REQUIRED_ROUTE } from './access';
 import { getStoredAdminKey } from './admin-session';
+import { getStoredOrganizationId } from './org-context';
 import { buildLoginUrlForReturnUrl } from './auth-redirect';
 import { isSupabaseAuthEnabled } from './supabase/client';
 import {
@@ -588,6 +589,11 @@ class APIClient {
         if (token) {
           config.headers = config.headers || {};
           config.headers.Authorization = `Bearer ${token}`;
+        }
+        const orgId = getStoredOrganizationId();
+        if (orgId) {
+          config.headers = config.headers || {};
+          config.headers['x-organization-id'] = orgId;
         }
       }
       return config;

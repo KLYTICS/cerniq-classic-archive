@@ -35,7 +35,11 @@ export type MarketScanRow = {
   loanToDepositPct: number | null;
   assetGrowthYoyPct: number | null;
   lcrEstimate: number | null;
-  gaps: Array<{ field: string; reason: string; severity: 'CRITICAL' | 'WARNING' }>;
+  gaps: Array<{
+    field: string;
+    reason: string;
+    severity: 'CRITICAL' | 'WARNING';
+  }>;
   asOfQuarter: string | null;
   disclosure: string;
 };
@@ -117,7 +121,9 @@ export function gradeFromScore(score: number): HealthGrade {
   return 'D';
 }
 
-export function scoreSnapshot(snapshot: CossecCooperativaSnapshot): MarketScanRow {
+export function scoreSnapshot(
+  snapshot: CossecCooperativaSnapshot,
+): MarketScanRow {
   const healthScore = computeCooperativaHealthScore({
     capitalRatioPct: snapshot.capitalRatioPct,
     liquidityRatioPct: snapshot.liquidityRatioPct,

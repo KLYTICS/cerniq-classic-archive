@@ -1,6 +1,7 @@
 # AGENTS.md — Durable workspace facts for Claude Code
 
-> **Live status:** [docs/SESSION_HANDOFF.md](docs/SESSION_HANDOFF.md) (read first every session).  
+> **Live status:** [docs/SESSION_HANDOFF.md](SESSION_HANDOFF.md) (read first every session). 
+> **Moon ladder:** [docs/ENTERPRISE_PICKUP.md](ENTERPRISE_PICKUP.md).
 > **Operating contract:** [CLAUDE.md](CLAUDE.md).
 
 CerniQ is a bilingual ALM platform for Puerto Rico cooperativas. Production: **cerniq.io**, API: **api.cerniq.io** (Railway).
@@ -38,6 +39,7 @@ npm run verify:production:platform
 |---|---|---|
 | Backend accept + JWKS util | Done | `backend-node/src/auth/supabase-jwt.util.ts` |
 | Frontend Supabase login path | Done (env-gated) | `frontend/lib/supabase/` — needs `NEXT_PUBLIC_SUPABASE_*` |
+| Frontend org header | Done | `frontend/lib/org-context.ts` → `x-organization-id` on API client |
 | Prod cutover | Pending | Railway: `AUTH_ALLOW_LEGACY=false`, JWKS URL, `KLYTICS_REQUIRE_*` |
 
 Docs: [docs/platform/auth-unification/README.md](docs/platform/auth-unification/README.md)
@@ -82,6 +84,16 @@ Separate controllers (zero `AlmController` constructor slots):
 
 W1.4 capital glide-path: golden + `CapitalPlanningService` (no dedicated HTTP route in v1).
 
+## Wave 2 loan-tape HTTP (W2.0)
+
+| Route | Controller | Notes |
+|---|---|---|
+| `POST :id/loan-tape` | `loan-tape.controller.ts` | CSV ingest (all-or-nothing) |
+| `GET :id/loan-tape/rollup?asOfDate=` | same | Segment-shaped rollup |
+| `GET :id/loan-tape/reconcile?asOfDate=` | same | Tape vs LoanSegment book |
+
+Requires prod migration `20260711150000_add_loan_records`.
+
 ---
 
 ## D1 invariant (never silent zeros)
@@ -104,7 +116,9 @@ Checklist: [docs/ops/AGENT_GOING_LIVE.md](docs/ops/AGENT_GOING_LIVE.md).
 
 | Need | File |
 |---|---|
+| Moon ladder | `docs/ENTERPRISE_PICKUP.md` |
 | Phase status + landings | `docs/SESSION_HANDOFF.md` |
+| Market scan coverage | `docs/ops/MARKET_SCAN_COVERAGE.md` |
 | Terminal ops | `docs/TERMINAL_OPERATIONS_HANDBOOK.md` |
 | Layer 2/3 roadmap | `docs/CERNIQ_LAYER2_3_ROADMAP.md` |
 | Railway env | `docs/ops/railway_env_vars.md` |

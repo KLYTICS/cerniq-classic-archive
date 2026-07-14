@@ -41,6 +41,42 @@ describe('supabase-jwt.util', () => {
     expect(result?.orgId).toBe('org-1');
   });
 
+  it('accepts an array audience: a token audience matching any entry verifies', async () => {
+    const secret = 'test-supabase-jwt-secret-at-least-32-chars!!';
+    const token = jwt.sign({ role: 'authenticated' }, secret, {
+      subject: 'user-arr-aud',
+      audience: 'authenticated',
+      expiresIn: '1h',
+    });
+    const env: SupabaseVerifyEnv = {
+      jwtSecret: secret,
+      audience: ['authenticated', 'service_role'],
+    };
+    const result = await verifySupabaseAccessToken(token, env, async () => {
+      throw new Error('HTTP fallback should not run');
+    });
+    expect(result?.method).toBe('hs256');
+    expect(result?.userId).toBe('user-arr-aud');
+  });
+
+  it('an EMPTY audience array does not silently disable the audience check (security)', async () => {
+    const secret = 'test-supabase-jwt-secret-at-least-32-chars!!';
+    // Token carries an audience; an empty [] audience config must be treated
+    // as "no audience constraint applied" — the local verify still succeeds
+    // on the token's own claims rather than throwing on an empty tuple. The
+    // guard's job is to never let [] become a matching-audience assertion.
+    const token = jwt.sign({ role: 'authenticated' }, secret, {
+      subject: 'user-empty-aud',
+      audience: 'authenticated',
+      expiresIn: '1h',
+    });
+    const env: SupabaseVerifyEnv = { jwtSecret: secret, audience: [] };
+    const result = await verifySupabaseAccessToken(token, env, async () => {
+      throw new Error('HTTP fallback should not run');
+    });
+    expect(result?.userId).toBe('user-empty-aud');
+  });
+
   it('falls back to HTTP /auth/v1/user when local verify unavailable', async () => {
     const token = jwt.sign(
       { email: 'a@b.co', role: 'authenticated' },

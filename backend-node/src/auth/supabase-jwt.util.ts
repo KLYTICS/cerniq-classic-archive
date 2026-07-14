@@ -105,14 +105,23 @@ function resultFromClaims(
 function verifyOpts(env: SupabaseVerifyEnv): jwt.VerifyOptions {
   const opts: jwt.VerifyOptions = {};
   if (env.issuer) opts.issuer = env.issuer;
-  if (env.audience) opts.audience = env.audience;
+  // jsonwebtoken's VerifyOptions.audience wants a string or a NON-EMPTY tuple,
+  // not a plain string[]. Config only ever yields a single string today, but
+  // support the array form honestly: skip an empty array (verifying against
+  // "no audience" would silently disable the check) and narrow a populated one.
+  const aud = env.audience;
+  if (aud) {
+    if (Array.isArray(aud)) {
+      // type-rationale: length-checked above, so the tuple assertion is sound
+      if (aud.length > 0) opts.audience = aud as [string, ...string[]];
+    } else {
+      opts.audience = aud;
+    }
+  }
   return opts;
 }
 
-async function loadJwks(
-  jwksUrl: string,
-  fetchImpl: FetchLike,
-): Promise<Jwk[]> {
+async function loadJwks(jwksUrl: string, fetchImpl: FetchLike): Promise<Jwk[]> {
   const cached = jwksCache.get(jwksUrl);
   if (cached && Date.now() - cached.fetchedAt < JWKS_TTL_MS) {
     return cached.keys;
