@@ -10,7 +10,6 @@ import { useAuthStore } from "@/lib/store";
 import { useTranslation } from "@/lib/i18n";
 import {
   normalizePlatformAccess,
-  hasFreeBuilderAccess,
   resolveAuthenticatedDestination,
 } from "@/lib/access";
 import { getPublicApiUrl } from "@/lib/api-base";
@@ -251,7 +250,7 @@ async function resolvePostLoginDestination({
       );
       setAccess(access);
 
-      if (!access?.platformAccessAllowed && !hasFreeBuilderAccess(access)) {
+      if (!access?.platformAccessAllowed) {
         return "/access-required";
       }
 
@@ -540,8 +539,7 @@ function LoginContent() {
       if (
         !normalizedReturnUrl &&
         nextAccess &&
-        !nextAccess.platformAccessAllowed &&
-        !hasFreeBuilderAccess(nextAccess)
+        !nextAccess.platformAccessAllowed
       ) {
         router.push("/access-required");
         return;

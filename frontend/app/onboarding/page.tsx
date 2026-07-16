@@ -7,7 +7,6 @@ import { apiClient } from '@/lib/api';
 import { analytics, EVENTS } from '@/lib/analytics';
 import {
   ACCESS_REQUIRED_ROUTE,
-  hasFreeBuilderAccess,
   hasPlatformAccess,
   normalizePlatformAccess,
   prefersPortalExperience,
@@ -66,14 +65,12 @@ export default function OnboardingPage() {
       router.replace('/login');
       return;
     }
-    if (access && !hasPlatformAccess(access) && !hasFreeBuilderAccess(access)) {
+    if (access && !hasPlatformAccess(access)) {
       router.replace(ACCESS_REQUIRED_ROUTE);
       return;
     }
     if (onboardingComplete) {
-      router.replace(
-        hasFreeBuilderAccess(access) ? '/alm' : '/dashboard',
-      );
+      router.replace('/dashboard');
       return;
     }
     // ALM/billing subscription buyers should go to the main workspace, not onboarding.
@@ -97,12 +94,7 @@ export default function OnboardingPage() {
         );
         setAccess(nextAccess);
 
-        if (
-          !cancelled &&
-          nextAccess &&
-          !hasPlatformAccess(nextAccess) &&
-          !hasFreeBuilderAccess(nextAccess)
-        ) {
+        if (!cancelled && nextAccess && !hasPlatformAccess(nextAccess)) {
           router.replace(ACCESS_REQUIRED_ROUTE);
           return;
         }
@@ -172,11 +164,7 @@ export default function OnboardingPage() {
         primaryRegulator,
         preferredLanguage,
       });
-      router.push(
-        hasFreeBuilderAccess(access)
-          ? `/onboarding/balance-sheet?institutionId=${createdInstitution.id}`
-          : '/dashboard',
-      );
+      router.push('/dashboard');
     } catch (submitError: unknown) {
       setError(getSubmitErrorMessage(submitError));
     } finally {
