@@ -584,6 +584,45 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     requiredInputs: ['balanceSheetItems', 'rateScenarios'],
   },
   {
+    modelKey: 'report.loan-tape-rollup',
+    displayName: 'Loan-Tape Segment Rollup',
+    description:
+      'Rolls the instrument-level loan tape (LoanRecord) up into LoanSegment-shaped aggregates: balance-weighted rate/maturity computed over COVERED records only (a null field never contributes a phantom 0), delinquency banding, per-dimension coverage disclosure, and tape↔segment-book reconciliation with a disclosed 1% tolerance (Wave 2, W2.0).',
+    version: '0.1.0',
+    category: 'REPORTING',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/loan-tape/loan-tape-aggregation.service.ts',
+    entryFunction: 'rollUpToSegments',
+    requiredInputs: ['loanRecords'],
+    limitations: [
+      'READ-ONLY view: never materialized into LoanSegment (that table requires historicalLossRate, which a tape does not carry — writing 0 would be a phantom CECL input)',
+      'Weighted averages cover only records carrying the field; coverage is gap-disclosed, never imputed',
+      'Reconciliation tolerance (1%) is DISCLOSED config pending policy calibration',
+    ],
+  },
+  {
+    modelKey: 'credit.geographic-concentration',
+    displayName: 'Geographic + Single-Borrower Concentration',
+    description:
+      'Municipio HHI (DOJ/FFIEC bands) and single-borrower exposure computed from the loan-level tape — the geography branch the aggregate concentration engine could never measure (Wave 2, W2.2). Shares are computed over the COVERED balance only; a null municipio/borrower is excluded, never bucketed.',
+    version: '0.1.0',
+    category: 'CREDIT_RISK',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/loan-tape/geographic-concentration.service.ts',
+    entryFunction: 'analyze',
+    requiredInputs: ['loanRecords.municipio', 'loanRecords.borrowerId'],
+    limitations: [
+      'Zero municipio coverage → HHI null + WARNING gap — diversification is NEVER assumed from missing geography (D1: the silent-pass hazard the roadmap flagged)',
+      'A null borrower key is EXCLUDED from single-borrower aggregation, not treated as its own obligor (would understate concentration)',
+      'HHI bands (1500/2500) are the DOJ/FFIEC convention, DISCLOSED config pending COSSEC guidance',
+      'Exposure lists cap at top 15 with a truncation flag — "top N" is never presented as "all"',
+    ],
+  },
+  {
     modelKey: 'risk.early-warning',
     displayName: 'Early Warning System',
     description:
@@ -907,6 +946,19 @@ export class ModelRegistrySeeder implements OnModuleInit {
         modelKey: 'risk.early-warning',
         goldenFile: 'pr-cooperativa-demo.ews.json',
         label: 'EWS 12-indicator composite golden test (pr-cooperativa-demo)',
+      },
+      {
+        modelKey: 'report.loan-tape-rollup',
+        goldenFile: 'sample-loan-tape.rollup.json',
+        label: 'Loan-tape segment rollup golden test (sample-loan-tape)',
+        fixture: 'sample-loan-tape',
+      },
+      {
+        modelKey: 'credit.geographic-concentration',
+        goldenFile: 'sample-loan-tape.geographic-concentration.json',
+        label:
+          'Geographic + single-borrower concentration golden test (sample-loan-tape)',
+        fixture: 'sample-loan-tape',
       },
     ];
 

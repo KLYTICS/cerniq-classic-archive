@@ -69,6 +69,16 @@ const HEADER_ALIASES: Record<CanonicalField, string[]> = {
     'diasatraso',
     'dpd',
   ],
+  borrowerId: [
+    'borrowerid',
+    'idsocio',
+    'socioid',
+    'numerosocio',
+    'numsocio',
+    'clienteid',
+    'idcliente',
+    'relacionid',
+  ],
 };
 
 type CanonicalField =
@@ -81,7 +91,8 @@ type CanonicalField =
   | 'collateralType'
   | 'collateralValue'
   | 'municipio'
-  | 'delinquencyDays';
+  | 'delinquencyDays'
+  | 'borrowerId';
 
 const REQUIRED_FIELDS: CanonicalField[] = [
   'externalLoanId',
@@ -96,6 +107,7 @@ const OPTIONAL_FIELDS: CanonicalField[] = [
   'collateralValue',
   'municipio',
   'delinquencyDays',
+  'borrowerId',
 ];
 
 export interface ParsedLoanRecord {
@@ -109,6 +121,7 @@ export interface ParsedLoanRecord {
   collateralValue: number | null;
   municipio: string | null;
   delinquencyDays: number | null;
+  borrowerId: string | null;
 }
 
 export interface LoanTapeRowError {
@@ -222,6 +235,7 @@ export class LoanTapeIngestService {
           collateralValue: r.collateralValue,
           municipio: r.municipio,
           delinquencyDays: r.delinquencyDays,
+          borrowerId: r.borrowerId,
         })),
       }),
     ]);
@@ -402,6 +416,12 @@ export class LoanTapeIngestService {
         () => countMissing('delinquencyDays'),
       );
 
+      // Borrower key: stored as given, NEVER imputed (a null borrower is
+      // excluded from single-borrower aggregation, not its own obligor).
+      const rawBorrowerId = cell(values, 'borrowerId');
+      const borrowerId = rawBorrowerId || null;
+      if (!borrowerId) countMissing('borrowerId');
+
       if (rowErrors.length > 0) {
         errors.push(...rowErrors);
         continue;
@@ -419,6 +439,7 @@ export class LoanTapeIngestService {
         collateralType,
         collateralValue,
         municipio,
+        borrowerId,
         delinquencyDays,
       });
     }

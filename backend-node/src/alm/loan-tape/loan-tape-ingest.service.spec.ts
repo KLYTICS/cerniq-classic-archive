@@ -1,14 +1,14 @@
 import { LoanTapeIngestService } from './loan-tape-ingest.service';
 
 const HEADER =
-  'numero_prestamo,producto,saldo,tasa,fecha_originacion,fecha_vencimiento,tipo_garantia,valor_garantia,municipio,dias_mora';
+  'numero_prestamo,producto,saldo,tasa,fecha_originacion,fecha_vencimiento,tipo_garantia,valor_garantia,municipio,dias_mora,id_socio';
 
 function tape(rows: string[]): string {
   return [HEADER, ...rows].join('\n');
 }
 
 const CLEAN_ROW =
-  'L-001,Hipotecas,150000,6.5,2020-03-15,2050-03-15,residencial,200000,Caguas,0';
+  'L-001,Hipotecas,150000,6.5,2020-03-15,2050-03-15,residencial,200000,Caguas,0,S-100';
 
 describe('LoanTapeIngestService — generic loan-tape CSV (W2.0 Slice 1)', () => {
   let prisma: {
@@ -55,6 +55,21 @@ describe('LoanTapeIngestService — generic loan-tape CSV (W2.0 Slice 1)', () =>
       );
       expect(r.valid).toBe(true);
       expect(r.records[0].segmentName).toBe('Auto Loans');
+    });
+
+    it('parses the borrower key (id_socio) and counts missing ones (never imputed)', () => {
+      const r = svc.parseLoanTape(
+        tape([
+          CLEAN_ROW, // id_socio = S-100
+          'L-002,Hipotecas,90000,5.9,,,,,,,', // no id_socio
+        ]),
+      );
+      expect(r.valid).toBe(true);
+      expect(r.records[0].borrowerId).toBe('S-100');
+      expect(r.records[1].borrowerId).toBeNull();
+      const gap = r.gaps.find((g) => g.field === 'loanTape.borrowerId');
+      expect(gap?.reason).toBe('LOAN_TAPE_FIELD_MISSING');
+      expect(gap?.context).toMatchObject({ missingRows: 1 });
     });
 
     it('rejects a tape missing a required column, naming the aliases', () => {

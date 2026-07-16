@@ -14,6 +14,7 @@ import { AuthTenantGuard } from '../../auth/auth-tenant.guard';
 import { InstitutionScopeGuard } from '../../agent-api/guards/institution-scope.guard';
 import { AuditAction } from '../../common/decorators/audit-action.decorator';
 import { LoanTapeAggregationService } from './loan-tape-aggregation.service';
+import { GeographicConcentrationService } from './geographic-concentration.service';
 import {
   LoanTapeIngestService,
   type LoanTapeIngestResult,
@@ -42,6 +43,7 @@ export class LoanTapeController {
   constructor(
     private readonly ingest: LoanTapeIngestService,
     private readonly aggregation: LoanTapeAggregationService,
+    private readonly geographic: GeographicConcentrationService,
   ) {}
 
   @Post(':institutionId/loan-tape')
@@ -93,6 +95,23 @@ export class LoanTapeController {
   ) {
     const asOfDate = this.requireAsOfDate(asOfDateRaw);
     return this.aggregation.reconcileWithSegments(
+      institutionId,
+      new Date(`${asOfDate}T00:00:00Z`),
+    );
+  }
+
+  @Get(':institutionId/loan-tape/geographic-concentration')
+  @ApiOperation({
+    summary:
+      'Municipio HHI + single-borrower concentration from the loan tape (W2.2)',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  async geographicConcentration(
+    @Param('institutionId') institutionId: string,
+    @Query('asOfDate') asOfDateRaw?: string,
+  ) {
+    const asOfDate = this.requireAsOfDate(asOfDateRaw);
+    return this.geographic.analyze(
       institutionId,
       new Date(`${asOfDate}T00:00:00Z`),
     );
