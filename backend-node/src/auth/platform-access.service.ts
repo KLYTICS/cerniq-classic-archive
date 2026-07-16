@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
+/** Primary provisioned CEO account (password bootstrap + canonical alias target). */
 export const MASTER_ACCOUNT_EMAIL = 'data.ai.kiess@gmail.com';
 export const MASTER_ACCOUNT_LOCAL_PART = 'data.ai.kiess';
+/** All emails that receive master CEO platform access while developing / operating. */
+export const MASTER_ACCOUNT_EMAILS = [
+  MASTER_ACCOUNT_EMAIL,
+  'kiess2005@gmail.com',
+] as const;
 export const PLATFORM_ACCESS_REQUIRED_CODE = 'PLATFORM_ACCESS_REQUIRED';
 
 export type PlatformAccessReason =
@@ -56,7 +62,12 @@ export class PlatformAccessService {
 
   isMasterAccountEmail(email?: string | null) {
     const normalizedEmail = this.normalizeMasterAccountEmail(email);
-    return normalizedEmail === MASTER_ACCOUNT_EMAIL;
+    if (!normalizedEmail) {
+      return false;
+    }
+    return (MASTER_ACCOUNT_EMAILS as readonly string[]).includes(
+      normalizedEmail,
+    );
   }
 
   async getAccessForUser(
@@ -208,12 +219,13 @@ export class PlatformAccessService {
   }
 
   private isOwnerRecoveryBypassEnabled() {
+    // Opt-in only. Defaulting this on in production let every new OWNER
+    // (typical OAuth signup) skip the pay gate — which is the opposite of a
+    // real app gate. Set PLATFORM_RECOVERY_OWNER_BYPASS=true explicitly when
+    // you need a temporary recovery window.
     const normalized = (process.env.PLATFORM_RECOVERY_OWNER_BYPASS || '')
       .trim()
       .toLowerCase();
-    if (!normalized) {
-      return process.env.NODE_ENV === 'production';
-    }
     return (
       normalized === '1' ||
       normalized === 'true' ||

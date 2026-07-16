@@ -74,9 +74,34 @@ If `DATA_ENCRYPTION_KEY` is not set, the service logs a warning and stores/retur
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 
-OAuth callback URLs:
-- GitHub: `https://api.cerniq.io/auth/github/callback`
-- Google: `https://api.cerniq.io/auth/google/callback`
+## Supabase Auth (Phase 4 cutover)
+
+| Variable | Required at cutover | Description |
+|----------|---------------------|-------------|
+| `SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Yes | Public anon key (also used for HTTP token introspection fallback) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role for admin operations |
+| `SUPABASE_JWKS_URL` | Yes | JWKS endpoint — `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` |
+| `SUPABASE_JWT_ISSUER` | Yes | Issuer — `https://<ref>.supabase.co/auth/v1` |
+| `SUPABASE_JWT_AUDIENCE` | Yes | Typically `authenticated` |
+| `SUPABASE_JWT_SECRET` | Optional | HS256 fallback when JWKS unavailable |
+| `AUTH_ALLOW_LEGACY` | Yes | `false` after Supabase login verified in prod |
+| `AUTH_LEGACY_DEPRECATION_WARN` | Optional | Log legacy JWT usage |
+| `PLATFORM_RECOVERY_OWNER_BYPASS` | Optional | Must stay unset/`false` in normal prod. Opt-in (`true`) only for temporary OWNER recovery — unpaid OWNERs otherwise hit the pay gate. |
+| `KLYTICS_APP_ID` | Yes | App identifier for entitlement checks (`cerniq`) |
+| `KLYTICS_REQUIRE_ORG` | Cutover | `true` only after frontend sends `x-organization-id` |
+| `KLYTICS_REQUIRE_ENTITLEMENT` | Cutover | `true` when org entitlements enforced |
+
+**Vercel (frontend only):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Verify presence: `bash scripts/ops/railway-verify-prod.sh`
+
+Docs: [docs/platform/auth-unification/ENV_CONTRACT.md](../platform/auth-unification/ENV_CONTRACT.md)
+
+OAuth callback URLs (must include `/api`):
+- GitHub: `https://api.cerniq.io/api/auth/github/callback`
+- Google: `https://api.cerniq.io/api/auth/google/callback`
+
 
 ## Market Data
 
