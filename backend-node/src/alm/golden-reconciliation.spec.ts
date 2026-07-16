@@ -30,6 +30,7 @@ import { AssetEWSService } from './asset-ews.service';
 import { LoanTapeIngestService } from './loan-tape/loan-tape-ingest.service';
 import { LoanTapeAggregationService } from './loan-tape/loan-tape-aggregation.service';
 import { GeographicConcentrationService } from './loan-tape/geographic-concentration.service';
+import { FhlbnyCollateralService } from './loan-tape/fhlbny-collateral.service';
 import {
   SAMPLE_LOAN_TAPE_AS_OF,
   SAMPLE_LOAN_TAPE_CSV,
@@ -346,6 +347,21 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
     );
     const expected = loadOrCapture(
       'sample-loan-tape.geographic-concentration.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it('MODELED FHLBNY collateral analysis produces the canonical snapshot (W2.1)', async () => {
+    const fhlbny = new FhlbnyCollateralService(loanTapePrismaStub());
+    const actual = normalize(
+      await fhlbny.analyze(
+        INSTITUTION_ID,
+        new Date(`${SAMPLE_LOAN_TAPE_AS_OF}T00:00:00Z`),
+      ),
+    );
+    const expected = loadOrCapture(
+      'sample-loan-tape.fhlbny-collateral.json',
       actual,
     );
     expect(actual).toEqual(expected);

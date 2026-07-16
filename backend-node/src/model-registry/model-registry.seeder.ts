@@ -623,6 +623,29 @@ const PRODUCTION_MODELS: ModelSeedEntry[] = [
     ],
   },
   {
+    modelKey: 'liquidity.fhlbny-collateral',
+    displayName: 'FHLBNY Collateral + Borrowing Capacity (MODELED)',
+    description:
+      'MODELED FHLBNY collateral eligibility (1-4 family / HELOC / multifamily / CRE keyword classification from the loan tape), haircut-based lending value, borrowing-capacity what-ifs, and a clearly-labeled MODELED collateral file (COL-121 stand-in). The wedge for the FHLBNY membership wave (Wave 2, W2.1).',
+    version: '0.1.0',
+    category: 'LIQUIDITY',
+    riskTier: 'TIER_2',
+    status: 'DRAFT',
+    ownerName: OWNER,
+    serviceFile: 'alm/loan-tape/fhlbny-collateral.service.ts',
+    entryFunction: 'analyze',
+    requiredInputs: [
+      'loanRecords.collateralType',
+      'loanRecords.delinquencyDays',
+    ],
+    limitations: [
+      'MODELED throughout: the exact COL-121 layout and official FHLBNY haircut schedule are UNVERIFIED (Bible §9.13) — haircuts (25/40/35/45%) and the 60-DPD ceiling are DISCLOSED PROVISIONAL config; a WARNING gap rides on every result',
+      'UNKNOWN delinquency is INELIGIBLE — assuming current would overstate borrowing capacity (D1: errors reduce capacity, never inflate it)',
+      'Unclassifiable collateral is excluded with its own disclosed reason, never guessed into a class',
+      'Capacity what-ifs are relative ladders over the modeled lending value, not FHLBNY commitments',
+    ],
+  },
+  {
     modelKey: 'risk.early-warning',
     displayName: 'Early Warning System',
     description:
@@ -958,6 +981,13 @@ export class ModelRegistrySeeder implements OnModuleInit {
         goldenFile: 'sample-loan-tape.geographic-concentration.json',
         label:
           'Geographic + single-borrower concentration golden test (sample-loan-tape)',
+        fixture: 'sample-loan-tape',
+      },
+      {
+        modelKey: 'liquidity.fhlbny-collateral',
+        goldenFile: 'sample-loan-tape.fhlbny-collateral.json',
+        label:
+          'MODELED FHLBNY collateral + capacity golden test (sample-loan-tape)',
         fixture: 'sample-loan-tape',
       },
     ];

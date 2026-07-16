@@ -15,6 +15,7 @@ import { InstitutionScopeGuard } from '../../agent-api/guards/institution-scope.
 import { AuditAction } from '../../common/decorators/audit-action.decorator';
 import { LoanTapeAggregationService } from './loan-tape-aggregation.service';
 import { GeographicConcentrationService } from './geographic-concentration.service';
+import { FhlbnyCollateralService } from './fhlbny-collateral.service';
 import {
   LoanTapeIngestService,
   type LoanTapeIngestResult,
@@ -44,6 +45,7 @@ export class LoanTapeController {
     private readonly ingest: LoanTapeIngestService,
     private readonly aggregation: LoanTapeAggregationService,
     private readonly geographic: GeographicConcentrationService,
+    private readonly fhlbny: FhlbnyCollateralService,
   ) {}
 
   @Post(':institutionId/loan-tape')
@@ -112,6 +114,40 @@ export class LoanTapeController {
   ) {
     const asOfDate = this.requireAsOfDate(asOfDateRaw);
     return this.geographic.analyze(
+      institutionId,
+      new Date(`${asOfDate}T00:00:00Z`),
+    );
+  }
+
+  @Get(':institutionId/loan-tape/fhlbny-collateral')
+  @ApiOperation({
+    summary:
+      'MODELED FHLBNY collateral eligibility + borrowing-capacity what-ifs (W2.1)',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  async fhlbnyCollateral(
+    @Param('institutionId') institutionId: string,
+    @Query('asOfDate') asOfDateRaw?: string,
+  ) {
+    const asOfDate = this.requireAsOfDate(asOfDateRaw);
+    return this.fhlbny.analyze(
+      institutionId,
+      new Date(`${asOfDate}T00:00:00Z`),
+    );
+  }
+
+  @Get(':institutionId/loan-tape/fhlbny-collateral/file')
+  @ApiOperation({
+    summary:
+      'Generate the MODELED collateral file (COL-121 stand-in; byte-exact layout pending FHLBNY)',
+  })
+  @ApiParam({ name: 'institutionId', description: 'Institution UUID' })
+  async fhlbnyCollateralFile(
+    @Param('institutionId') institutionId: string,
+    @Query('asOfDate') asOfDateRaw?: string,
+  ) {
+    const asOfDate = this.requireAsOfDate(asOfDateRaw);
+    return this.fhlbny.generateModeledFile(
       institutionId,
       new Date(`${asOfDate}T00:00:00Z`),
     );

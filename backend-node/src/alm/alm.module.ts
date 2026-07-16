@@ -125,6 +125,7 @@ import { LoanTapeController } from './loan-tape/loan-tape.controller';
 import { LoanTapeIngestService } from './loan-tape/loan-tape-ingest.service';
 import { LoanTapeAggregationService } from './loan-tape/loan-tape-aggregation.service';
 import { GeographicConcentrationService } from './loan-tape/geographic-concentration.service';
+import { FhlbnyCollateralService } from './loan-tape/fhlbny-collateral.service';
 import { EwsSnapshotService } from './ews/ews-snapshot.service';
 import { EwsSchedulerService } from './ews/ews-scheduler.service';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -226,6 +227,7 @@ import { HJMModule } from './quant/hjm.module';
     LoanTapeIngestService,
     LoanTapeAggregationService,
     GeographicConcentrationService,
+    FhlbnyCollateralService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,

@@ -2,12 +2,15 @@ import { LoanTapeController } from './loan-tape.controller';
 import type { LoanTapeIngestService } from './loan-tape-ingest.service';
 import type { LoanTapeAggregationService } from './loan-tape-aggregation.service';
 import type { GeographicConcentrationService } from './geographic-concentration.service';
+import type { FhlbnyCollateralService } from './fhlbny-collateral.service';
 
 describe('LoanTapeController — W2.0 HTTP surface', () => {
   let ingestSpy: jest.Mock;
   let rollupSpy: jest.Mock;
   let reconcileSpy: jest.Mock;
   let geoSpy: jest.Mock;
+  let fhlbnySpy: jest.Mock;
+  let fhlbnyFileSpy: jest.Mock;
   let controller: LoanTapeController;
 
   beforeEach(() => {
@@ -17,6 +20,8 @@ describe('LoanTapeController — W2.0 HTTP surface', () => {
     rollupSpy = jest.fn().mockResolvedValue({ status: 'ok', segments: [] });
     reconcileSpy = jest.fn().mockResolvedValue({ status: 'ok', rows: [] });
     geoSpy = jest.fn().mockResolvedValue({ status: 'ok' });
+    fhlbnySpy = jest.fn().mockResolvedValue({ status: 'ok', modeled: true });
+    fhlbnyFileSpy = jest.fn().mockResolvedValue({ modeled: true, csv: '' });
     controller = new LoanTapeController(
       { ingestLoanTape: ingestSpy } as unknown as LoanTapeIngestService,
       {
@@ -24,6 +29,10 @@ describe('LoanTapeController — W2.0 HTTP surface', () => {
         reconcileWithSegments: reconcileSpy,
       } as unknown as LoanTapeAggregationService,
       { analyze: geoSpy } as unknown as GeographicConcentrationService,
+      {
+        analyze: fhlbnySpy,
+        generateModeledFile: fhlbnyFileSpy,
+      } as unknown as FhlbnyCollateralService,
     );
   });
 
@@ -68,6 +77,22 @@ describe('LoanTapeController — W2.0 HTTP surface', () => {
       controller.geographicConcentration('inst-1', '06/30/2026'),
     ).rejects.toThrow('asOfDate');
     expect(geoSpy).not.toHaveBeenCalled();
+  });
+
+  it('GET fhlbny-collateral delegates with the parsed asOfDate (W2.1)', async () => {
+    await controller.fhlbnyCollateral('inst-1', '2026-06-30');
+    expect(fhlbnySpy).toHaveBeenCalledWith(
+      'inst-1',
+      new Date('2026-06-30T00:00:00Z'),
+    );
+  });
+
+  it('GET fhlbny-collateral/file delegates to the modeled-file generator', async () => {
+    await controller.fhlbnyCollateralFile('inst-1', '2026-06-30');
+    expect(fhlbnyFileSpy).toHaveBeenCalledWith(
+      'inst-1',
+      new Date('2026-06-30T00:00:00Z'),
+    );
   });
 
   it('class-level guard stack is declared', () => {
