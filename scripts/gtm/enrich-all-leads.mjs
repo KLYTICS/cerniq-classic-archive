@@ -6,13 +6,11 @@
  *   ADMIN_KEY=... API_BASE=https://api.cerniq.io node scripts/gtm/enrich-all-leads.mjs
  *   ADMIN_KEY=... API_BASE=http://localhost:3001 node scripts/gtm/enrich-all-leads.mjs --linkedin ./connections.csv
  *
- * Steps:
- *   1. Seed all 111 PR cooperativas from CSV
- *   2. Link COSSEC snapshots + ALM risk scores
- *   3. Sync intelligence accounts + score inbound leads
- *   4. Optional: import LinkedIn connections export
- *   5. Emit field-sales playbook JSON to stdout (or --out playbook.json)
+ * Artifacts land in data/gtm-runs/<run-id>/ (override with GTM_ARTIFACT_ROOT).
  */
+
+import fs from 'node:fs';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
 
@@ -30,8 +28,8 @@ if (!ADMIN_KEY) {
   process.exit(1);
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
+async function api(endpoint, options = {}) {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -49,7 +47,7 @@ async function api(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(`${options.method || 'GET'} ${path} failed (${response.status}): ${text}`);
+    throw new Error(`${options.method || 'GET'} ${endpoint} failed (${response.status}): ${text}`);
   }
 
   return body;
@@ -79,12 +77,18 @@ async function main() {
   console.log('🗺️  Building in-person field-sales playbook...');
   const playbook = await api('/admin/api/gtm/field-playbook');
   const outPath = getArg('--out');
+  const artifactRoot = process.env.GTM_ARTIFACT_ROOT || path.join(process.cwd(), 'data/gtm-runs');
+  const runId = new Date().toISOString().replace(/[:.]/g, '-');
+  const runDir = path.join(artifactRoot, runId);
+  fs.mkdirSync(runDir, { recursive: true });
+  fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify({ seeded, enriched, linkedIn: linkedInPath ? true : false }, null, 2));
+  fs.writeFileSync(path.join(runDir, 'field-playbook.json'), JSON.stringify(playbook, null, 2));
+  fs.writeFileSync(path.join(artifactRoot, 'latest.json'), JSON.stringify({ runId, artifactPath: runDir, generatedAt: new Date().toISOString() }, null, 2));
   if (outPath) {
-    const fs = await import('node:fs');
     fs.writeFileSync(outPath, JSON.stringify(playbook, null, 2));
     console.log(`Playbook written to ${outPath}`);
   } else {
-    console.log(JSON.stringify({ step: 'field-playbook', ...playbook }, null, 2));
+    console.log(JSON.stringify({ step: 'field-playbook', artifactPath: runDir, ...playbook }, null, 2));
   }
 
   console.log('\n✅ GTM enrichment complete.');

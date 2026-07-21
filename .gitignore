@@ -105,6 +105,8 @@ ENV/
 # Data cache
 /data/*.parquet
 /data/*.csv
+/data/gtm-runs/*
+!/data/gtm-runs/.gitkeep
 *.parquet
 
 # Temporary files

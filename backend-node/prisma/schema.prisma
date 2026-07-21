@@ -734,6 +734,31 @@ model PipelineRun {
   @@map("pipeline_runs")
 }
 
+enum GtmPipelineRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model GtmPipelineRun {
+  id            String               @id @default(cuid())
+  startedAt     DateTime             @default(now()) @map("started_at")
+  completedAt   DateTime?            @map("completed_at")
+  status        GtmPipelineRunStatus @default(RUNNING)
+  triggerSource String               @map("trigger_source") // cron | cli | api | github
+  summary       Json?
+  playbook      Json?
+  artifactPath  String?              @map("artifact_path")
+  errorMessage  String?              @map("error_message")
+  durationMs    Int?                 @map("duration_ms")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("gtm_pipeline_runs")
+}
+
 model MarketPrice {
   id        String   @id @default(uuid()) @db.Uuid
   ticker    String

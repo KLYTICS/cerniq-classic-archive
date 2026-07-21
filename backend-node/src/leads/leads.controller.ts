@@ -22,6 +22,7 @@ import { InstitutionIntelligenceService } from './institution-intelligence.servi
 import { DemoSeatService } from '../portal/demo-seat.service';
 import { DemoSeatAnalyticsService } from '../portal/demo-seat-analytics.service';
 import { GtmEnrichmentService } from './gtm-enrichment.service';
+import { GtmPipelineService } from './gtm-pipeline.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import { AdminKeyGuard } from '../auth/admin-key.guard';
 
@@ -46,6 +47,7 @@ export class LeadsController {
     private readonly demoSeats: DemoSeatService,
     private readonly demoSeatAnalytics: DemoSeatAnalyticsService,
     private readonly gtmEnrichment: GtmEnrichmentService,
+    private readonly gtmPipeline: GtmPipelineService,
   ) {}
 
   // ── Public endpoint (rate-limited at app level) ──
@@ -116,12 +118,34 @@ export class LeadsController {
 
   @Post('admin/api/gtm/enrich-all')
   @UseGuards(AdminKeyGuard)
-  async enrichAllGtm(
-    @Query('syncIntelligence') syncIntelligence?: string,
-    @Query('scoreLeads') scoreLeads?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.gtmEnrichment.runFullPipeline(undefined);
+  async enrichAllGtm(@Body() body?: { linkedInCsv?: string }) {
+    return this.gtmPipeline.executeFullPipeline({
+      triggerSource: 'api',
+      linkedInCsv: body?.linkedInCsv,
+      persistArtifacts: true,
+    });
+  }
+
+  @Post('admin/api/gtm/run')
+  @UseGuards(AdminKeyGuard)
+  async runGtmPipeline(@Body() body?: { linkedInCsv?: string }) {
+    return this.gtmPipeline.executeFullPipeline({
+      triggerSource: 'api',
+      linkedInCsv: body?.linkedInCsv,
+      persistArtifacts: true,
+    });
+  }
+
+  @Get('admin/api/gtm/runs')
+  @UseGuards(AdminKeyGuard)
+  async listGtmRuns(@Query('limit') limit?: string) {
+    return this.gtmPipeline.listRuns(parseInt(limit || '20', 10));
+  }
+
+  @Get('admin/api/gtm/runs/latest')
+  @UseGuards(AdminKeyGuard)
+  async getLatestGtmRun() {
+    return this.gtmPipeline.getLatestRun();
   }
 
   @Post('admin/api/gtm/enrich-prospects')
