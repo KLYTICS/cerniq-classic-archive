@@ -9,7 +9,9 @@
  *   pnpm seed:pr-registry -- --track=product --workspace=<uuid>
  *   pnpm seed:pr-registry -- --track=product --owner=<userUuid>
  */
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import pg from 'pg';
 import { LeadsService } from '../src/leads/leads.service';
 import { MarketRegistrySeedService } from '../src/alm/market-registry-seed.service';
 import { EmailService } from '../src/email/email.service';
@@ -28,7 +30,10 @@ function parseArgs(argv: string[]): {
     const match = arg.match(/^--([a-zA-Z]+)=(.+)$/);
     if (!match) continue;
     const [, key, value] = match;
-    if (key === 'track' && (value === 'crm' || value === 'product' || value === 'both')) {
+    if (
+      key === 'track' &&
+      (value === 'crm' || value === 'product' || value === 'both')
+    ) {
       track = value;
     } else if (key === 'workspace') workspace = value;
     else if (key === 'owner') owner = value;
@@ -36,9 +41,21 @@ function parseArgs(argv: string[]): {
   return { track, workspace, owner };
 }
 
+function createPrisma(): { prisma: PrismaClient; pool: pg.Pool } {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL is required to seed the PR cooperativa registry',
+    );
+  }
+  const pool = new pg.Pool({ connectionString, max: 5 });
+  const adapter = new PrismaPg(pool);
+  return { prisma: new PrismaClient({ adapter }), pool };
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
-  const prisma = new PrismaClient();
+  const { prisma, pool } = createPrisma();
   const out: Record<string, unknown> = { track: args.track };
 
   try {
@@ -67,6 +84,7 @@ async function main(): Promise<void> {
     process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
+    await pool.end();
   }
 }
 
