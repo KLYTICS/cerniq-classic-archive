@@ -1,31 +1,25 @@
 /**
- * COSSEC Q4-2025 Curated Snapshot — Tier-1 Puerto Rico Cooperativas
+ * COSSEC curated snapshots — Tier-1 Puerto Rico Cooperativas
  *
  * SOURCE OF TRUTH
  * ───────────────
- * - Total assets: published in COSSEC quarterly statistics + cooperativa annual reports.
- * - Capital ratio, loan/deposit, liquidity, NII margin: anchored to the cooperativa's
- *   own published figures where available; sector medians (COSSEC Q3 2025) used as
- *   honest fillers per the disclosure on every generated report.
- * - Member counts: COSSEC published statistics.
- *
- * REFRESH CADENCE
- * ───────────────
- * Refresh quarterly when COSSEC publishes new statistics. Each entry should be
- * cross-checked against the cooperativa's most recent annual report or audited
- * financial statements before bumping the asOfQuarter field.
+ * Assets / members from COSSEC Anejo 9 (Q2 2025 extract in
+ * `src/alm/data/registry/pr-cooperativas-q2-2025.json`). Ratio fields use
+ * sector-median fillers where per-coop public ratios are not committed —
+ * every generated report discloses that.
  *
  * DISCLOSURE
  * ──────────
  * Every PDF generated from this snapshot carries a footer reading:
  *   "PRELIMINARY — Built from COSSEC public filings, [asOfQuarter]"
- * No member-level or non-public information is encoded here.
  */
+
+import { listPrCooperativas } from '../../data/registry/pr-cooperativas.registry';
 
 export interface CossecCooperativaSnapshot {
   /** Stable slug used as publicDataIdentifier on ProspectInstitution */
   slug: string;
-  /** Legal cooperativa name */
+  /** Legal / display cooperativa name */
   name: string;
   /** Municipality */
   city: string;
@@ -43,196 +37,86 @@ export interface CossecCooperativaSnapshot {
   niiMarginPct: number;
   /** YoY asset growth as a percentage */
   assetGrowthYoyPct: number;
-  /** Quarter the snapshot represents (e.g. "Q3-2025") */
+  /** Quarter the snapshot represents (e.g. "Q2-2025") */
   asOfQuarter: string;
   /** Free-text provenance — what we sourced from where */
   provenance: string;
 }
 
-export const COSSEC_SNAPSHOT_2025Q4: CossecCooperativaSnapshot[] = [
-  {
-    slug: 'caguas',
-    name: 'Cooperativa de Ahorro y Crédito de Caguas',
-    city: 'Caguas, PR',
-    totalAssets: 2_800_000_000,
-    members: 142_000,
-    capitalRatioPct: 10.4,
-    loanToDepositPct: 78.2,
-    liquidityRatioPct: 19.6,
-    niiMarginPct: 4.1,
-    assetGrowthYoyPct: 5.3,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'Caguas annual report 2024 + COSSEC Q3 2025 statistics',
-  },
-  {
-    slug: 'oriental',
-    name: 'Cooperativa de Ahorro y Crédito Oriental',
-    city: 'Humacao, PR',
-    totalAssets: 1_200_000_000,
-    members: 68_000,
-    capitalRatioPct: 9.8,
-    loanToDepositPct: 73.5,
-    liquidityRatioPct: 22.4,
-    niiMarginPct: 3.9,
-    assetGrowthYoyPct: 4.8,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'bayamon',
-    name: 'Cooperativa de Ahorro y Crédito de Bayamón',
-    city: 'Bayamón, PR',
-    totalAssets: 950_000_000,
-    members: 54_000,
-    capitalRatioPct: 9.2,
-    loanToDepositPct: 71.8,
-    liquidityRatioPct: 23.1,
-    niiMarginPct: 3.7,
-    assetGrowthYoyPct: 4.2,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'acacia',
-    name: 'Cooperativa ACACIA',
-    city: 'San Juan, PR',
-    totalAssets: 1_500_000_000,
-    members: 89_000,
-    capitalRatioPct: 11.1,
-    loanToDepositPct: 76.4,
-    liquidityRatioPct: 20.8,
-    niiMarginPct: 4.0,
-    assetGrowthYoyPct: 5.6,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'ACACIA annual report 2024 + COSSEC Q3 2025 statistics',
-  },
-  {
-    slug: 'ponce',
-    name: 'Cooperativa de Ahorro y Crédito de Ponce',
-    city: 'Ponce, PR',
-    totalAssets: 280_000_000,
-    members: 18_500,
-    capitalRatioPct: 9.4,
-    loanToDepositPct: 72.1,
-    liquidityRatioPct: 22.0,
-    niiMarginPct: 3.8,
-    assetGrowthYoyPct: 4.0,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'guaynabo',
-    name: 'Cooperativa de Ahorro y Crédito de Guaynabo',
-    city: 'Guaynabo, PR',
-    totalAssets: 310_000_000,
-    members: 19_800,
-    capitalRatioPct: 9.6,
-    loanToDepositPct: 73.0,
-    liquidityRatioPct: 21.7,
-    niiMarginPct: 3.8,
-    assetGrowthYoyPct: 4.4,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'carolina',
-    name: 'Cooperativa de Ahorro y Crédito de Carolina',
-    city: 'Carolina, PR',
-    totalAssets: 260_000_000,
-    members: 16_400,
-    capitalRatioPct: 9.1,
-    loanToDepositPct: 70.6,
-    liquidityRatioPct: 22.8,
-    niiMarginPct: 3.7,
-    assetGrowthYoyPct: 3.9,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'arecibo',
-    name: 'Cooperativa de Ahorro y Crédito de Arecibo',
-    city: 'Arecibo, PR',
-    totalAssets: 200_000_000,
-    members: 12_900,
-    capitalRatioPct: 9.0,
-    loanToDepositPct: 70.2,
-    liquidityRatioPct: 23.3,
-    niiMarginPct: 3.6,
-    assetGrowthYoyPct: 3.7,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'mayaguez',
-    name: 'Cooperativa de Ahorro y Crédito de Mayagüez',
-    city: 'Mayagüez, PR',
-    totalAssets: 175_000_000,
-    members: 11_400,
-    capitalRatioPct: 8.9,
-    loanToDepositPct: 69.8,
-    liquidityRatioPct: 23.6,
-    niiMarginPct: 3.6,
-    assetGrowthYoyPct: 3.5,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'aguada',
-    name: 'Cooperativa de Ahorro y Crédito de Aguada',
-    city: 'Aguada, PR',
-    totalAssets: 150_000_000,
-    members: 9_800,
-    capitalRatioPct: 8.8,
-    loanToDepositPct: 69.4,
-    liquidityRatioPct: 23.9,
-    niiMarginPct: 3.5,
-    assetGrowthYoyPct: 3.4,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'trujillo-alto',
-    name: 'Cooperativa de Ahorro y Crédito de Trujillo Alto',
-    city: 'Trujillo Alto, PR',
-    totalAssets: 140_000_000,
-    members: 9_100,
-    capitalRatioPct: 8.7,
-    loanToDepositPct: 69.0,
-    liquidityRatioPct: 24.1,
-    niiMarginPct: 3.5,
-    assetGrowthYoyPct: 3.3,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'san-german',
-    name: 'Cooperativa de Ahorro y Crédito de San Germán',
-    city: 'San Germán, PR',
-    totalAssets: 120_000_000,
-    members: 7_800,
-    capitalRatioPct: 8.6,
-    loanToDepositPct: 68.5,
-    liquidityRatioPct: 24.4,
-    niiMarginPct: 3.4,
-    assetGrowthYoyPct: 3.1,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-  {
-    slug: 'roosevelt-roads',
-    name: 'Cooperativa de Ahorro y Crédito Roosevelt Roads',
-    city: 'Ceiba, PR',
-    totalAssets: 95_000_000,
-    members: 6_200,
-    capitalRatioPct: 8.5,
-    loanToDepositPct: 68.0,
-    liquidityRatioPct: 24.7,
-    niiMarginPct: 3.4,
-    assetGrowthYoyPct: 3.0,
-    asOfQuarter: 'Q3-2025',
-    provenance: 'COSSEC Q3 2025 statistics + sector median fillers',
-  },
-];
+/** Slug overrides for demo-seat / free-report callers that key by name. */
+const SLUG_BY_CHARTER: Record<string, string> = {
+  '007': 'rincon',
+  '283': 'coopaca',
+  '144': 'credicentro',
+  '148': 'las-piedras',
+  '038': 'oriental',
+  '002': 'isabela',
+  '015': 'vega-alta',
+  '016': 'camuy',
+  '023': 'cabo-rojo',
+  '035': 'sagrada-familia',
+  '100': 'manati',
+  '019': 'san-jose',
+  '012': 'medi-coop',
+  '225': 'villalba',
+  '098': 'zeno-gandia',
+  '176': 'roosevelt-roads',
+  '058': 'maunacoop',
+  '112': 'candelcoop',
+  '193': 'larcoop',
+  '021': 'quebradillas',
+  '092': 'caguas',
+  '206': 'mayaguez',
+};
+
+const SECTOR_FILLERS = {
+  capitalRatioPct: 9.2,
+  loanToDepositPct: 72.5,
+  liquidityRatioPct: 22.1,
+  niiMarginPct: 3.8,
+  assetGrowthYoyPct: 4.2,
+};
+
+/** Charters that free-report / demo-seat tests resolve by slug (must stay present). */
+const DEMO_SLUG_CHARTERS = new Set(Object.keys(SLUG_BY_CHARTER));
+
+function toSnapshot(row: {
+  cossecCharter: string;
+  seedKey: string;
+  displayName: string;
+  hqMunicipality: string;
+  totalAssetsUsd: number;
+  members: number;
+  asOf: string;
+}): CossecCooperativaSnapshot {
+  return {
+    slug:
+      SLUG_BY_CHARTER[row.cossecCharter] ??
+      row.seedKey.replace(/^pr-cossec-/, ''),
+    name: row.displayName,
+    city: `${row.hqMunicipality}, PR`,
+    totalAssets: row.totalAssetsUsd,
+    members: row.members,
+    ...SECTOR_FILLERS,
+    asOfQuarter: 'Q2-2025',
+    provenance: `COSSEC Anejo 9 ${row.asOf} (charter ${row.cossecCharter}); ratio fields = sector medians`,
+  };
+}
+
+function buildTier1Snapshots(): CossecCooperativaSnapshot[] {
+  const all = listPrCooperativas();
+  // Top-20 by assets + any demo-slug anchors outside that cut (e.g. Caguas Coop).
+  const top20 = all.slice(0, 20);
+  const extras = all.filter(
+    (row) =>
+      DEMO_SLUG_CHARTERS.has(row.cossecCharter) &&
+      !top20.some((t) => t.cossecCharter === row.cossecCharter),
+  );
+  return [...top20, ...extras].map(toSnapshot);
+}
+
+export const COSSEC_SNAPSHOT_2025Q4: CossecCooperativaSnapshot[] =
+  buildTier1Snapshots();
 
 export const COSSEC_SNAPSHOT_BY_SLUG: Map<string, CossecCooperativaSnapshot> =
   new Map(COSSEC_SNAPSHOT_2025Q4.map((entry) => [entry.slug, entry]));

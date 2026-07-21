@@ -2,7 +2,7 @@
 
 > **Read this first.** This is the canonical pickup point for any Claude session continuing the FAANG-quality polish work on (1) institution seeding, (2) enterprise actions, (3) report accuracy. Update this file whenever you land work — the next session reads it before touching code.
 
-Last updated: 2026-06-06 (Market Bible + Layer 2/3 build roadmap landed — market-intelligence corpus and a granularity-fork build sequence layered on the Layer 1 compliance engine `f7b498a` and the Terminal Operations Handbook `1286e8c`. Prior milestone 2026-05-15: frontend + backend dep audit closure, 63 → 0 vulns across both ecosystems.)
+Last updated: 2026-07-20 (PR cooperativa full registry — 91 COSSEC Anejo 9 rows → CRM + `pr-market-map` product shells. Prior: 2026-06-06 Market Bible + Layer 2/3 roadmap.)
 
 ## Apple Validation Lane — 2026-04-18
 
@@ -267,6 +267,8 @@ Greening sequence for this branch:
 ---
 
 ## 5. Recent landings
+
+- 2026-07-20 — **feat(gtm/registry): full COSSEC Anejo 9 registry (91 cooperativas) → CRM + product market-map.** Committed source of truth `backend-node/src/alm/data/registry/pr-cooperativas-q2-2025.json` (Q2 Jun-2025 Anejo 9 extract — Sep PDF was HTTP 403; charters/assets/members/FTE/ICP tiers; no dissolved Aguada). Verify gate `verify-pr-cooperativa-registry.mjs` (+ `--self-test`) locks count=91, Market Bible top-20 anchors, tier math 40/20/31. **Track A:** `ProspectInstitution` gains `memberCount`/`employeeCount`/`region`/`icpTier` + unique `publicDataIdentifier`; `seedProspectPipeline()` upserts all 91 by COSSEC charter, tags legacy name-only rows `stale_pre_registry`, refreshes benchmarks, optionally syncs `IntelligenceAccount`; outbound CSV reconciled to 91 rows. **Track B:** `MarketRegistrySeedService` + `pnpm seed:pr-registry -- --track=crm|product|both` seeds Institution shells into workspace `pr-market-map` with **no fabricated BS** (D1). Lead-qualification asset tiers aligned to Market Bible (≥$100M / $50–100M / <$50M). Cossec demo snapshots rebuilt from registry (removed inflated Caguas $2.8B / Aguada). Docs: `icp_segments.md`, Market Bible §1.0 pointer. — `backend-node/src/alm/data/registry/*`, `market-registry-seed.service.ts`, `leads/{leads.service,prospect-seed,lead-qualification}.ts`, `prisma/migrations/20260721010000_prospect_registry_fields/`, `services/outbound/data/puerto_rico_cooperativas_seed.csv`; this entry: `docs/SESSION_HANDOFF.md`
 
 - 2026-07-16 — **fix(auth/billing): hard pay gate + master allowlist for `kiess2005@gmail.com`.** Unpaid users no longer bounce in a refresh loop; they stay on `/access-required` with direct Stripe checkout. Master CEO access for `data.ai.kiess@gmail.com` (aliases) and `kiess2005@gmail.com`. `PLATFORM_RECOVERY_OWNER_BYPASS` is opt-in only (prod set `false`). `hasFreeBuilderAccess` always false. — `backend-node/src/auth/platform-access.service.{ts,spec.ts}`, `frontend/lib/access.{ts,test.ts}`, `frontend/app/{access-required,login,onboarding}/page.tsx`, `docs/ops/railway_env_vars.md`; this entry: `docs/SESSION_HANDOFF.md`
 

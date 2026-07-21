@@ -30,7 +30,12 @@ describe('LeadsController', () => {
       getPipelineMetrics: jest
         .fn()
         .mockResolvedValue({ total: 5, conversion: '20%' }),
-      seedProspectPipeline: jest.fn().mockResolvedValue({ seeded: 12 }),
+      seedProspectPipeline: jest.fn().mockResolvedValue({
+        created: 91,
+        updated: 0,
+        unchanged: 0,
+        total: 91,
+      }),
       getProspects: jest.fn().mockResolvedValue([]),
       getBenchmarks: jest.fn().mockResolvedValue([]),
       generateOutreach: jest

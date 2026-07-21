@@ -24,13 +24,17 @@ describe('LeadsService', () => {
       prospectInstitution: {
         findFirst: jest.fn(),
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
       cooperativaBenchmark: {
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -512,19 +516,52 @@ describe('LeadsService', () => {
   // ── seedProspectPipeline ──────────────────────
 
   describe('seedProspectPipeline', () => {
-    it('should skip existing prospects and seed new ones', async () => {
-      // First prospect exists, second doesn't
-      prisma.prospectInstitution.findFirst
-        .mockResolvedValueOnce({ id: 'existing' })
-        .mockResolvedValueOnce(null);
+    it('upserts the COSSEC registry (91) by charter and seeds benchmarks', async () => {
+      prisma.prospectInstitution.findUnique.mockResolvedValue(null);
       prisma.prospectInstitution.create.mockResolvedValue({});
-      prisma.cooperativaBenchmark.findFirst.mockResolvedValue(null);
+      prisma.prospectInstitution.findMany.mockResolvedValue([]);
+      prisma.cooperativaBenchmark.findUnique.mockResolvedValue(null);
       prisma.cooperativaBenchmark.create.mockResolvedValue({});
 
       const result = await service.seedProspectPipeline();
 
+      expect(result.total).toBe(91);
+      expect(result.created).toBe(91);
       expect(result.benchmarkSeeded).toBe(true);
-      expect(result.created).toBeGreaterThanOrEqual(0);
+      expect(prisma.prospectInstitution.create).toHaveBeenCalledTimes(91);
+      expect(prisma.cooperativaBenchmark.create).toHaveBeenCalled();
+    });
+
+    it('is idempotent when registry rows already exist unchanged', async () => {
+      prisma.prospectInstitution.findUnique.mockImplementation(
+        ({ where }: { where: { publicDataIdentifier: string } }) => {
+          const charter = where.publicDataIdentifier;
+          return Promise.resolve({
+            id: `p-${charter}`,
+            name: 'placeholder',
+            location: 'X, PR',
+            estimatedAssets: 1,
+            memberCount: 1,
+            employeeCount: 1,
+            region: 'Caguas',
+            icpTier: 'tier3',
+            publicDataIdentifier: charter,
+          });
+        },
+      );
+      prisma.prospectInstitution.update.mockResolvedValue({});
+      prisma.prospectInstitution.findMany.mockResolvedValue([]);
+      prisma.cooperativaBenchmark.findUnique.mockResolvedValue({
+        period: 'Q2 2025',
+        activeInstitutions: 91,
+      });
+
+      const result = await service.seedProspectPipeline();
+
+      expect(result.total).toBe(91);
+      expect(result.created).toBe(0);
+      expect(result.updated + result.unchanged).toBe(91);
     });
   });
 });
+

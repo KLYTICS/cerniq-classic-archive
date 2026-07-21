@@ -55,39 +55,32 @@ export class LeadQualificationService {
 
     const signals: QualificationSignal[] = [];
 
-    // 1. Asset Size (0-25 points)
+    // 1. Asset Size (0-25 points) — Market Bible ICP tiers:
+    // tier1 >=$100M (primary ~60), tier2 $50–100M, tier3 <$50M
     const assetsM = (prospect.estimatedAssets ?? 0) / 1_000_000;
-    if (assetsM >= 500) {
+    if (assetsM >= 100) {
       signals.push({
         name: 'asset_size',
         score: 25,
         maxScore: 25,
-        reason: `$${assetsM.toFixed(0)}M — Tier 1, high budget capacity`,
-        reasonEs: `$${assetsM.toFixed(0)}M — Nivel 1, alta capacidad presupuestaria`,
+        reason: `$${assetsM.toFixed(0)}M — Tier 1 ICP (>=$100M), primary cooperativa target`,
+        reasonEs: `$${assetsM.toFixed(0)}M — Nivel 1 ICP (≥$100M), objetivo primario de cooperativa`,
       });
-    } else if (assetsM >= 200) {
-      signals.push({
-        name: 'asset_size',
-        score: 20,
-        maxScore: 25,
-        reason: `$${assetsM.toFixed(0)}M — Tier 2, strong fit`,
-        reasonEs: `$${assetsM.toFixed(0)}M — Nivel 2, ajuste fuerte`,
-      });
-    } else if (assetsM >= 100) {
+    } else if (assetsM >= 50) {
       signals.push({
         name: 'asset_size',
         score: 15,
         maxScore: 25,
-        reason: `$${assetsM.toFixed(0)}M — Mid-market, standard fit`,
-        reasonEs: `$${assetsM.toFixed(0)}M — Mercado medio, ajuste estandar`,
+        reason: `$${assetsM.toFixed(0)}M — Tier 2 ICP ($50–100M), secondary fit`,
+        reasonEs: `$${assetsM.toFixed(0)}M — Nivel 2 ICP ($50–100M), ajuste secundario`,
       });
     } else {
       signals.push({
         name: 'asset_size',
         score: 8,
         maxScore: 25,
-        reason: `$${assetsM.toFixed(0)}M — Smaller institution`,
-        reasonEs: `$${assetsM.toFixed(0)}M — Institucion mas pequena`,
+        reason: `$${assetsM.toFixed(0)}M — Tier 3 ICP (<$50M), lower priority`,
+        reasonEs: `$${assetsM.toFixed(0)}M — Nivel 3 ICP (<$50M), menor prioridad`,
       });
     }
 

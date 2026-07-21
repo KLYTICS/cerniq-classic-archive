@@ -4,9 +4,13 @@ import { EmailService } from '../email/email.service';
 import { SlackService } from '../notifications/slack.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import {
-  COOPERATIVA_PROSPECTS,
+  COSSEC_BENCHMARK_Q2_2025,
   COSSEC_BENCHMARK_Q3_2025,
+  LEGACY_COOPERATIVA_PROSPECT_NAMES,
+  registryProspectCount,
 } from './prospect-seed';
+import { listPrCooperativas } from '../alm/data/registry/pr-cooperativas.registry';
+import { InstitutionIntelligenceService } from './institution-intelligence.service';
 
 @Injectable()
 export class LeadsService {
@@ -16,6 +20,8 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     @Optional() private readonly slack?: SlackService,
+    @Optional()
+    private readonly institutionIntelligence?: InstitutionIntelligenceService,
   ) {}
 
   async submitLead(dto: SubmitLeadDto) {
@@ -296,40 +302,180 @@ export class LeadsService {
 
   // ── Prospect Pipeline (Outbound) ──
 
+  /**
+   * Upsert all COSSEC-insured cooperativas from the committed Anejo 9 registry.
+   * Idempotent on `publicDataIdentifier` (COSSEC charter). Legacy name-only rows
+   * without a charter are tagged `stale_pre_registry` (never deleted — demo seats).
+   */
   async seedProspectPipeline() {
+    const registry = listPrCooperativas();
     let created = 0;
-    for (const prospect of COOPERATIVA_PROSPECTS) {
-      const existing = await this.prisma.prospectInstitution.findFirst({
-        where: { name: prospect.name },
+    let updated = 0;
+    let unchanged = 0;
+
+    for (const row of registry) {
+      const location = `${row.hqMunicipality}, PR`;
+      const data = {
+        name: row.displayName,
+        institutionType: 'cooperativa',
+        location,
+        estimatedAssets: row.totalAssetsUsd,
+        publicDataSource: 'cossec',
+        publicDataIdentifier: row.cossecCharter,
+        memberCount: row.members,
+        employeeCount: row.employees,
+        region: row.region,
+        icpTier: row.icpTier,
+        contactRole: 'CFO',
+      };
+
+      const existing = await this.prisma.prospectInstitution.findUnique({
+        where: { publicDataIdentifier: row.cossecCharter },
       });
+
       if (!existing) {
-        await this.prisma.prospectInstitution.create({ data: prospect });
+        await this.prisma.prospectInstitution.create({ data });
         created++;
+        continue;
+      }
+
+      const assetsEqual =
+        existing.estimatedAssets == null
+          ? false
+          : Number(existing.estimatedAssets) === row.totalAssetsUsd;
+      const same =
+        existing.name === data.name &&
+        existing.location === data.location &&
+        assetsEqual &&
+        existing.memberCount === data.memberCount &&
+        existing.employeeCount === data.employeeCount &&
+        existing.region === data.region &&
+        existing.icpTier === data.icpTier;
+
+      if (same) {
+        unchanged++;
+      } else {
+        await this.prisma.prospectInstitution.update({
+          where: { id: existing.id },
+          data: {
+            name: data.name,
+            location: data.location,
+            estimatedAssets: data.estimatedAssets,
+            publicDataSource: data.publicDataSource,
+            memberCount: data.memberCount,
+            employeeCount: data.employeeCount,
+            region: data.region,
+            icpTier: data.icpTier,
+          },
+        });
+        updated++;
       }
     }
 
-    // Seed benchmark
-    const existingBenchmark = await this.prisma.cooperativaBenchmark.findFirst({
-      where: { period: COSSEC_BENCHMARK_Q3_2025.period },
-    });
-    if (!existingBenchmark) {
-      await this.prisma.cooperativaBenchmark.create({
-        data: COSSEC_BENCHMARK_Q3_2025,
-      });
+    const staleTagged = await this.tagStaleLegacyProspects();
+
+    const benchmarkSeeded = await this.upsertBenchmarks();
+
+    let intelligence:
+      | { synced: number; created: number; updated: number }
+      | undefined;
+    if (this.institutionIntelligence) {
+      intelligence = await this.institutionIntelligence.syncProspectsToAccounts(
+        Math.max(registry.length, 250),
+      );
     }
 
-    this.logger.log(`Prospect pipeline seeded: ${created} new prospects`);
+    this.logger.log(
+      `Prospect pipeline seeded: created=${created} updated=${updated} unchanged=${unchanged} staleTagged=${staleTagged}`,
+    );
     return {
       created,
-      total: COOPERATIVA_PROSPECTS.length,
-      benchmarkSeeded: !existingBenchmark,
+      updated,
+      unchanged,
+      staleTagged,
+      total: registryProspectCount(),
+      benchmarkSeeded,
+      intelligence,
     };
+  }
+
+  /** Mark legacy name-only prospects that are not in the COSSEC registry. */
+  private async tagStaleLegacyProspects(): Promise<number> {
+    const legacyNames = new Set(
+      LEGACY_COOPERATIVA_PROSPECT_NAMES.map((n) => n.toLowerCase()),
+    );
+    const orphans = await this.prisma.prospectInstitution.findMany({
+      where: {
+        OR: [
+          { publicDataIdentifier: null },
+          {
+            name: {
+              in: [...LEGACY_COOPERATIVA_PROSPECT_NAMES],
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        notes: true,
+        publicDataIdentifier: true,
+        demoUserId: true,
+      },
+    });
+
+    const registryNames = new Set(
+      listPrCooperativas().map((r) => r.displayName.toLowerCase()),
+    );
+    let tagged = 0;
+    for (const row of orphans) {
+      if (row.publicDataIdentifier) continue;
+      const isLegacy = legacyNames.has(row.name.toLowerCase());
+      const notInRegistry = !registryNames.has(row.name.toLowerCase());
+      if (!isLegacy && !notInRegistry) continue;
+      if (row.notes?.includes('stale_pre_registry')) continue;
+      const note = [
+        row.notes,
+        'stale_pre_registry: superseded by COSSEC Anejo 9 charter upsert',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      await this.prisma.prospectInstitution.update({
+        where: { id: row.id },
+        data: { notes: note },
+      });
+      tagged++;
+    }
+    return tagged;
+  }
+
+  private async upsertBenchmarks(): Promise<boolean> {
+    let seeded = false;
+    for (const bench of [COSSEC_BENCHMARK_Q2_2025, COSSEC_BENCHMARK_Q3_2025]) {
+      const existing = await this.prisma.cooperativaBenchmark.findUnique({
+        where: { period: bench.period },
+      });
+      if (!existing) {
+        await this.prisma.cooperativaBenchmark.create({ data: bench });
+        seeded = true;
+      } else if (existing.activeInstitutions !== 91) {
+        await this.prisma.cooperativaBenchmark.update({
+          where: { period: bench.period },
+          data: {
+            activeInstitutions: 91,
+            memberCountTotal: bench.memberCountTotal,
+          },
+        });
+        seeded = true;
+      }
+    }
+    return seeded;
   }
 
   async listProspects() {
     return this.prisma.prospectInstitution.findMany({
       orderBy: [{ estimatedAssets: 'desc' }],
-      take: 100,
+      take: 200,
     });
   }
 

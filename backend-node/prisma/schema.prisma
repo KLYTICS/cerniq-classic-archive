@@ -941,7 +941,13 @@ model ProspectInstitution {
   location              String?
   estimatedAssets       Decimal? @map("estimated_assets") @db.Decimal(18, 2)
   publicDataSource      String?  @map("public_data_source") // cossec | ncua | manual
-  publicDataIdentifier  String?  @map("public_data_identifier") // charter_number for ncua, slug for cossec
+  /// COSSEC charter (Anejo 9 Coop CS) or NCUA charter — unique when set for idempotent registry upsert
+  publicDataIdentifier  String?  @unique @map("public_data_identifier")
+  memberCount           Int?     @map("member_count")
+  employeeCount         Int?     @map("employee_count")
+  region                String?
+  /// ICP tier from assets: tier1 >=$100M | tier2 $50–100M | tier3 <$50M
+  icpTier               String?  @map("icp_tier")
   outreachStatus        String   @default("not_started") @map("outreach_status") // not_started | sample_generated | portal_provisioned | sent | replied | meeting_set | closed
   contactName           String?  @map("contact_name")
   contactEmail          String?  @map("contact_email")

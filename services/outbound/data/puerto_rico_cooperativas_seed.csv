@@ -1,112 +1,92 @@
-institution,institution_type,location,estimated_assets,public_data_source,contact_role,region
-Cooperativa de Ahorro y Crédito de Aguada,cooperativa,"Aguada, PR",150000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Aguadilla,cooperativa,"Aguadilla, PR",180000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Aibonito,cooperativa,"Aibonito, PR",95000000,cossec,Director Financiero,Central
-Cooperativa de Ahorro y Crédito de Añasco,cooperativa,"Añasco, PR",72000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Arecibo,cooperativa,"Arecibo, PR",200000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Arroyo,cooperativa,"Arroyo, PR",45000000,cossec,Gerente General,South
-Cooperativa de Ahorro y Crédito de Barceloneta,cooperativa,"Barceloneta, PR",88000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Barranquitas,cooperativa,"Barranquitas, PR",62000000,cossec,Director Financiero,Central
-Cooperativa de Ahorro y Crédito de Bayamón,cooperativa,"Bayamón, PR",380000000,cossec,Gerente Financiero,Metro
-Cooperativa de Ahorro y Crédito de Cabo Rojo,cooperativa,"Cabo Rojo, PR",135000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Caguas,cooperativa,"Caguas, PR",320000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Camuy,cooperativa,"Camuy, PR",78000000,cossec,Director Financiero,North
-Cooperativa de Ahorro y Crédito de Canóvanas,cooperativa,"Canóvanas, PR",110000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Carolina,cooperativa,"Carolina, PR",260000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito de Cayey,cooperativa,"Cayey, PR",125000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Ceiba,cooperativa,"Ceiba, PR",55000000,cossec,Gerente General,East
-Cooperativa de Ahorro y Crédito de Ciales,cooperativa,"Ciales, PR",42000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Cidra,cooperativa,"Cidra, PR",68000000,cossec,Director Financiero,Central
-Cooperativa de Ahorro y Crédito de Coamo,cooperativa,"Coamo, PR",98000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Comerio,cooperativa,"Comerio, PR",35000000,cossec,Gerente General,Central
-Cooperativa de Ahorro y Crédito de Corozal,cooperativa,"Corozal, PR",52000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Dorado,cooperativa,"Dorado, PR",145000000,cossec,VP Finanzas,North
-Cooperativa de Ahorro y Crédito de Fajardo,cooperativa,"Fajardo, PR",115000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Florida,cooperativa,"Florida, PR",38000000,cossec,Director Financiero,Central
-Cooperativa de Ahorro y Crédito de Guánica,cooperativa,"Guánica, PR",42000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Guayama,cooperativa,"Guayama, PR",130000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Guayanilla,cooperativa,"Guayanilla, PR",55000000,cossec,Gerente General,South
-Cooperativa de Ahorro y Crédito de Guaynabo,cooperativa,"Guaynabo, PR",310000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito de Gurabo,cooperativa,"Gurabo, PR",85000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Hatillo,cooperativa,"Hatillo, PR",92000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Hormigueros,cooperativa,"Hormigueros, PR",65000000,cossec,Director Financiero,West
-Cooperativa de Ahorro y Crédito de Humacao,cooperativa,"Humacao, PR",175000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Isabela,cooperativa,"Isabela, PR",105000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Jayuya,cooperativa,"Jayuya, PR",32000000,cossec,Gerente General,Central
-Cooperativa de Ahorro y Crédito de Juana Díaz,cooperativa,"Juana Díaz, PR",88000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Juncos,cooperativa,"Juncos, PR",72000000,cossec,Director Financiero,East
-Cooperativa de Ahorro y Crédito de Lajas,cooperativa,"Lajas, PR",48000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Lares,cooperativa,"Lares, PR",55000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Las Marías,cooperativa,"Las Marías, PR",28000000,cossec,Gerente General,West
-Cooperativa de Ahorro y Crédito de Las Piedras,cooperativa,"Las Piedras, PR",78000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Loíza,cooperativa,"Loíza, PR",45000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito de Luquillo,cooperativa,"Luquillo, PR",52000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Manatí,cooperativa,"Manatí, PR",140000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Maricao,cooperativa,"Maricao, PR",22000000,cossec,Gerente General,West
-Cooperativa de Ahorro y Crédito de Maunabo,cooperativa,"Maunabo, PR",28000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Mayagüez,cooperativa,"Mayagüez, PR",175000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Moca,cooperativa,"Moca, PR",68000000,cossec,Director Financiero,West
-Cooperativa de Ahorro y Crédito de Morovis,cooperativa,"Morovis, PR",38000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Naguabo,cooperativa,"Naguabo, PR",45000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Naranjito,cooperativa,"Naranjito, PR",35000000,cossec,Gerente General,Central
-Cooperativa de Ahorro y Crédito de Orocovis,cooperativa,"Orocovis, PR",32000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Patillas,cooperativa,"Patillas, PR",40000000,cossec,Director Financiero,South
-Cooperativa de Ahorro y Crédito de Peñuelas,cooperativa,"Peñuelas, PR",55000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Ponce,cooperativa,"Ponce, PR",280000000,cossec,Director Financiero,South
-Cooperativa de Ahorro y Crédito de Quebradillas,cooperativa,"Quebradillas, PR",62000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Rincón,cooperativa,"Rincón, PR",72000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Río Grande,cooperativa,"Río Grande, PR",95000000,cossec,VP Finanzas,East
-Cooperativa de Ahorro y Crédito de Sabana Grande,cooperativa,"Sabana Grande, PR",58000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Salinas,cooperativa,"Salinas, PR",65000000,cossec,Director Financiero,South
-Cooperativa de Ahorro y Crédito de San Germán,cooperativa,"San Germán, PR",120000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de San Juan,cooperativa,"San Juan, PR",420000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito de San Lorenzo,cooperativa,"San Lorenzo, PR",75000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de San Sebastián,cooperativa,"San Sebastián, PR",82000000,cossec,Director Financiero,West
-Cooperativa de Ahorro y Crédito de Santa Isabel,cooperativa,"Santa Isabel, PR",42000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Toa Alta,cooperativa,"Toa Alta, PR",110000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Toa Baja,cooperativa,"Toa Baja, PR",155000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito de Trujillo Alto,cooperativa,"Trujillo Alto, PR",140000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Utuado,cooperativa,"Utuado, PR",48000000,cossec,CFO,Central
-Cooperativa de Ahorro y Crédito de Vega Alta,cooperativa,"Vega Alta, PR",82000000,cossec,Director Financiero,North
-Cooperativa de Ahorro y Crédito de Vega Baja,cooperativa,"Vega Baja, PR",120000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Villalba,cooperativa,"Villalba, PR",38000000,cossec,Gerente General,Central
-Cooperativa de Ahorro y Crédito de Yabucoa,cooperativa,"Yabucoa, PR",65000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito de Yauco,cooperativa,"Yauco, PR",95000000,cossec,Director Financiero,South
-Cooperativa de Ahorro y Crédito Oriental,cooperativa,"Humacao, PR",450000000,cossec,VP Finanzas,East
-Cooperativa de Ahorro y Crédito Roosevelt Roads,cooperativa,"Ceiba, PR",95000000,cossec,Gerente General,East
-Cooperativa de Ahorro y Crédito Jesús Obrero,cooperativa,"San Juan, PR",350000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito de la Sagrada Familia,cooperativa,"San Juan, PR",280000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Empleados de la AEE,cooperativa,"San Juan, PR",220000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito Dr. Manuel Zeno Gandía,cooperativa,"Arecibo, PR",165000000,cossec,Director Financiero,North
-Cooperativa de Ahorro y Crédito de Líderes del Futuro,cooperativa,"Ponce, PR",85000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito de Vieques,cooperativa,"Vieques, PR",18000000,cossec,Gerente General,Islands
-Cooperativa de Ahorro y Crédito de Culebra,cooperativa,"Culebra, PR",12000000,cossec,Gerente General,Islands
-Cooperativa de Ahorro y Crédito La Puertorriqueña,cooperativa,"San Juan, PR",195000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito Abraham Rosa,cooperativa,"Hatillo, PR",145000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito de Empleados del ELA,cooperativa,"San Juan, PR",175000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito de Profesionales de la Salud,cooperativa,"San Juan, PR",210000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Maestros,cooperativa,"San Juan, PR",240000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito de Bomberos,cooperativa,"San Juan, PR",58000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Policía,cooperativa,"San Juan, PR",130000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito de Empleados del Gobierno,cooperativa,"San Juan, PR",290000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito de Empleados de Telefónica,cooperativa,"Guaynabo, PR",115000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito del Oeste,cooperativa,"San Germán, PR",98000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito del Norte,cooperativa,"Arecibo, PR",155000000,cossec,Director Financiero,North
-Cooperativa de Ahorro y Crédito del Sur,cooperativa,"Ponce, PR",140000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito del Este,cooperativa,"Humacao, PR",125000000,cossec,VP Finanzas,East
-Cooperativa de Ahorro y Crédito Eugenio María de Hostos,cooperativa,"Mayagüez, PR",108000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Comerciantes e Industriales,cooperativa,"San Juan, PR",185000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito de Universitarios,cooperativa,"San Juan, PR",92000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Ingenieros,cooperativa,"San Juan, PR",78000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito Vegabajeña,cooperativa,"Vega Baja, PR",135000000,cossec,Director Financiero,North
-Cooperativa de Ahorro y Crédito Hatillana,cooperativa,"Hatillo, PR",88000000,cossec,CFO,North
-Cooperativa de Ahorro y Crédito Ponceña,cooperativa,"Ponce, PR",165000000,cossec,VP Finanzas,South
-Cooperativa de Ahorro y Crédito Cagüeña,cooperativa,"Caguas, PR",195000000,cossec,CFO,East
-Cooperativa de Ahorro y Crédito Bayamonesa,cooperativa,"Bayamón, PR",210000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito Mayagüezana,cooperativa,"Mayagüez, PR",88000000,cossec,CFO,West
-Cooperativa de Ahorro y Crédito de Empleados del DTOP,cooperativa,"San Juan, PR",72000000,cossec,CFO,Metro
-Cooperativa de Ahorro y Crédito de Empleados de la UPR,cooperativa,"San Juan, PR",155000000,cossec,VP Finanzas,Metro
-Cooperativa de Ahorro y Crédito de Empleados del Municipio,cooperativa,"San Juan, PR",65000000,cossec,Director Financiero,Metro
-Cooperativa de Ahorro y Crédito Santa Elena,cooperativa,"Santa Isabel, PR",35000000,cossec,CFO,South
-Cooperativa de Ahorro y Crédito San Rafael,cooperativa,"Quebradillas, PR",52000000,cossec,Gerente General,North
-Cooperativa de Ahorro y Crédito Hermanos Unidos,cooperativa,"Caguas, PR",78000000,cossec,CFO,East
+institution,institution_type,location,estimated_assets,public_data_source,public_data_identifier,contact_role,region,icp_tier,members,employees
+"Coop A/C de Rincón",cooperativa,"Rincón, PR",892977423.88,cossec,007,CFO,Mayagüez,tier1,53112,131
+"COOPACA (Arecibo)",cooperativa,"Arecibo, PR",827487716.8,cossec,283,CFO,Arecibo,tier1,119984,278
+"CrediCentro (Barranquitas)",cooperativa,"Barranquitas, PR",511071473.16,cossec,144,CFO,Caguas,tier1,34702,96
+"Coop A/C de Las Piedras",cooperativa,"Las Piedras, PR",495121338.48,cossec,148,CFO,Caguas,tier1,78367,155
+"Cooperativa Oriental",cooperativa,"Humacao, PR",440798120.12,cossec,038,CFO,Caguas,tier1,27687,121
+"Coop A/C de Isabela",cooperativa,"Isabela, PR",371812473.26,cossec,002,CFO,Arecibo,tier1,48184,70
+"VegaCoop (Vega Alta)",cooperativa,"Vega Alta, PR",363955831.61,cossec,015,CFO,Arecibo,tier1,40386,85
+"CamuyCoop",cooperativa,"Camuy, PR",358209539.17,cossec,016,CFO,Arecibo,tier1,20116,88
+"Coop A/C de Cabo Rojo",cooperativa,"Cabo Rojo, PR",347462024.96,cossec,023,CFO,Mayagüez,tier1,35631,91
+"La Sagrada Familia",cooperativa,"Corozal, PR",339408480.74,cossec,035,CFO,Arecibo,tier1,39860,87
+"Coop A/C de Manatí",cooperativa,"Manatí, PR",334732199.46,cossec,100,CFO,Arecibo,tier1,31389,112
+"Coop A/C San José",cooperativa,"Aibonito, PR",323579377.48,cossec,019,CFO,Caguas,tier1,30432,77
+"Coop A/C de Villalba",cooperativa,"Villalba, PR",287814366.48,cossec,225,CFO,Ponce,tier1,17675,44
+"Medi-Coop",cooperativa,"San Juan, PR",285155295.38,cossec,012,CFO,SJ_Area,tier1,8157,29
+"Dr. Manuel Zeno Gandía",cooperativa,"Arecibo, PR",278000223.58,cossec,098,CFO,Arecibo,tier1,26641,65
+"CandelCoop (Nuestra Sra. Candelaria)",cooperativa,"Mayagüez, PR",252321124.56,cossec,112,CFO,Mayagüez,tier1,16111,47
+"Roosevelt Roads",cooperativa,"Ceiba, PR",246562455.86,cossec,176,CFO,Caguas,tier1,24273,85
+"Mauna-Coop (Maunabo)",cooperativa,"Maunabo, PR",246544052.35,cossec,058,CFO,Caguas,tier1,18764,56
+"LarCoop (Lares y Región Central)",cooperativa,"Lares, PR",236026397.64,cossec,193,CFO,Arecibo,tier1,16834,76
+"San Rafael de Quebradillas",cooperativa,"Quebradillas, PR",231716235.8,cossec,021,CFO,Arecibo,tier1,31479,61
+"Coop A/C de Yauco",cooperativa,"Yauco, PR",178299834.66,cossec,249,CFO,Ponce,tier1,11800,34
+"Valenciano (Juncos)",cooperativa,"Juncos, PR",171568814.14,cossec,156,CFO,Caguas,tier1,16810,48
+"Aiboniteña",cooperativa,"Aibonito, PR",169594918.65,cossec,017,CFO,Caguas,tier1,20135,46
+"Cristóbal Rodríguez Hidalgo",cooperativa,"San Sebastián, PR",164343133.07,cossec,005,CFO,Arecibo,tier1,12041,58
+"Coop A/C de Juana Díaz",cooperativa,"Juana Díaz, PR",162801351.18,cossec,040,CFO,Ponce,tier1,19851,34
+"Coop A/C de Hatillo",cooperativa,"Hatillo, PR",154223988.24,cossec,175,CFO,Arecibo,tier1,18255,39
+"Asoc. de Maestros PR",cooperativa,"San Juan, PR",149857531.94,cossec,174,CFO,SJ_Area,tier1,12506,42
+"Coop A/C de Aguadilla",cooperativa,"Aguadilla, PR",149736004.93,cossec,260,CFO,Mayagüez,tier1,14952,42
+"Naguabeña",cooperativa,"Naguabo, PR",145264021.16,cossec,169,CFO,Caguas,tier1,10463,45
+"Crédito La Puertorriqueña",cooperativa,"San Juan, PR",140658551.31,cossec,241,CFO,SJ_Area,tier1,13614,47
+"Coop A/C de Adjuntas",cooperativa,"Adjuntas, PR",137933076.72,cossec,104,CFO,Ponce,tier1,7654,23
+"Caguas Coop",cooperativa,"Caguas, PR",136620545.3,cossec,092,CFO,Caguas,tier1,12276,35
+"Jesús Obrero",cooperativa,"San Juan, PR",132939564.96,cossec,245,CFO,SJ_Area,tier1,10716,46
+"Cidreña",cooperativa,"Cidra, PR",124157892.76,cossec,031,CFO,Caguas,tier1,14519,31
+"Pepiniana",cooperativa,"San Sebastián, PR",122451856.88,cossec,091,CFO,Arecibo,tier1,9003,21
+"Coop A/C de Aguas Buenas",cooperativa,"Aguas Buenas, PR",120946492.71,cossec,229,CFO,Caguas,tier1,14068,42
+"Hermanos Unidos",cooperativa,"San Juan, PR",105158981.31,cossec,078,CFO,SJ_Area,tier1,4737,23
+"San Blas de Illescas",cooperativa,"Coamo, PR",104145043.31,cossec,011,CFO,Ponce,tier1,9328,33
+"Moroveña",cooperativa,"Morovis, PR",104095050.21,cossec,183,CFO,Arecibo,tier1,15787,41
+"Quebrada Coop",cooperativa,"Camuy, PR",101002407.01,cossec,107,CFO,Arecibo,tier1,8660,37
+"Padre Salvador Ruffolo",cooperativa,"Guayama, PR",99862125.74,cossec,006,CFO,Ponce,tier2,8172,25
+"Coop A/C de Moca",cooperativa,"Moca, PR",97607901.28,cossec,111,CFO,Mayagüez,tier2,16585,28
+"Caribe-Coop",cooperativa,"Carolina, PR",94664088.28,cossec,045,CFO,SJ_Area,tier2,7196,29
+"Yabucoeña",cooperativa,"Yabucoa, PR",94230550.57,cossec,036,CFO,Caguas,tier2,8731,26
+"Padre Mac Donald",cooperativa,"Ponce, PR",93245001.2,cossec,004,CFO,Ponce,tier2,6485,22
+"Coop A/C de Mayagüez",cooperativa,"Mayagüez, PR",90961229.26,cossec,206,CFO,Mayagüez,tier2,12648,40
+"Industria Biofarmacéutica",cooperativa,"Juncos, PR",87924036.57,cossec,160,CFO,Caguas,tier2,4232,29
+"Saulo D. Rodríguez",cooperativa,"Gurabo, PR",86196979.26,cossec,060,CFO,Caguas,tier2,6747,21
+"Coop A/C de Lajas",cooperativa,"Lajas, PR",85155429.54,cossec,034,CFO,Mayagüez,tier2,7263,28
+"Cupey Alto",cooperativa,"San Juan, PR",83161440.07,cossec,043,CFO,SJ_Area,tier2,6776,26
+"Lomas Verdes",cooperativa,"Bayamón, PR",80861151.17,cossec,189,CFO,SJ_Area,tier2,7476,21
+"La Comerieña",cooperativa,"Comerío, PR",74924024.94,cossec,185,CFO,Caguas,tier2,6548,21
+"JayuCoop (Jayuya)",cooperativa,"Jayuya, PR",73669583.38,cossec,001,CFO,Ponce,tier2,7522,18
+"Rafael Carrión Jr.",cooperativa,"Guaynabo, PR",68436815.88,cossec,170,CFO,SJ_Area,tier2,4943,8
+"Comunal San Miguel",cooperativa,"Cabo Rojo, PR",68415336.44,cossec,258,CFO,Mayagüez,tier2,5494,21
+"Coop A/C de Florida",cooperativa,"Florida, PR",66036890.28,cossec,269,CFO,Arecibo,tier2,8444,32
+"Vegabajeña",cooperativa,"Vega Baja, PR",60929271.87,cossec,184,CFO,Arecibo,tier2,7552,28
+"Santa Isabel (CACSI)",cooperativa,"Santa Isabel, PR",60806148.73,cossec,152,CFO,Ponce,tier2,6454,27
+"TUCOOP",cooperativa,"San Juan, PR",55686821.6,cossec,290,CFO,SJ_Area,tier2,2799,38
+"Federación de Maestros",cooperativa,"San Juan, PR",53056306.4,cossec,244,CFO,SJ_Area,tier2,7025,14
+"Los Hermanos",cooperativa,"San Juan, PR",45682066.29,cossec,250,CFO,SJ_Area,tier3,2950,9
+"Universi-Coop",cooperativa,"San Juan, PR",36237753.69,cossec,252,CFO,SJ_Area,tier3,3983,16
+"Coop A/C de Salinas",cooperativa,"Salinas, PR",35200878.46,cossec,224,CFO,Ponce,tier3,3505,8
+"Nuestra Coop (ex-COOPAEE)",cooperativa,"San Juan, PR",27833440.88,cossec,191,CFO,SJ_Area,tier3,2060,5
+"Familiar Progresista",cooperativa,"San Juan, PR",18254510.56,cossec,246,CFO,SJ_Area,tier3,1732,4
+"Emp. Corporación Fondo Seguro del Estado",cooperativa,"San Juan, PR",17230923.89,cossec,108,CFO,SJ_Area,tier3,1244,5
+"Electro-Coop",cooperativa,"San Juan, PR",14985229.55,cossec,265,CFO,SJ_Area,tier3,732,3
+"Emp. Municipales Guaynabo",cooperativa,"Guaynabo, PR",13952644.1,cossec,204,CFO,SJ_Area,tier3,1816,10
+"Centro Gubernamental Minillas",cooperativa,"San Juan, PR",13294209.72,cossec,236,CFO,SJ_Area,tier3,1150,3
+"Judi-Coop",cooperativa,"San Juan, PR",13034105.85,cossec,116,CFO,SJ_Area,tier3,1636,7
+"IslaCoop",cooperativa,"San Juan, PR",12995884.49,cossec,014,CFO,SJ_Area,tier3,1079,6
+"Emp. Departamento Educación",cooperativa,"San Juan, PR",12484070.83,cossec,018,CFO,SJ_Area,tier3,1404,4
+"Holsum de P.R.",cooperativa,"Toa Baja, PR",11976336.47,cossec,082,CFO,SJ_Area,tier3,544,3
+"Agentes Lotería P.R.",cooperativa,"San Juan, PR",11101548.51,cossec,030,CFO,SJ_Area,tier3,993,16
+"La Casa del Trabajador",cooperativa,"San Juan, PR",9706035.41,cossec,164,CFO,SJ_Area,tier3,746,5
+"Colegio de Ingenieros y Agrimensores",cooperativa,"San Juan, PR",9424072.25,cossec,286,CFO,SJ_Area,tier3,787,3
+"COOPACOP",cooperativa,"San Juan, PR",9397522.36,cossec,063,CFO,SJ_Area,tier3,1006,4
+"Inter Metro",cooperativa,"San Juan, PR",8964653.55,cossec,231,CFO,SJ_Area,tier3,619,3
+"Metodistas Unidos",cooperativa,"San Juan, PR",8062675.74,cossec,131,CFO,SJ_Area,tier3,913,3
+"Rico Dairy Inc",cooperativa,"San Juan, PR",8014830.52,cossec,165,CFO,SJ_Area,tier3,1012,2
+"Ana G. Méndez",cooperativa,"San Juan, PR",7663099.02,cossec,129,CFO,SJ_Area,tier3,825,3
+"Cooperativa A/C de San Juan",cooperativa,"San Juan, PR",7618595.52,cossec,153,CFO,SJ_Area,tier3,995,3
+"Goya de P.R.",cooperativa,"Bayamón, PR",5653324.25,cossec,090,CFO,SJ_Area,tier3,377,2
+"Educadores Puertorriqueños",cooperativa,"San Juan, PR",4601268.05,cossec,282,CFO,SJ_Area,tier3,905,4
+"Emp. Departamento Hacienda",cooperativa,"San Juan, PR",3952374.8,cossec,211,CFO,SJ_Area,tier3,710,3
+"Iglesia de Dios Mission Board",cooperativa,"San Juan, PR",3694640.72,cossec,289,CFO,SJ_Area,tier3,436,0
+"Emp. Plaza Provision Co.",cooperativa,"San Juan, PR",3544918.11,cossec,064,CFO,SJ_Area,tier3,322,0
+"Crédito Bacardi",cooperativa,"Cataño, PR",2978046.46,cossec,054,CFO,SJ_Area,tier3,282,2
+"Empleados First Bank",cooperativa,"San Juan, PR",2779819.71,cossec,142,CFO,SJ_Area,tier3,643,2
+"RIM Coop",cooperativa,"San Juan, PR",1247818.34,cossec,079,CFO,SJ_Area,tier3,128,0
+"Personal Ballester Hnos.",cooperativa,"San Juan, PR",847095.41,cossec,075,CFO,SJ_Area,tier3,175,0
