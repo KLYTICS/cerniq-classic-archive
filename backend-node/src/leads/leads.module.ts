@@ -12,6 +12,7 @@ import { FreeReportService } from './free-report.service';
 import { FreeReportPdfService } from './free-report-pdf.service';
 import { FreeReportEmailService } from './free-report-email.service';
 import { FreeReportController } from './free-report.controller';
+import { GtmEnrichmentService } from './gtm-enrichment.service';
 
 @Module({
   imports: [EmailModule, AlmModule, forwardRef(() => PortalModule)],
@@ -25,6 +26,7 @@ import { FreeReportController } from './free-report.controller';
     FreeReportService,
     FreeReportPdfService,
     FreeReportEmailService,
+    GtmEnrichmentService,
   ],
   exports: [
     LeadsService,
@@ -35,6 +37,7 @@ import { FreeReportController } from './free-report.controller';
     FreeReportService,
     FreeReportPdfService,
     FreeReportEmailService,
+    GtmEnrichmentService,
   ],
 })
 export class LeadsModule {}

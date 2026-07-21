@@ -21,6 +21,7 @@ import { OutreachExecutionService } from './outreach-execution.service';
 import { InstitutionIntelligenceService } from './institution-intelligence.service';
 import { DemoSeatService } from '../portal/demo-seat.service';
 import { DemoSeatAnalyticsService } from '../portal/demo-seat-analytics.service';
+import { GtmEnrichmentService } from './gtm-enrichment.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import { AdminKeyGuard } from '../auth/admin-key.guard';
 
@@ -44,6 +45,7 @@ export class LeadsController {
     private readonly intelligence: InstitutionIntelligenceService,
     private readonly demoSeats: DemoSeatService,
     private readonly demoSeatAnalytics: DemoSeatAnalyticsService,
+    private readonly gtmEnrichment: GtmEnrichmentService,
   ) {}
 
   // ── Public endpoint (rate-limited at app level) ──
@@ -104,6 +106,53 @@ export class LeadsController {
   @UseGuards(AdminKeyGuard)
   async seedProspects() {
     return this.leads.seedProspectPipeline();
+  }
+
+  @Post('admin/api/prospects/seed-all')
+  @UseGuards(AdminKeyGuard)
+  async seedAllCooperativas() {
+    return this.gtmEnrichment.seedAllCooperativasFromCsv();
+  }
+
+  @Post('admin/api/gtm/enrich-all')
+  @UseGuards(AdminKeyGuard)
+  async enrichAllGtm(
+    @Query('syncIntelligence') syncIntelligence?: string,
+    @Query('scoreLeads') scoreLeads?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.gtmEnrichment.runFullPipeline(undefined);
+  }
+
+  @Post('admin/api/gtm/enrich-prospects')
+  @UseGuards(AdminKeyGuard)
+  async enrichProspectsOnly(
+    @Query('syncIntelligence') syncIntelligence?: string,
+    @Query('scoreLeads') scoreLeads?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.gtmEnrichment.enrichAllProspects({
+      syncIntelligence: syncIntelligence !== 'false',
+      scoreLeads: scoreLeads !== 'false',
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @Post('admin/api/gtm/linkedin-import')
+  @UseGuards(AdminKeyGuard)
+  async importLinkedIn(@Body('csv') csv: string) {
+    if (!csv || typeof csv !== 'string' || csv.trim().length < 10) {
+      throw new BadRequestException(
+        'Request body must include a non-empty "csv" string (LinkedIn connections export)',
+      );
+    }
+    return this.gtmEnrichment.importLinkedInConnections(csv);
+  }
+
+  @Get('admin/api/gtm/field-playbook')
+  @UseGuards(AdminKeyGuard)
+  async getFieldSalesPlaybook() {
+    return this.gtmEnrichment.buildFieldSalesPlaybook();
   }
 
   @Get('admin/api/prospects')
