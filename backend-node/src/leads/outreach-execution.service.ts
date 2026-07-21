@@ -62,17 +62,32 @@ export class OutreachExecutionService {
   async executeBulkOutreach(
     lang: 'en' | 'es' = 'es',
     limit: number = 10,
-  ): Promise<{ total: number; sent: number; failed: number }> {
-    // Find prospects that haven't been contacted yet
+    options?: { icpTier?: string },
+  ): Promise<{
+    total: number;
+    sent: number;
+    failed: number;
+    skippedNoEmail: number;
+  }> {
+    const capped = Math.min(Math.max(limit, 1), 91);
     const prospects = await this.prisma.prospectInstitution.findMany({
-      where: { outreachStatus: 'not_started' },
-      take: limit,
-      orderBy: { estimatedAssets: 'desc' }, // Largest first
+      where: {
+        outreachStatus: 'not_started',
+        contactEmail: { not: null },
+        ...(options?.icpTier ? { icpTier: options.icpTier } : {}),
+      },
+      take: capped,
+      orderBy: { estimatedAssets: 'desc' },
     });
 
     let sent = 0;
     let failed = 0;
+    let skippedNoEmail = 0;
     for (const prospect of prospects) {
+      if (!prospect.contactEmail) {
+        skippedNoEmail++;
+        continue;
+      }
       const result = await this.executeOutreach(prospect.id, lang);
       if (result.sent) sent++;
       else failed++;
@@ -80,6 +95,6 @@ export class OutreachExecutionService {
       await new Promise((r) => setTimeout(r, 2000));
     }
 
-    return { total: prospects.length, sent, failed };
+    return { total: prospects.length, sent, failed, skippedNoEmail };
   }
 }

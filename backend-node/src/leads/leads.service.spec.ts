@@ -450,9 +450,10 @@ describe('LeadsService', () => {
 
       const result = await service.generateOutreach('p-1');
 
-      expect(result.subject).toContain('Informe ALM gratuito');
+      expect(result.subject).toContain('Informe ALM bilingüe');
       expect(result.body).toContain('Estimado/a Director Financiero');
       expect(result.body).toContain('CERNIQ');
+      expect(result.body).toContain('subir el balance');
       expect(result.body).toContain('San Juan, PR');
       expect(result.prospect.name).toBe('Cooperativa ABC');
     });
@@ -472,9 +473,10 @@ describe('LeadsService', () => {
 
       const result = await service.generateOutreach('p-2', 'en');
 
-      expect(result.subject).toContain('Free ALM Report');
+      expect(result.subject).toContain('Bilingual ALM report');
       expect(result.body).toContain('Dear CFO');
       expect(result.body).toContain('CERNIQ');
+      expect(result.body).toContain('operating system');
     });
 
     it('should flag above-median prospects differently', async () => {
@@ -495,7 +497,7 @@ describe('LeadsService', () => {
       expect(result.flags[0]).toContain('por encima de la mediana');
     });
 
-    it('should flag below-median prospects for economies of scale', async () => {
+    it('should flag below-median prospects for automated ALM', async () => {
       prisma.prospectInstitution.findUniqueOrThrow.mockResolvedValue({
         id: 'p-4',
         name: 'Small Coop',
@@ -509,7 +511,66 @@ describe('LeadsService', () => {
 
       const result = await service.generateOutreach('p-4', 'en');
 
-      expect(result.flags[0]).toContain('economies of scale');
+      expect(result.flags[0]).toContain('automated ALM');
+    });
+  });
+
+  describe('getPortfolioSummary', () => {
+    it('aggregates ICP tiers, email readiness, and assets', async () => {
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          icpTier: 'tier1',
+          outreachStatus: 'not_started',
+          contactEmail: 'a@coop.pr',
+          estimatedAssets: 200_000_000,
+          institutionType: 'cooperativa',
+        },
+        {
+          icpTier: 'tier2',
+          outreachStatus: 'sent',
+          contactEmail: null,
+          estimatedAssets: 75_000_000,
+          institutionType: 'cooperativa',
+        },
+      ]);
+
+      const result = await service.getPortfolioSummary();
+
+      expect(result.total).toBe(2);
+      expect(result.cooperativas).toBe(2);
+      expect(result.withEmail).toBe(1);
+      expect(result.withoutEmail).toBe(1);
+      expect(result.byTier.tier1).toBe(1);
+      expect(result.byTier.tier2).toBe(1);
+      expect(result.totalAssetsUsd).toBe(275_000_000);
+      expect(result.mission).toContain('CERNIQ');
+    });
+  });
+
+  describe('exportPortfolioCsv', () => {
+    it('emits header + escaped rows', async () => {
+      prisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          name: 'Coop "Alpha"',
+          publicDataIdentifier: '123',
+          location: 'San Juan',
+          region: 'Metro',
+          icpTier: 'tier1',
+          estimatedAssets: 100_000_000,
+          memberCount: 1000,
+          employeeCount: 20,
+          outreachStatus: 'not_started',
+          contactRole: 'CFO',
+          contactName: null,
+          contactEmail: null,
+          institutionType: 'cooperativa',
+        },
+      ]);
+
+      const csv = await service.exportPortfolioCsv();
+      expect(csv).toContain('name,cossec_charter');
+      expect(csv).toContain('"Coop ""Alpha"""');
+      expect(csv).toContain('123');
     });
   });
 

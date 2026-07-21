@@ -2095,11 +2095,161 @@ class APIClient {
     URL.revokeObjectURL(url);
   }
 
-  // Prospect CRM
-  async getProspects(stage?: string) {
-    const params = stage ? `?stage=${stage}` : '';
-    const response = await this.client.get(`${NODE_API_URL}/admin/api/prospects${params}`, { headers: this.adminHeaders() });
+  // Prospect CRM / COSSEC portfolio suite
+  async getProspects(filters?: {
+    icpTier?: string;
+    outreachStatus?: string;
+    hasEmail?: boolean;
+    /** @deprecated legacy stage query — ignored by registry list */
+    stage?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.icpTier) params.set('icpTier', filters.icpTier);
+    if (filters?.outreachStatus)
+      params.set('outreachStatus', filters.outreachStatus);
+    if (typeof filters?.hasEmail === 'boolean') {
+      params.set('hasEmail', String(filters.hasEmail));
+    }
+    if (filters?.stage) params.set('stage', filters.stage);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/prospects${qs}`,
+      { headers: this.adminHeaders() },
+    );
     return response.data;
+  }
+
+  async getPortfolioSummary(): Promise<{
+    total: number;
+    cooperativas: number;
+    withEmail: number;
+    withoutEmail: number;
+    byTier: Record<string, number>;
+    byOutreach: Record<string, number>;
+    totalAssetsUsd: number;
+    mission: string;
+  }> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/prospects/portfolio/summary`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async getOutreachDraft(
+    prospectId: string,
+    lang: 'en' | 'es' = 'es',
+  ): Promise<{
+    subject: string;
+    body: string;
+    flags: string[];
+    prospect: {
+      name: string;
+      assets: string;
+      location: string | null;
+      icpTier?: string | null;
+      cossecCharter?: string | null;
+    };
+  }> {
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/prospects/${prospectId}/outreach?lang=${lang}`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async getOutreachDraftPack(options?: {
+    lang?: 'en' | 'es';
+    icpTier?: string;
+    limit?: number;
+  }): Promise<{
+    lang: string;
+    count: number;
+    withEmail: number;
+    drafts: Array<{
+      prospectId: string;
+      name: string;
+      icpTier: string | null;
+      contactEmail: string | null;
+      contactRole: string | null;
+      outreachStatus: string;
+      subject: string;
+      body: string;
+      mailto: string | null;
+    }>;
+  }> {
+    const params = new URLSearchParams();
+    params.set('lang', options?.lang ?? 'es');
+    if (options?.icpTier) params.set('icpTier', options.icpTier);
+    if (typeof options?.limit === 'number')
+      params.set('limit', String(options.limit));
+    const response = await this.client.get(
+      `${NODE_API_URL}/admin/api/prospects/portfolio/draft-pack?${params}`,
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async sendProspectOutreach(
+    prospectId: string,
+    lang: 'en' | 'es' = 'es',
+  ): Promise<{ sent: boolean; error?: string }> {
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/prospects/${prospectId}/send-outreach?lang=${lang}`,
+      {},
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  async bulkProspectOutreach(options?: {
+    lang?: 'en' | 'es';
+    limit?: number;
+    icpTier?: string;
+  }): Promise<{
+    total: number;
+    sent: number;
+    failed: number;
+    skippedNoEmail: number;
+  }> {
+    const params = new URLSearchParams();
+    params.set('lang', options?.lang ?? 'es');
+    params.set('limit', String(options?.limit ?? 10));
+    if (options?.icpTier) params.set('icpTier', options.icpTier);
+    const response = await this.client.post(
+      `${NODE_API_URL}/admin/api/prospects/bulk-outreach?${params}`,
+      {},
+      { headers: this.adminHeaders() },
+    );
+    return response.data;
+  }
+
+  downloadPortfolioCsv(filters?: {
+    icpTier?: string;
+    outreachStatus?: string;
+  }): void {
+    const params = new URLSearchParams();
+    if (filters?.icpTier) params.set('icpTier', filters.icpTier);
+    if (filters?.outreachStatus)
+      params.set('outreachStatus', filters.outreachStatus);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const key = getStoredAdminKey();
+    const url = `${NODE_API_URL}/admin/api/prospects/portfolio/export.csv${qs}`;
+    // Open with admin key via fetch+blob so the download works from the browser
+    void fetch(url, { headers: { 'x-admin-key': key || '' } })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`CSV export failed (${res.status})`);
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = 'cerniq-coop-portfolio.csv';
+        a.click();
+        URL.revokeObjectURL(objectUrl);
+      })
+      .catch((err: unknown) => {
+        console.error(err);
+      });
   }
 
   async createProspect(data: { name: string; email?: string; company?: string; role?: string; stage?: string; source?: string; notes?: string }) {
