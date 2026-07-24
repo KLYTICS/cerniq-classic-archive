@@ -21,6 +21,7 @@ describe('CooperativaDirectoryService', () => {
     prospectInstitution: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     cooperativaOrgProfile: {
       findUnique: jest.fn(),
@@ -49,7 +50,9 @@ describe('CooperativaDirectoryService', () => {
       estimatedAssets: 320_000_000,
       publicDataIdentifier: 'caguas',
       contactRole: 'CFO',
+      notes: null,
     });
+    prisma.prospectInstitution.update.mockResolvedValue({});
     prisma.cooperativaOrgProfile.findUnique.mockResolvedValue(null);
     prisma.cooperativaOrgProfile.create.mockResolvedValue({ id: 'profile-1' });
     prisma.cooperativaOrgUnit.upsert.mockImplementation(({ create }: { create: { unitKey: string } }) =>
@@ -68,6 +71,9 @@ describe('CooperativaDirectoryService', () => {
     expect(prisma.cooperativaLeadershipSeat.upsert).toHaveBeenCalledTimes(
       COOPERATIVA_LEADERSHIP_ROLES.length,
     );
+    expect(prisma.prospectInstitution.update).toHaveBeenCalled();
+    const createCall = prisma.cooperativaOrgProfile.create.mock.calls[0][0];
+    expect(createCall.data.metadata.outreach.secure.pii).toBe('none');
   });
 
   it('builds agent bundle with schema version', async () => {
@@ -80,11 +86,35 @@ describe('CooperativaDirectoryService', () => {
       municipality: 'Caguas',
       regulator: 'COSSEC',
       structureVersion: '2026.1',
+      metadata: {
+        seedContactRole: 'CFO',
+        outreach: {
+          v: 1,
+          score: 92,
+          grade: 'A',
+          tier: 1,
+          pri: 'H',
+          role: 'cfo',
+          roleLabel: 'CFO',
+          ch: ['ip', 'li', 'em'],
+          seq: 'in-person → LinkedIn → email',
+          hook: 'test hook',
+          ask: '15-min walkthrough',
+          note: 'Caguas outreach note',
+          route: { r: 'East', w: 2 },
+          cossec: true,
+          cossecSlug: 'caguas',
+          assetsM: 320,
+          loc: 'Caguas, PR',
+          secure: { pii: 'none', access: 'admin' },
+        },
+      },
       prospect: {
         name: 'Cooperativa de Ahorro y Crédito de Caguas',
         location: 'Caguas, PR',
         estimatedAssets: 320_000_000,
         publicDataIdentifier: 'caguas',
+        contactRole: 'CFO',
       },
       units: [
         {
@@ -111,7 +141,16 @@ describe('CooperativaDirectoryService', () => {
           linkedinUrl: null,
           isPrimaryBuyer: true,
           isPlaceholder: true,
-          provenance: 'org_template',
+          provenance: 'org_template+outreach',
+          metadata: {
+            contactNote: {
+              approach: 'Primary ALM buyer',
+              openerEs: 'Buenos días',
+              openerEn: 'Hi',
+              bestChannel: 'in_person',
+              nextAction: '15-min walkthrough',
+            },
+          },
         },
       ],
     });
@@ -121,5 +160,9 @@ describe('CooperativaDirectoryService', () => {
     expect(bundle.institutionCount).toBe(1);
     expect(bundle.institutions[0].slug).toBe('caguas');
     expect(bundle.institutions[0].primaryBuyers).toHaveLength(1);
+    expect(bundle.institutions[0].outreach.grade).toBe('A');
+    expect(bundle.institutions[0].primaryBuyers[0].contactNote?.bestChannel).toBe(
+      'in_person',
+    );
   });
 });

@@ -1,3 +1,8 @@
+import type {
+  CooperativaOutreach,
+  CooperativaSeatContactNote,
+} from './cooperativa-outreach';
+
 export const COOPERATIVA_DIRECTORY_SCHEMA_VERSION = 'cerniq.cooperativa-directory.v1';
 
 export type AgentBundleLeadershipSeat = {
@@ -17,6 +22,7 @@ export type AgentBundleLeadershipSeat = {
   isPrimaryBuyer: boolean;
   isPlaceholder: boolean;
   provenance: string;
+  contactNote: CooperativaSeatContactNote | null;
 };
 
 export type AgentBundleOrgUnit = {
@@ -39,6 +45,7 @@ export type AgentBundleInstitution = {
   regulator: string;
   structureVersion: string;
   cossecSlug: string | null;
+  outreach: CooperativaOutreach;
   orgUnits: AgentBundleOrgUnit[];
   primaryBuyers: AgentBundleLeadershipSeat[];
   leadershipFlat: AgentBundleLeadershipSeat[];

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Offline cooperativa leadership directory — no database required.
- * Produces agent-ready bundle for Hermes/OpenClaw handoff.
+ * Offline cooperativa leadership directory + secured outreach enrichment.
+ * No database required. Never fabricates personal emails/phones/names.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,6 +10,10 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CSV_PATH = path.join(ROOT, 'services/outbound/data/puerto_rico_cooperativas_seed.csv');
+const COSSEC_PATH = path.join(
+  ROOT,
+  'backend-node/src/alm/data-pull/cossec-snapshots/cossec-2025q4.ts',
+);
 const OUT_DIR = process.env.COOP_DIRECTORY_ROOT || path.join(ROOT, 'data/cooperativa-directory');
 
 const ORG_UNITS = [
@@ -52,6 +56,23 @@ const ROLE_MAP = {
   Presidente: 'gerente_general',
 };
 
+const ROLE_LABEL = {
+  cfo: 'CFO',
+  gerente_financiero: 'Gerente Financiero / VP Finanzas',
+  director_financiero: 'Director Financiero',
+  gerente_general: 'Gerente General',
+};
+
+const REGION_WEEK = {
+  Metro: 1,
+  East: 2,
+  South: 3,
+  West: 4,
+  North: 5,
+  Central: 6,
+  Islands: 7,
+};
+
 function parseCsvLine(line) {
   const fields = [];
   let current = '';
@@ -82,31 +103,154 @@ function loadCsv() {
   });
 }
 
+function loadCossecSlugs() {
+  const raw = fs.readFileSync(COSSEC_PATH, 'utf8');
+  const slugs = [...raw.matchAll(/slug:\s*'([^']+)'/g)].map((m) => m[1]);
+  const names = [...raw.matchAll(/name:\s*'([^']+)'/g)].map((m) => m[1]);
+  return names.map((name, i) => ({ name, slug: slugs[i] })).filter((x) => x.slug);
+}
+
 function slugify(name) {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/cooperativa de ahorro y credito (de )?/g, '')
     .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
 }
 
-function buildInstitution(row) {
+function normalize(input) {
+  return input.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/cooperativa de ahorro y credito (de )?/g, '')
+    .replace(/[^a-z0-9\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function matchCossec(name, cossecEntries) {
+  const slug = slugify(name);
+  const exact = cossecEntries.find((e) => e.slug === slug);
+  if (exact) return exact.slug;
+  const normalized = normalize(name);
+  for (const entry of cossecEntries) {
+    if (normalize(entry.name) === normalized) return entry.slug;
+    if (normalized.includes(entry.slug.replace(/-/g, ' '))) return entry.slug;
+  }
+  const words = normalized.split(' ').filter((w) => w.length >= 4);
+  for (const entry of cossecEntries) {
+    const entryNorm = normalize(entry.name);
+    for (const word of words) {
+      if (entry.slug === word || entryNorm.includes(word)) return entry.slug;
+    }
+  }
+  return null;
+}
+
+function scoreInstitution({ estimatedAssets, contactRole, region, cossec }) {
+  let score = 40;
+  if (estimatedAssets >= 300_000_000) score += 35;
+  else if (estimatedAssets >= 200_000_000) score += 30;
+  else if (estimatedAssets >= 100_000_000) score += 20;
+  else if (estimatedAssets >= 50_000_000) score += 10;
+  if (cossec) score += 15;
+  const roleKey = ROLE_MAP[contactRole] || 'cfo';
+  if (['cfo', 'gerente_financiero', 'director_financiero'].includes(roleKey)) score += 12;
+  else if (roleKey === 'gerente_general') score += 8;
+  if (region === 'Metro' || region === 'East') score += 5;
+  score = Math.min(100, score);
+  const grade = score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : 'D';
+  const tier = estimatedAssets >= 200_000_000 ? 1 : estimatedAssets >= 100_000_000 ? 2 : 3;
+  const pri = grade === 'A' || tier === 1 ? 'H' : grade === 'B' ? 'M' : 'L';
+  return { score, grade, tier, pri, roleKey };
+}
+
+function buildOutreach(row, cossecSlug) {
+  const cossec = Boolean(cossecSlug);
+  const { score, grade, tier, pri, roleKey } = scoreInstitution({
+    estimatedAssets: row.estimatedAssets,
+    contactRole: row.contactRole,
+    region: row.region,
+    cossec,
+  });
+  const roleLabel = ROLE_LABEL[roleKey] || row.contactRole || 'CFO';
+  const assetsM = Math.round((row.estimatedAssets || 0) / 1_000_000);
+  const municipality = row.location?.split(',')[0]?.trim() || null;
+  const ch = pri === 'H' ? (cossec ? ['ip', 'li', 'em'] : ['ip', 'li', 'em', 'ph'])
+    : pri === 'M' ? ['li', 'em', 'ip'] : ['em', 'li'];
+  const label = { ip: 'in-person', em: 'email', li: 'LinkedIn', ph: 'phone' };
+  const seq = ch.map((c) => label[c]).join(' → ');
+  const size = assetsM >= 200 ? 'tier-1' : assetsM >= 100 ? 'mid-market' : 'community';
+  const hook = roleKey === 'gerente_general'
+    ? `Gerente General · ${size}: board/ALCO pack + COSSEC readiness`
+    : cossec
+      ? `Finance buyer · ${size} + COSSEC snapshot: free health score → ALM demo`
+      : `Finance buyer · ${size}: estimate-based health preview → COSSEC data ask`;
+  const ask = pri === 'H'
+    ? '15-min in-person ALM walkthrough this week; leave bilingual one-pager'
+    : pri === 'M'
+      ? 'LinkedIn + email: offer free COSSEC-aligned health report PDF'
+      : 'Email nurture: quarterly COSSEC ratio brief; request decision-maker intro';
+  const cossecBit = cossec
+    ? 'COSSEC snapshot linked — lead with published ratios'
+    : 'No COSSEC snapshot yet — ask for latest quarterly filing';
+  const note = `${municipality || row.region} · T${tier}/${grade} · ask for ${roleLabel}. ${cossecBit}. Assets ~$${assetsM}M. Bilingual ES/EN. No cold spam; one touch + value.`;
+
+  return {
+    v: 1,
+    score,
+    grade,
+    tier,
+    pri,
+    role: roleKey,
+    roleLabel,
+    ch,
+    seq,
+    hook,
+    ask,
+    note,
+    route: { r: row.region || 'Unknown', w: REGION_WEEK[row.region] || 8 },
+    cossec,
+    cossecSlug,
+    assetsM,
+    loc: row.location || municipality || row.region || '',
+    secure: { pii: 'none', access: 'admin' },
+  };
+}
+
+function buildSeatContactNote(roleKey, isPrimaryBuyer, outreach) {
+  if (!isPrimaryBuyer) return null;
+  const title = ROLE_LABEL[roleKey] || outreach.roleLabel;
+  const bestChannel = outreach.pri === 'H' ? 'in_person' : outreach.pri === 'M' ? 'linkedin' : 'email';
+  return {
+    approach: `Primary ALM buyer (${title}). ${outreach.seq}.`,
+    openerEs: `Buenos días — soy de CERNIQ. Preparamos un brief bilingüe de salud ALM/COSSEC para ${outreach.loc} (~$${outreach.assetsM}M). ¿15 min con ${title}?`,
+    openerEn: `Hi — CERNIQ here. We prepared a bilingual ALM/COSSEC health brief for ${outreach.loc} (~$${outreach.assetsM}M). 15 min with ${title}?`,
+    bestChannel,
+    nextAction: outreach.ask,
+  };
+}
+
+function buildInstitution(row, cossecEntries) {
   const slug = slugify(row.name);
   const primaryRoleKey = ROLE_MAP[row.contactRole] || 'cfo';
-  const leadershipFlat = ROLES.map((role) => ({
-    roleKey: role.roleKey,
-    titleEs: role.titleEs,
-    titleEn: role.titleEn,
-    unitKey: role.unitKey,
-    decisionTier: role.decisionTier,
-    almBuyerPriority: role.almBuyerPriority,
-    reportsToRoleKey: role.reportsToRoleKey,
-    fullName: null,
-    email: null,
-    phone: null,
-    linkedinUrl: null,
-    isPrimaryBuyer: role.roleKey === primaryRoleKey,
-    isPlaceholder: true,
-    provenance: 'org_template',
-  }));
+  const cossecSlug = matchCossec(row.name, cossecEntries);
+  const outreach = buildOutreach(row, cossecSlug);
+
+  const leadershipFlat = ROLES.map((role) => {
+    const isPrimaryBuyer = role.roleKey === primaryRoleKey;
+    return {
+      roleKey: role.roleKey,
+      titleEs: role.titleEs,
+      titleEn: role.titleEn,
+      unitKey: role.unitKey,
+      decisionTier: role.decisionTier,
+      almBuyerPriority: role.almBuyerPriority,
+      reportsToRoleKey: role.reportsToRoleKey,
+      fullName: null,
+      email: null,
+      phone: null,
+      linkedinUrl: null,
+      isPrimaryBuyer,
+      isPlaceholder: true,
+      provenance: 'org_template+outreach',
+      contactNote: buildSeatContactNote(role.roleKey, isPrimaryBuyer, outreach),
+    };
+  });
 
   const orgUnits = ORG_UNITS.map((unit) => ({
     ...unit,
@@ -122,36 +266,163 @@ function buildInstitution(row) {
     estimatedAssetsUsd: row.estimatedAssets,
     regulator: 'COSSEC',
     structureVersion: '2026.1',
+    cossecSlug,
+    outreach,
     orgUnits,
     primaryBuyers: leadershipFlat.filter((s) => s.isPrimaryBuyer),
     leadershipFlat,
   };
 }
 
+function buildSummary(institutions) {
+  const routesMap = new Map();
+  const totals = {
+    institutions: institutions.length,
+    tier1: 0,
+    tier2: 0,
+    tier3: 0,
+    gradeA: 0,
+    gradeB: 0,
+    gradeC: 0,
+    gradeD: 0,
+    priorityH: 0,
+    cossecLinked: 0,
+    totalAssetsM: 0,
+  };
+
+  for (const inst of institutions) {
+    const o = inst.outreach;
+    if (o.tier === 1) totals.tier1++;
+    else if (o.tier === 2) totals.tier2++;
+    else totals.tier3++;
+    if (o.grade === 'A') totals.gradeA++;
+    else if (o.grade === 'B') totals.gradeB++;
+    else if (o.grade === 'C') totals.gradeC++;
+    else totals.gradeD++;
+    if (o.pri === 'H') totals.priorityH++;
+    if (o.cossec) totals.cossecLinked++;
+    totals.totalAssetsM += o.assetsM;
+
+    const existing = routesMap.get(o.route.r) || {
+      region: o.route.r,
+      week: o.route.w,
+      count: 0,
+      priorityH: 0,
+    };
+    existing.count += 1;
+    if (o.pri === 'H') existing.priorityH += 1;
+    routesMap.set(o.route.r, existing);
+  }
+
+  const topTargets = [...institutions]
+    .sort((a, b) => b.outreach.score - a.outreach.score)
+    .slice(0, 20)
+    .map((inst) => ({
+      slug: inst.slug,
+      name: inst.name,
+      score: inst.outreach.score,
+      grade: inst.outreach.grade,
+      tier: inst.outreach.tier,
+      role: inst.outreach.roleLabel,
+      loc: inst.outreach.loc,
+      ask: inst.outreach.ask,
+      note: inst.outreach.note,
+    }));
+
+  return {
+    schemaVersion: 'cerniq.cooperativa-outreach.v1',
+    generatedAt: new Date().toISOString(),
+    secure: { piiPolicy: 'no_fabricated_contacts', access: 'admin_only' },
+    totals,
+    routes: [...routesMap.values()].sort((a, b) => a.week - b.week),
+    topTargets,
+  };
+}
+
 function main() {
-  const institutions = loadCsv().map(buildInstitution);
+  const cossecEntries = loadCossecSlugs();
+  const institutions = loadCsv().map((row) => buildInstitution(row, cossecEntries));
+  const summary = buildSummary(institutions);
   const bundle = {
     schemaVersion: 'cerniq.cooperativa-directory.v1',
     generatedAt: new Date().toISOString(),
     institutionCount: institutions.length,
     leadershipSeatCount: institutions.length * ROLES.length,
+    secure: { piiPolicy: 'no_fabricated_contacts', access: 'admin_only' },
     institutions,
   };
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const bundlePath = path.join(OUT_DIR, 'agent-bundle.json');
   const ndjsonPath = path.join(OUT_DIR, 'agent-bundle.ndjson');
-  fs.writeFileSync(bundlePath, JSON.stringify(bundle, null, 2));
+  const summaryPath = path.join(OUT_DIR, 'outreach-summary.json');
+  const compactPath = path.join(OUT_DIR, 'outreach-compact.csv');
+
+  fs.writeFileSync(bundlePath, JSON.stringify(bundle));
   fs.writeFileSync(
     ndjsonPath,
-    [JSON.stringify({ type: 'manifest', ...bundle, institutions: undefined }), ...institutions.map((i) => JSON.stringify(i))].join('\n'),
+    [
+      JSON.stringify({ type: 'manifest', ...bundle, institutions: undefined }),
+      ...institutions.map((i) => JSON.stringify(i)),
+    ].join('\n'),
   );
+  fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+
+  const csvHeader = 'slug,name,region,week,assets_m,score,grade,tier,pri,role,cossec,seq,ask,note';
+  const csvRows = institutions.map((i) => {
+    const o = i.outreach;
+    const esc = (s) => `"${String(s).replace(/"/g, '""')}"`;
+    return [
+      i.slug,
+      esc(i.name),
+      o.route.r,
+      o.route.w,
+      o.assetsM,
+      o.score,
+      o.grade,
+      o.tier,
+      o.pri,
+      esc(o.roleLabel),
+      o.cossec,
+      esc(o.seq),
+      esc(o.ask),
+      esc(o.note),
+    ].join(',');
+  });
+  fs.writeFileSync(compactPath, [csvHeader, ...csvRows].join('\n'));
+
   fs.writeFileSync(
     path.join(OUT_DIR, 'latest.json'),
-    JSON.stringify({ generatedAt: bundle.generatedAt, bundlePath, ndjsonPath, institutionCount: bundle.institutionCount }, null, 2),
+    JSON.stringify({
+      generatedAt: bundle.generatedAt,
+      bundlePath,
+      ndjsonPath,
+      summaryPath,
+      compactPath,
+      institutionCount: bundle.institutionCount,
+      leadershipSeatCount: bundle.leadershipSeatCount,
+      priorityH: summary.totals.priorityH,
+      cossecLinked: summary.totals.cossecLinked,
+    }, null, 2),
   );
 
-  console.log(JSON.stringify({ status: 'SUCCESS', bundlePath, ndjsonPath, ...bundle }, null, 2));
+  console.log(JSON.stringify({
+    status: 'SUCCESS',
+    bundlePath,
+    summaryPath,
+    compactPath,
+    institutionCount: bundle.institutionCount,
+    leadershipSeatCount: bundle.leadershipSeatCount,
+    totals: summary.totals,
+    routes: summary.routes,
+    top5: summary.topTargets.slice(0, 5).map((t) => ({
+      name: t.name,
+      score: t.score,
+      grade: t.grade,
+      role: t.role,
+      ask: t.ask,
+    })),
+  }, null, 2));
 }
 
 main();

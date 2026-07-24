@@ -20,6 +20,13 @@ import {
   type AgentBundleOrgUnit,
   type CooperativaAgentBundle,
 } from './cooperativa-directory.types';
+import {
+  buildOutreach,
+  buildSeatContactNote,
+  type CompactOutreachSummary,
+  type CooperativaOutreach,
+  type CooperativaSeatContactNote,
+} from './cooperativa-outreach';
 
 type ProfileWithStructure = Prisma.CooperativaOrgProfileGetPayload<{
   include: {
@@ -57,6 +64,13 @@ export class CooperativaDirectoryService {
       const slug = slugifyCooperativaName(row.name);
       const municipality = extractMunicipality(row.location);
       const primaryRoleKey = resolvePrimaryRoleKey(row.contactRole);
+      const outreach = buildOutreach({
+        name: row.name,
+        location: row.location,
+        estimatedAssets: row.estimatedAssets,
+        contactRole: row.contactRole,
+        region: row.region,
+      });
 
       const existingProfile = await this.prisma.cooperativaOrgProfile.findUnique({
         where: { prospectInstitutionId: prospect.id },
@@ -74,6 +88,7 @@ export class CooperativaDirectoryService {
               metadata: {
                 seedContactRole: row.contactRole,
                 estimatedAssets: row.estimatedAssets,
+                outreach,
               },
             },
           })
@@ -87,12 +102,29 @@ export class CooperativaDirectoryService {
               metadata: {
                 seedContactRole: row.contactRole,
                 estimatedAssets: row.estimatedAssets,
+                outreach,
               },
             },
           });
 
       if (existingProfile) profilesUpdated++;
       else profilesCreated++;
+
+      if (outreach.cossecSlug) {
+        await this.prisma.prospectInstitution.update({
+          where: { id: prospect.id },
+          data: {
+            publicDataIdentifier: outreach.cossecSlug,
+            publicDataSource: 'cossec',
+            notes: this.mergeOutreachNote(prospect.notes, outreach),
+          },
+        });
+      } else {
+        await this.prisma.prospectInstitution.update({
+          where: { id: prospect.id },
+          data: { notes: this.mergeOutreachNote(prospect.notes, outreach) },
+        });
+      }
 
       const unitIdByKey = new Map<string, string>();
       for (const unit of COOPERATIVA_ORG_UNITS) {
@@ -121,6 +153,11 @@ export class CooperativaDirectoryService {
 
       for (const role of COOPERATIVA_LEADERSHIP_ROLES) {
         const isPrimaryBuyer = role.roleKey === primaryRoleKey;
+        const contactNote = buildSeatContactNote({
+          roleKey: role.roleKey,
+          isPrimaryBuyer,
+          outreach,
+        });
         await this.prisma.cooperativaLeadershipSeat.upsert({
           where: {
             orgProfileId_roleKey: {
@@ -139,7 +176,8 @@ export class CooperativaDirectoryService {
             reportsToRoleKey: role.reportsToRoleKey ?? null,
             isPrimaryBuyer,
             isPlaceholder: true,
-            provenance: 'org_template',
+            provenance: 'org_template+outreach',
+            metadata: contactNote ? { contactNote } : undefined,
           },
           update: {
             orgUnitId: unitIdByKey.get(role.unitKey) ?? null,
@@ -149,6 +187,8 @@ export class CooperativaDirectoryService {
             almBuyerPriority: role.almBuyerPriority,
             reportsToRoleKey: role.reportsToRoleKey ?? null,
             isPrimaryBuyer,
+            provenance: 'org_template+outreach',
+            metadata: contactNote ? { contactNote } : undefined,
           },
         });
         seatsEnsured++;
@@ -363,6 +403,7 @@ export class CooperativaDirectoryService {
         isPrimaryBuyer: seat.isPrimaryBuyer,
         isPlaceholder: seat.isPlaceholder,
         provenance: seat.provenance,
+        contactNote: this.extractSeatContactNote(seat.metadata),
       };
     };
 
@@ -385,6 +426,25 @@ export class CooperativaDirectoryService {
       }),
     );
 
+    const outreach = this.resolveOutreach(profile, {
+      name: profile.prospect.name,
+      location: profile.prospect.location,
+      estimatedAssets: profile.prospect.estimatedAssets
+        ? Number(profile.prospect.estimatedAssets)
+        : 0,
+      contactRole:
+        (typeof profile.metadata === 'object' &&
+        profile.metadata &&
+        'seedContactRole' in profile.metadata
+          ? String(
+              (profile.metadata as { seedContactRole?: string }).seedContactRole,
+            )
+          : null) ||
+        profile.prospect.contactRole ||
+        'CFO',
+      region: profile.region || '',
+    });
+
     return {
       profileId: profile.id,
       prospectInstitutionId: profile.prospectInstitutionId,
@@ -398,12 +458,135 @@ export class CooperativaDirectoryService {
         : null,
       regulator: profile.regulator,
       structureVersion: profile.structureVersion,
-      cossecSlug: profile.prospect.publicDataIdentifier,
+      cossecSlug: outreach.cossecSlug ?? profile.prospect.publicDataIdentifier,
+      outreach,
       orgUnits,
       primaryBuyers: leadershipFlat.filter(
         (seat: AgentBundleLeadershipSeat) => seat.isPrimaryBuyer,
       ),
       leadershipFlat,
     };
+  }
+
+  async buildOutreachSummary(limit = 500): Promise<CompactOutreachSummary> {
+    const bundle = await this.buildAgentBundle(limit);
+    const routesMap = new Map<
+      string,
+      { region: string; week: number; count: number; priorityH: number }
+    >();
+
+    for (const inst of bundle.institutions) {
+      const key = inst.outreach.route.r;
+      const existing = routesMap.get(key) ?? {
+        region: key,
+        week: inst.outreach.route.w,
+        count: 0,
+        priorityH: 0,
+      };
+      existing.count += 1;
+      if (inst.outreach.pri === 'H') existing.priorityH += 1;
+      routesMap.set(key, existing);
+    }
+
+    const topTargets = [...bundle.institutions]
+      .sort((a, b) => b.outreach.score - a.outreach.score)
+      .slice(0, 20)
+      .map((inst) => ({
+        slug: inst.slug,
+        name: inst.name,
+        score: inst.outreach.score,
+        grade: inst.outreach.grade,
+        tier: inst.outreach.tier,
+        role: inst.outreach.roleLabel,
+        loc: inst.outreach.loc,
+        ask: inst.outreach.ask,
+        note: inst.outreach.note,
+      }));
+
+    const totals = {
+      institutions: bundle.institutionCount,
+      tier1: 0,
+      tier2: 0,
+      tier3: 0,
+      gradeA: 0,
+      gradeB: 0,
+      gradeC: 0,
+      gradeD: 0,
+      priorityH: 0,
+      cossecLinked: 0,
+      totalAssetsM: 0,
+    };
+
+    for (const inst of bundle.institutions) {
+      if (inst.outreach.tier === 1) totals.tier1++;
+      else if (inst.outreach.tier === 2) totals.tier2++;
+      else totals.tier3++;
+      if (inst.outreach.grade === 'A') totals.gradeA++;
+      else if (inst.outreach.grade === 'B') totals.gradeB++;
+      else if (inst.outreach.grade === 'C') totals.gradeC++;
+      else totals.gradeD++;
+      if (inst.outreach.pri === 'H') totals.priorityH++;
+      if (inst.outreach.cossec) totals.cossecLinked++;
+      totals.totalAssetsM += inst.outreach.assetsM;
+    }
+
+    return {
+      schemaVersion: 'cerniq.cooperativa-outreach.v1',
+      generatedAt: new Date().toISOString(),
+      secure: { piiPolicy: 'no_fabricated_contacts', access: 'admin_only' },
+      totals,
+      routes: [...routesMap.values()].sort((a, b) => a.week - b.week),
+      topTargets,
+    };
+  }
+
+  private mergeOutreachNote(
+    existing: string | null | undefined,
+    outreach: CooperativaOutreach,
+  ): string {
+    const tag = `[outreach v${outreach.v}]`;
+    const line = `${tag} ${outreach.grade}/${outreach.score} T${outreach.tier} ${outreach.pri} · ${outreach.note}`;
+    if (!existing) return line;
+    if (existing.includes(tag)) {
+      return existing
+        .split('\n')
+        .map((row) => (row.startsWith(tag) ? line : row))
+        .join('\n');
+    }
+    return `${existing}\n${line}`.trim();
+  }
+
+  private resolveOutreach(
+    profile: ProfileWithStructure,
+    fallback: {
+      name: string;
+      location: string | null;
+      estimatedAssets: number;
+      contactRole: string;
+      region: string;
+    },
+  ): CooperativaOutreach {
+    const meta = profile.metadata;
+    if (
+      meta &&
+      typeof meta === 'object' &&
+      'outreach' in meta &&
+      meta.outreach &&
+      typeof meta.outreach === 'object' &&
+      'v' in (meta.outreach as object)
+    ) {
+      return meta.outreach as CooperativaOutreach;
+    }
+    return buildOutreach(fallback);
+  }
+
+  private extractSeatContactNote(
+    metadata: unknown,
+  ): CooperativaSeatContactNote | null {
+    if (!metadata || typeof metadata !== 'object') return null;
+    if (!('contactNote' in metadata)) return null;
+    const note = (metadata as { contactNote?: CooperativaSeatContactNote })
+      .contactNote;
+    return note ?? null;
   }
 }

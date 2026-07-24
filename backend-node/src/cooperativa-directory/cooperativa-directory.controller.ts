@@ -62,6 +62,11 @@ export class CooperativaDirectoryController {
     res.send(csv);
   }
 
+  @Get('export/outreach-summary')
+  async exportOutreachSummary(@Query('limit') limit?: string) {
+    return this.directory.buildOutreachSummary(parseInt(limit || '500', 10));
+  }
+
   @Get(':slugOrId/structure')
   async getStructure(@Param('slugOrId') slugOrId: string) {
     return this.directory.getInstitutionStructure(slugOrId);
