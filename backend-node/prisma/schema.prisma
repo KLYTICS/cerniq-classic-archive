@@ -1004,6 +1004,7 @@ model ProspectInstitution {
   intelligenceAccount IntelligenceAccount?      @relation(fields: [intelligenceAccountId], references: [id], onDelete: SetNull)
   engagementEvents    DemoSeatEngagementEvent[]
   cossecFindings      CossecExamFinding[]
+  orgProfile          CooperativaOrgProfile?
 
   @@index([outreachStatus])
   @@index([intelligenceAccountId])
@@ -1011,6 +1012,76 @@ model ProspectInstitution {
   @@index([demoExpiresAt])
   @@index([demoConvertedAt])
   @@map("prospect_institutions")
+}
+
+/// Full organizational map for a COSSEC-regulated cooperativa — leadership seats,
+/// departments, and agent-export metadata. One profile per ProspectInstitution.
+model CooperativaOrgProfile {
+  id                    String   @id @default(cuid())
+  prospectInstitutionId String   @unique @map("prospect_institution_id")
+  slug                  String   @unique
+  region                String?
+  municipality          String?
+  regulator             String   @default("COSSEC")
+  structureVersion      String   @default("2026.1") @map("structure_version")
+  memberCountEstimate   Int?     @map("member_count_estimate")
+  metadata              Json?
+  lastSeededAt          DateTime @default(now()) @map("last_seeded_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  prospect        ProspectInstitution         @relation(fields: [prospectInstitutionId], references: [id], onDelete: Cascade)
+  units           CooperativaOrgUnit[]
+  leadershipSeats CooperativaLeadershipSeat[]
+
+  @@index([region])
+  @@map("cooperativa_org_profiles")
+}
+
+model CooperativaOrgUnit {
+  id           String @id @default(cuid())
+  orgProfileId String @map("org_profile_id")
+  unitKey      String @map("unit_key")
+  nameEs       String @map("name_es")
+  nameEn       String @map("name_en")
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  orgProfile      CooperativaOrgProfile       @relation(fields: [orgProfileId], references: [id], onDelete: Cascade)
+  leadershipSeats CooperativaLeadershipSeat[]
+
+  @@unique([orgProfileId, unitKey])
+  @@index([orgProfileId, sortOrder])
+  @@map("cooperativa_org_units")
+}
+
+model CooperativaLeadershipSeat {
+  id               String   @id @default(cuid())
+  orgProfileId     String   @map("org_profile_id")
+  orgUnitId        String?  @map("org_unit_id")
+  roleKey          String   @map("role_key")
+  titleEs          String   @map("title_es")
+  titleEn          String   @map("title_en")
+  decisionTier     String   @map("decision_tier") // board | executive | committee | operational
+  almBuyerPriority Int      @default(50) @map("alm_buyer_priority")
+  reportsToRoleKey String?  @map("reports_to_role_key")
+  fullName         String?  @map("full_name")
+  email            String?
+  phone            String?
+  linkedinUrl      String?  @map("linkedin_url")
+  isPrimaryBuyer   Boolean  @default(false) @map("is_primary_buyer")
+  isPlaceholder    Boolean  @default(true) @map("is_placeholder")
+  provenance       String   @default("org_template")
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  orgProfile CooperativaOrgProfile @relation(fields: [orgProfileId], references: [id], onDelete: Cascade)
+  orgUnit    CooperativaOrgUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+
+  @@unique([orgProfileId, roleKey])
+  @@index([orgProfileId, almBuyerPriority])
+  @@index([orgProfileId, isPrimaryBuyer])
+  @@map("cooperativa_leadership_seats")
 }
 
 /// Per-touchpoint event log for demo seat engagement.

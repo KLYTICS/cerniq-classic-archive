@@ -107,6 +107,8 @@ ENV/
 /data/*.csv
 /data/gtm-runs/*
 !/data/gtm-runs/.gitkeep
+/data/cooperativa-directory/*
+!/data/cooperativa-directory/.gitkeep
 *.parquet
 
 # Temporary files

@@ -36,6 +36,7 @@ import { AlmModule } from './alm/alm.module';
 import { ActionsModule } from './actions/actions.module';
 import { EmailModule } from './email/email.module';
 import { LeadsModule } from './leads/leads.module';
+import { CooperativaDirectoryModule } from './cooperativa-directory/cooperativa-directory.module';
 import { BillingModule } from './billing/billing.module';
 import { PipelineModule } from './pipeline/pipeline.module';
 import { PortalModule } from './portal/portal.module';
@@ -160,6 +161,7 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     EmailModule,
     // Lead pipeline & revenue ops
     LeadsModule,
+    CooperativaDirectoryModule,
     // Billing & subscriptions (Stripe)
     BillingModule,
     // Report pipeline automation
