@@ -179,10 +179,60 @@ export class LeadsController {
     return this.gtmEnrichment.buildFieldSalesPlaybook();
   }
 
+  @Get('admin/api/prospects/portfolio/summary')
+  @UseGuards(AdminKeyGuard)
+  async portfolioSummary() {
+    return this.leads.getPortfolioSummary();
+  }
+
+  @Get('admin/api/prospects/portfolio/export.csv')
+  @UseGuards(AdminKeyGuard)
+  async exportPortfolioCsv(
+    @Res() res: { setHeader: (k: string, v: string) => void; send: (b: string) => void },
+    @Query('icpTier') icpTier?: string,
+    @Query('outreachStatus') outreachStatus?: string,
+  ) {
+    const csv = await this.leads.exportPortfolioCsv({
+      icpTier: icpTier || undefined,
+      outreachStatus: outreachStatus || undefined,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cerniq-coop-portfolio.csv"',
+    );
+    res.send(csv);
+  }
+
+  @Get('admin/api/prospects/portfolio/draft-pack')
+  @UseGuards(AdminKeyGuard)
+  async outreachDraftPack(
+    @Query('lang') lang?: string,
+    @Query('icpTier') icpTier?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.leads.generateOutreachDraftPack(
+      lang === 'en' ? 'en' : 'es',
+      {
+        icpTier: icpTier || undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      },
+    );
+  }
+
   @Get('admin/api/prospects')
   @UseGuards(AdminKeyGuard)
-  async listProspects() {
-    return this.leads.listProspects();
+  async listProspects(
+    @Query('icpTier') icpTier?: string,
+    @Query('outreachStatus') outreachStatus?: string,
+    @Query('hasEmail') hasEmail?: string,
+  ) {
+    return this.leads.listProspects({
+      icpTier: icpTier || undefined,
+      outreachStatus: outreachStatus || undefined,
+      hasEmail:
+        hasEmail === 'true' ? true : hasEmail === 'false' ? false : undefined,
+    });
   }
 
   @Get('admin/api/benchmarks')
@@ -244,10 +294,12 @@ export class LeadsController {
   async bulkOutreach(
     @Query('lang') lang?: string,
     @Query('limit') limit?: string,
+    @Query('icpTier') icpTier?: string,
   ) {
     return this.outreachExecution.executeBulkOutreach(
       lang === 'en' ? 'en' : 'es',
       parseInt(limit || '10', 10),
+      { icpTier: icpTier || undefined },
     );
   }
 

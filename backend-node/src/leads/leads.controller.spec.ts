@@ -30,7 +30,12 @@ describe('LeadsController', () => {
       getPipelineMetrics: jest
         .fn()
         .mockResolvedValue({ total: 5, conversion: '20%' }),
-      seedProspectPipeline: jest.fn().mockResolvedValue({ seeded: 12 }),
+      seedProspectPipeline: jest.fn().mockResolvedValue({
+        created: 91,
+        updated: 0,
+        unchanged: 0,
+        total: 91,
+      }),
       getProspects: jest.fn().mockResolvedValue([]),
       getBenchmarks: jest.fn().mockResolvedValue([]),
       generateOutreach: jest
@@ -212,12 +217,75 @@ describe('LeadsController', () => {
   describe('POST admin/api/prospects/bulk-outreach', () => {
     it('executes bulk outreach with defaults', async () => {
       await controller.bulkOutreach();
-      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('es', 10);
+      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('es', 10, {
+        icpTier: undefined,
+      });
     });
 
     it('executes bulk outreach with en and custom limit', async () => {
       await controller.bulkOutreach('en', '25');
-      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('en', 25);
+      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('en', 25, {
+        icpTier: undefined,
+      });
+    });
+
+    it('passes icpTier filter', async () => {
+      await controller.bulkOutreach('es', '10', 'tier1');
+      expect(outreach.executeBulkOutreach).toHaveBeenCalledWith('es', 10, {
+        icpTier: 'tier1',
+      });
+    });
+  });
+
+  describe('GET admin/api/prospects/portfolio/*', () => {
+    it('returns portfolio summary', async () => {
+      leads.getPortfolioSummary = jest.fn().mockResolvedValue({ total: 91 });
+      const r = await controller.portfolioSummary();
+      expect(leads.getPortfolioSummary).toHaveBeenCalled();
+      expect(r).toEqual({ total: 91 });
+    });
+
+    it('exports portfolio csv', async () => {
+      leads.exportPortfolioCsv = jest
+        .fn()
+        .mockResolvedValue('name,cossec_charter\n');
+      const res = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      };
+      await controller.exportPortfolioCsv(res, 'tier1', 'not_started');
+      expect(leads.exportPortfolioCsv).toHaveBeenCalledWith({
+        icpTier: 'tier1',
+        outreachStatus: 'not_started',
+      });
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/csv; charset=utf-8',
+      );
+      expect(res.send).toHaveBeenCalledWith('name,cossec_charter\n');
+    });
+
+    it('returns outreach draft pack', async () => {
+      leads.generateOutreachDraftPack = jest
+        .fn()
+        .mockResolvedValue({ count: 2, drafts: [] });
+      await controller.outreachDraftPack('en', 'tier1', '5');
+      expect(leads.generateOutreachDraftPack).toHaveBeenCalledWith('en', {
+        icpTier: 'tier1',
+        limit: 5,
+      });
+    });
+  });
+
+  describe('GET admin/api/prospects with filters', () => {
+    it('forwards icpTier, outreachStatus, hasEmail', async () => {
+      leads.listProspects = jest.fn().mockResolvedValue([]);
+      await controller.listProspects('tier1', 'sent', 'true');
+      expect(leads.listProspects).toHaveBeenCalledWith({
+        icpTier: 'tier1',
+        outreachStatus: 'sent',
+        hasEmail: true,
+      });
     });
   });
 

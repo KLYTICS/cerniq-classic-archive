@@ -21,6 +21,14 @@
 
 ## 1. COSSEC Registry & Market Universe
 
+### 1.0 Committed product registry (CerniQ)
+
+- **Canonical JSON (91 rows):** [`backend-node/src/alm/data/registry/pr-cooperativas-q2-2025.json`](../backend-node/src/alm/data/registry/pr-cooperativas-q2-2025.json) — Anejo 9 extract (30 jun 2025) with COSSEC charter (`Coop CS`), assets, members, FTE, ICP tier.
+- **CRM seed:** `POST /admin/api/prospects/seed` or `pnpm seed:pr-registry -- --track=crm`
+- **Product shells:** `pnpm seed:pr-registry -- --track=product` → workspace `pr-market-map`
+- **ICP segments:** [`docs/strategy/icp_segments.md`](strategy/icp_segments.md)
+- Sep-2025 (Q3) PDF was HTTP-403 at build time; refresh the JSON when the next Anejo 9 is fetchable. Top-20 ranks below remain the Q3 narrative; committed seed numbers are Q2.
+
 ### 1.1 The registry
 
 - COSSEC (Corporación Pública para la Supervisión y Seguro de Cooperativas, created by **Ley 114-2001**) insures shares/deposits up to **$250,000/member**. Official site: [cossec.pr.gov](https://www.cossec.pr.gov/) → [Coop Ahorro y Crédito section](https://www.cossec.pr.gov/coop-ahorro-y-credito).
