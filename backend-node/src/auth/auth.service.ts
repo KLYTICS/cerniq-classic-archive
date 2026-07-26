@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  GoneException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
@@ -22,6 +23,19 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const MASTER_ACCOUNT_NAME = 'Erwin Kiess';
 const DEV_MASTER_ACCOUNT_PASSWORD =
   process.env.DEV_MASTER_ACCOUNT_PASSWORD || 'change-me-in-env';
+
+/**
+ * Phase 4 legacy sunset — when `AUTH_DISABLE_LEGACY_MINT` is truthy, the Nest
+ * password mint (register / login / refresh) stops issuing legacy HS256 tokens;
+ * new sessions must come from Supabase. Unset (default) preserves current
+ * behavior. Mirrors the truthy convention used by `AUTH_ALLOW_LEGACY` in
+ * auth.guard.ts. Verification of already-issued legacy tokens is governed
+ * separately by `AUTH_ALLOW_LEGACY` — this flag only stops NEW mints.
+ */
+function isLegacyMintDisabled(): boolean {
+  const raw = (process.env.AUTH_DISABLE_LEGACY_MINT || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
 
 export interface AuthResponse {
   user: {
@@ -418,6 +432,16 @@ export class AuthService {
     email: string;
     name?: string | null;
   }) {
+    // Phase 4 legacy sunset: the single chokepoint for every legacy HS256 mint
+    // (register/login/refresh all route here). When disabled, refuse to issue
+    // new legacy sessions and steer clients to Supabase — a 410 Gone is the
+    // honest signal that this auth method is retired, not merely forbidden.
+    if (isLegacyMintDisabled()) {
+      throw new GoneException(
+        'Legacy Nest password sessions are retired (auth Phase 4). Authenticate via Supabase session tokens.',
+      );
+    }
+
     const accessPayload = {
       sub: user.id,
       email: user.email,

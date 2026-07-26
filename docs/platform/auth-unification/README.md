@@ -14,7 +14,7 @@ Single identity path: **Supabase-issued session JWTs** verified by Nest, mapped 
 | **1 — Backend accept** | Done | `AuthGuard` verifies Supabase tokens; `resolveApplicationUser`; `GET /api/auth/whoami`; WS parity |
 | **2 — Frontend session** | In progress | Supabase client when `NEXT_PUBLIC_SUPABASE_*` set; bearer sync; Nest fallback when unset |
 | **3 — Verify harden** | In progress | Local JWKS/HS256 verify (no per-request `/auth/v1/user` dependency); env schema; prod `KLYTICS_*` flags |
-| **4 — Legacy sunset** | Pending | Clients on Supabase only; `AUTH_ALLOW_LEGACY=false` in prod; retire Nest password mint for new sessions |
+| **4 — Legacy sunset** | Code ready · flag-gated | Nest password mint retirable via **`AUTH_DISABLE_LEGACY_MINT`** (410 Gone at the `generateTokens` chokepoint; default off). Remaining is operational/founder: clients on Supabase only, then `AUTH_DISABLE_LEGACY_MINT=true` → drain → `AUTH_ALLOW_LEGACY=false`. See [LEGACY_JWT_SUNSET.md](../../security/LEGACY_JWT_SUNSET.md) |
 
 ## Canonical paths
 
