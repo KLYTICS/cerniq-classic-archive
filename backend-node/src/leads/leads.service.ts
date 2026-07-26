@@ -1,12 +1,17 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import type { ProspectInstitution } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { SlackService } from '../notifications/slack.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import {
-  COOPERATIVA_PROSPECTS,
+  COSSEC_BENCHMARK_Q2_2025,
   COSSEC_BENCHMARK_Q3_2025,
+  LEGACY_COOPERATIVA_PROSPECT_NAMES,
+  registryProspectCount,
 } from './prospect-seed';
+import { listPrCooperativas } from '../alm/data/registry/pr-cooperativas.registry';
+import { InstitutionIntelligenceService } from './institution-intelligence.service';
 
 @Injectable()
 export class LeadsService {
@@ -16,6 +21,8 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     @Optional() private readonly slack?: SlackService,
+    @Optional()
+    private readonly institutionIntelligence?: InstitutionIntelligenceService,
   ) {}
 
   async submitLead(dto: SubmitLeadDto) {
@@ -296,41 +303,333 @@ export class LeadsService {
 
   // ── Prospect Pipeline (Outbound) ──
 
+  /**
+   * Upsert all COSSEC-insured cooperativas from the committed Anejo 9 registry.
+   * Idempotent on `publicDataIdentifier` (COSSEC charter). Legacy name-only rows
+   * without a charter are tagged `stale_pre_registry` (never deleted — demo seats).
+   */
   async seedProspectPipeline() {
+    const registry = listPrCooperativas();
     let created = 0;
-    for (const prospect of COOPERATIVA_PROSPECTS) {
-      const existing = await this.prisma.prospectInstitution.findFirst({
-        where: { name: prospect.name },
+    let updated = 0;
+    let unchanged = 0;
+
+    for (const row of registry) {
+      const location = `${row.hqMunicipality}, PR`;
+      const data = {
+        name: row.displayName,
+        institutionType: 'cooperativa',
+        location,
+        estimatedAssets: row.totalAssetsUsd,
+        publicDataSource: 'cossec',
+        publicDataIdentifier: row.cossecCharter,
+        memberCount: row.members,
+        employeeCount: row.employees,
+        region: row.region,
+        icpTier: row.icpTier,
+        contactRole: 'CFO',
+      };
+
+      const existing = await this.prisma.prospectInstitution.findUnique({
+        where: { publicDataIdentifier: row.cossecCharter },
       });
+
       if (!existing) {
-        await this.prisma.prospectInstitution.create({ data: prospect });
+        await this.prisma.prospectInstitution.create({ data });
         created++;
+        continue;
+      }
+
+      const assetsEqual =
+        existing.estimatedAssets == null
+          ? false
+          : Number(existing.estimatedAssets) === row.totalAssetsUsd;
+      const same =
+        existing.name === data.name &&
+        existing.location === data.location &&
+        assetsEqual &&
+        existing.memberCount === data.memberCount &&
+        existing.employeeCount === data.employeeCount &&
+        existing.region === data.region &&
+        existing.icpTier === data.icpTier;
+
+      if (same) {
+        unchanged++;
+      } else {
+        await this.prisma.prospectInstitution.update({
+          where: { id: existing.id },
+          data: {
+            name: data.name,
+            location: data.location,
+            estimatedAssets: data.estimatedAssets,
+            publicDataSource: data.publicDataSource,
+            memberCount: data.memberCount,
+            employeeCount: data.employeeCount,
+            region: data.region,
+            icpTier: data.icpTier,
+          },
+        });
+        updated++;
       }
     }
 
-    // Seed benchmark
-    const existingBenchmark = await this.prisma.cooperativaBenchmark.findFirst({
-      where: { period: COSSEC_BENCHMARK_Q3_2025.period },
-    });
-    if (!existingBenchmark) {
-      await this.prisma.cooperativaBenchmark.create({
-        data: COSSEC_BENCHMARK_Q3_2025,
-      });
+    const staleTagged = await this.tagStaleLegacyProspects();
+
+    const benchmarkSeeded = await this.upsertBenchmarks();
+
+    let intelligence:
+      | { synced: number; created: number; updated: number }
+      | undefined;
+    if (this.institutionIntelligence) {
+      intelligence = await this.institutionIntelligence.syncProspectsToAccounts(
+        Math.max(registry.length, 250),
+      );
     }
 
-    this.logger.log(`Prospect pipeline seeded: ${created} new prospects`);
+    this.logger.log(
+      `Prospect pipeline seeded: created=${created} updated=${updated} unchanged=${unchanged} staleTagged=${staleTagged}`,
+    );
     return {
       created,
-      total: COOPERATIVA_PROSPECTS.length,
-      benchmarkSeeded: !existingBenchmark,
+      updated,
+      unchanged,
+      staleTagged,
+      total: registryProspectCount(),
+      benchmarkSeeded,
+      intelligence,
     };
   }
 
-  async listProspects() {
-    return this.prisma.prospectInstitution.findMany({
-      orderBy: [{ estimatedAssets: 'desc' }],
-      take: 100,
+  /** Mark legacy name-only prospects that are not in the COSSEC registry. */
+  private async tagStaleLegacyProspects(): Promise<number> {
+    const legacyNames = new Set(
+      LEGACY_COOPERATIVA_PROSPECT_NAMES.map((n) => n.toLowerCase()),
+    );
+    const orphans = await this.prisma.prospectInstitution.findMany({
+      where: {
+        OR: [
+          { publicDataIdentifier: null },
+          {
+            name: {
+              in: [...LEGACY_COOPERATIVA_PROSPECT_NAMES],
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        notes: true,
+        publicDataIdentifier: true,
+        demoUserId: true,
+      },
     });
+
+    const registryNames = new Set(
+      listPrCooperativas().map((r) => r.displayName.toLowerCase()),
+    );
+    let tagged = 0;
+    for (const row of orphans) {
+      if (row.publicDataIdentifier) continue;
+      const isLegacy = legacyNames.has(row.name.toLowerCase());
+      const notInRegistry = !registryNames.has(row.name.toLowerCase());
+      if (!isLegacy && !notInRegistry) continue;
+      if (row.notes?.includes('stale_pre_registry')) continue;
+      const note = [
+        row.notes,
+        'stale_pre_registry: superseded by COSSEC Anejo 9 charter upsert',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      await this.prisma.prospectInstitution.update({
+        where: { id: row.id },
+        data: { notes: note },
+      });
+      tagged++;
+    }
+    return tagged;
+  }
+
+  private async upsertBenchmarks(): Promise<boolean> {
+    let seeded = false;
+    for (const bench of [COSSEC_BENCHMARK_Q2_2025, COSSEC_BENCHMARK_Q3_2025]) {
+      const existing = await this.prisma.cooperativaBenchmark.findUnique({
+        where: { period: bench.period },
+      });
+      if (!existing) {
+        await this.prisma.cooperativaBenchmark.create({ data: bench });
+        seeded = true;
+      } else if (existing.activeInstitutions !== 91) {
+        await this.prisma.cooperativaBenchmark.update({
+          where: { period: bench.period },
+          data: {
+            activeInstitutions: 91,
+            memberCountTotal: bench.memberCountTotal,
+          },
+        });
+        seeded = true;
+      }
+    }
+    return seeded;
+  }
+
+  async listProspects(filters?: {
+    icpTier?: string;
+    outreachStatus?: string;
+    hasEmail?: boolean;
+  }) {
+    const where: {
+      icpTier?: string;
+      outreachStatus?: string;
+      contactEmail?: { not: null } | null;
+    } = {};
+    if (filters?.icpTier) where.icpTier = filters.icpTier;
+    if (filters?.outreachStatus) where.outreachStatus = filters.outreachStatus;
+    if (filters?.hasEmail === true) where.contactEmail = { not: null };
+    if (filters?.hasEmail === false) where.contactEmail = null;
+
+    return this.prisma.prospectInstitution.findMany({
+      where,
+      orderBy: [{ estimatedAssets: 'desc' }],
+      take: 200,
+    });
+  }
+
+  /**
+   * Portfolio suite summary for the admin operating surface — ICP tiers,
+   * outreach funnel, and email readiness across the COSSEC registry.
+   */
+  async getPortfolioSummary() {
+    const rows = await this.prisma.prospectInstitution.findMany({
+      select: {
+        icpTier: true,
+        outreachStatus: true,
+        contactEmail: true,
+        estimatedAssets: true,
+        institutionType: true,
+      },
+      take: 200,
+    });
+
+    const byTier: Record<string, number> = {
+      tier1: 0,
+      tier2: 0,
+      tier3: 0,
+      unset: 0,
+    };
+    const byOutreach: Record<string, number> = {};
+    let withEmail = 0;
+    let cooperativas = 0;
+    let assetsUsd = 0;
+
+    for (const row of rows) {
+      const tier = row.icpTier ?? 'unset';
+      byTier[tier] = (byTier[tier] ?? 0) + 1;
+      byOutreach[row.outreachStatus] =
+        (byOutreach[row.outreachStatus] ?? 0) + 1;
+      if (row.contactEmail) withEmail += 1;
+      if (row.institutionType === 'cooperativa') cooperativas += 1;
+      assetsUsd += Number(row.estimatedAssets ?? 0);
+    }
+
+    return {
+      total: rows.length,
+      cooperativas,
+      withEmail,
+      withoutEmail: rows.length - withEmail,
+      byTier,
+      byOutreach,
+      totalAssetsUsd: assetsUsd,
+      mission:
+        'CERNIQ — bilingual ALM wedge today; operating system for institutional balance-sheet intelligence across the cooperativa portfolio.',
+    };
+  }
+
+  /** CSV of the full prospect portfolio for offline outreach / CRM import. */
+  async exportPortfolioCsv(filters?: {
+    icpTier?: string;
+    outreachStatus?: string;
+  }): Promise<string> {
+    const rows = await this.listProspects(filters);
+    const header = [
+      'name',
+      'cossec_charter',
+      'location',
+      'region',
+      'icp_tier',
+      'estimated_assets_usd',
+      'members',
+      'employees',
+      'outreach_status',
+      'contact_role',
+      'contact_name',
+      'contact_email',
+      'institution_type',
+    ].join(',');
+
+    const escape = (v: string | number | null | undefined) => {
+      if (v == null) return '';
+      const s = String(v);
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
+    const lines = rows.map((r: ProspectInstitution) =>
+      [
+        escape(r.name),
+        escape(r.publicDataIdentifier),
+        escape(r.location),
+        escape(r.region),
+        escape(r.icpTier),
+        escape(r.estimatedAssets != null ? Number(r.estimatedAssets) : ''),
+        escape(r.memberCount),
+        escape(r.employeeCount),
+        escape(r.outreachStatus),
+        escape(r.contactRole),
+        escape(r.contactName),
+        escape(r.contactEmail),
+        escape(r.institutionType),
+      ].join(','),
+    );
+
+    return [header, ...lines].join('\n') + '\n';
+  }
+
+  /**
+   * Generate mailto-ready outreach drafts for many prospects (no send).
+   * Used when contact emails are not yet on file — founder copies / pastes.
+   */
+  async generateOutreachDraftPack(
+    lang: 'en' | 'es' = 'es',
+    options?: { icpTier?: string; limit?: number },
+  ) {
+    const limit = Math.min(Math.max(options?.limit ?? 91, 1), 200);
+    const prospects = await this.listProspects({
+      icpTier: options?.icpTier,
+    });
+    const slice = prospects.slice(0, limit);
+    const drafts = [];
+    for (const p of slice) {
+      const draft = await this.generateOutreach(p.id, lang);
+      drafts.push({
+        prospectId: p.id,
+        name: p.name,
+        icpTier: p.icpTier,
+        contactEmail: p.contactEmail,
+        contactRole: p.contactRole,
+        outreachStatus: p.outreachStatus,
+        ...draft,
+        mailto: p.contactEmail
+          ? `mailto:${encodeURIComponent(p.contactEmail)}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`
+          : null,
+      });
+    }
+    return {
+      lang,
+      count: drafts.length,
+      withEmail: drafts.filter((d) => d.contactEmail).length,
+      drafts,
+    };
   }
 
   async getBenchmarks() {
@@ -351,27 +650,37 @@ export class LeadsService {
       orderBy: { period: 'desc' },
     });
 
-    const assetsM = (prospect.estimatedAssets / 1_000_000).toFixed(0);
-    const sectorMedianM = benchmark
-      ? (benchmark.totalAssetsMedian / 1_000_000).toFixed(0)
-      : '185';
+    const assetsNum = Number(prospect.estimatedAssets ?? 0);
+    const assetsM = (assetsNum / 1_000_000).toFixed(0);
+    const sectorMedianNum = Number(benchmark?.totalAssetsMedian ?? 185_000_000);
+    const sectorMedianM = (sectorMedianNum / 1_000_000).toFixed(0);
     const capitalRatio = benchmark?.capitalRatioMedian?.toFixed(1) ?? '9.2';
+    const tierLabel =
+      prospect.icpTier === 'tier1'
+        ? lang === 'es'
+          ? 'prioridad primaria (≥$100M)'
+          : 'primary ICP (≥$100M)'
+        : prospect.icpTier === 'tier2'
+          ? lang === 'es'
+            ? 'prioridad secundaria ($50–100M)'
+            : 'secondary ICP ($50–100M)'
+          : lang === 'es'
+            ? 'universo COSSEC'
+            : 'COSSEC universe';
 
     // Compute key flags for this prospect
     const flags: string[] = [];
-    if (
-      prospect.estimatedAssets > (benchmark?.totalAssetsMedian ?? 185_000_000)
-    ) {
+    if (assetsNum > sectorMedianNum) {
       flags.push(
         lang === 'es'
-          ? `Con $${assetsM}M en activos, su cooperativa está por encima de la mediana del sector ($${sectorMedianM}M)`
-          : `At $${assetsM}M in assets, your cooperativa is above the sector median ($${sectorMedianM}M)`,
+          ? `Con $${assetsM}M en activos (${tierLabel}), su cooperativa está por encima de la mediana del sector ($${sectorMedianM}M)`
+          : `At $${assetsM}M in assets (${tierLabel}), your cooperativa is above the sector median ($${sectorMedianM}M)`,
       );
     } else {
       flags.push(
         lang === 'es'
-          ? `Su cooperativa de $${assetsM}M puede aprovechar las economías de escala con herramientas ALM automatizadas`
-          : `Your $${assetsM}M cooperativa can leverage economies of scale with automated ALM tools`,
+          ? `Su cooperativa de $${assetsM}M (${tierLabel}) puede aprovechar ALM automatizado sin un equipo cuant interno`
+          : `Your $${assetsM}M cooperativa (${tierLabel}) can run automated ALM without an in-house quant team`,
       );
     }
 
@@ -383,47 +692,49 @@ export class LeadsService {
 
     const subject =
       lang === 'es'
-        ? `Informe ALM gratuito para ${prospect.name}`
-        : `Free ALM Report for ${prospect.name}`;
+        ? `Informe ALM bilingüe para ${prospect.name}`
+        : `Bilingual ALM report for ${prospect.name}`;
 
     const body =
       lang === 'es'
         ? `Estimado/a ${prospect.contactRole || 'Director Financiero'},
 
-Nos dirigimos a usted desde CERNIQ, plataforma de inteligencia ALM diseñada para cooperativas en Puerto Rico.
+Nos dirigimos a usted desde CERNIQ — la plataforma de inteligencia financiera institucional para cooperativas en Puerto Rico. Nuestro producto de entrada es simple: subir el balance → recibir un informe ALM bilingüe listo para la junta. A largo plazo, somos el sistema operativo de inteligencia de balance (ALM, liquidez, tesorería, cumplimiento COSSEC) para su institución.
 
 ${flags.join('\n\n')}
 
-Hemos preparado un informe ALM de muestra para ${prospect.name} basado en datos públicos de COSSEC. El informe incluye:
+Hemos preparado un informe ALM de muestra para ${prospect.name} basado en datos públicos de COSSEC (Anejo 9). El informe incluye:
 
 • Análisis de brecha de duración y sensibilidad NII
-• Cumplimiento LCR/NSFR bajo Basilea III
-• Prueba de estrés Monte Carlo con 1,000 escenarios
+• Cumplimiento LCR/NSFR y vista COSSEC
+• Prueba de estrés con escenarios gobernados
 • Comparación con la mediana del sector
 
-¿Le gustaría recibir su informe personalizado? Responda a este correo o programe una demostración de 15 minutos.
+¿Le gustaría recibir su informe personalizado o una demostración de 15 minutos del portafolio CERNIQ?
 
 Saludos cordiales,
 Erwin Kiess
-CERNIQ — San Juan, PR`
+CERNIQ — San Juan, PR
+cerniq.io`
         : `Dear ${prospect.contactRole || 'CFO'},
 
-We're reaching out from CERNIQ, an ALM intelligence platform built for cooperativas in Puerto Rico.
+We're reaching out from CERNIQ — institutional financial intelligence for cooperativas in Puerto Rico. The wedge is simple: upload a balance sheet → get a bilingual board-ready ALM report. Longer term, we become the operating system for your balance-sheet intelligence (ALM, liquidity, treasury, COSSEC compliance) across your institution.
 
 ${flags.join('\n\n')}
 
-We've prepared a sample ALM report for ${prospect.name} using publicly available COSSEC data. The report includes:
+We've prepared a sample ALM report for ${prospect.name} from public COSSEC Anejo 9 data. The report includes:
 
 • Duration gap and NII sensitivity analysis
-• LCR/NSFR compliance under Basel III
-• Monte Carlo stress test with 1,000 scenarios
+• LCR/NSFR and COSSEC compliance view
+• Stress testing with governed scenarios
 • Sector median benchmarking
 
-Would you like to receive your personalized report? Reply to this email or schedule a 15-minute demo.
+Would you like your personalized report or a 15-minute walkthrough of the CERNIQ portfolio suite?
 
 Best regards,
 Erwin Kiess
-CERNIQ — San Juan, PR`;
+CERNIQ — San Juan, PR
+cerniq.io`;
 
     return {
       subject,
@@ -433,6 +744,8 @@ CERNIQ — San Juan, PR`;
         name: prospect.name,
         assets: assetsM,
         location: prospect.location,
+        icpTier: prospect.icpTier,
+        cossecCharter: prospect.publicDataIdentifier,
       },
     };
   }

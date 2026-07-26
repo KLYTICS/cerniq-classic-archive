@@ -125,21 +125,41 @@ describe('OutreachExecutionService', () => {
       expect(result.sent).toBe(0);
     });
 
-    it('counts failed outreach when executeOutreach returns sent=false', async () => {
+    it('skips prospects that somehow lack contactEmail', async () => {
       mockPrisma.prospectInstitution.findMany.mockResolvedValue([
         {
-          id: 'p-fail',
-          name: 'Failing Coop',
+          id: 'p-skip',
+          name: 'No Email Coop',
           contactEmail: null,
           estimatedAssets: 100,
         },
       ]);
-      // executeOutreach will return { sent: false } because no contactEmail
+
+      const result = await service.executeBulkOutreach('en', 1);
+      expect(result.skippedNoEmail).toBe(1);
+      expect(result.sent).toBe(0);
+      expect(result.failed).toBe(0);
+    }, 10000);
+
+    it('counts failed outreach when send throws', async () => {
+      mockPrisma.prospectInstitution.findMany.mockResolvedValue([
+        {
+          id: 'p-fail',
+          name: 'Failing Coop',
+          contactEmail: 'fail@coop.pr',
+          estimatedAssets: 100,
+        },
+      ]);
       mockPrisma.prospectInstitution.findUnique.mockResolvedValue({
         id: 'p-fail',
         name: 'Failing Coop',
-        contactEmail: null,
+        contactEmail: 'fail@coop.pr',
       });
+      mockLeads.generateOutreach.mockResolvedValue({
+        subject: 'Test',
+        body: 'Body',
+      });
+      mockEmail.sendRawEmail.mockRejectedValue(new Error('SMTP down'));
 
       const result = await service.executeBulkOutreach('en', 1);
       expect(result.failed).toBe(1);

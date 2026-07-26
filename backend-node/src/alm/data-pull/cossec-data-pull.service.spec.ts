@@ -20,10 +20,10 @@ describe('CossecDataPullService', () => {
       }
     });
 
-    it('includes the four Tier-1 priorities (Caguas, ACACIA, Oriental, Bayamón)', () => {
+    it('includes Market Bible Tier-1 anchors (Rincón, COOPACA, Oriental, Caguas)', () => {
       const slugs = service.listAvailable().map((entry) => entry.slug);
       expect(slugs).toEqual(
-        expect.arrayContaining(['caguas', 'acacia', 'oriental', 'bayamon']),
+        expect.arrayContaining(['rincon', 'coopaca', 'oriental', 'caguas']),
       );
     });
   });
@@ -33,12 +33,13 @@ describe('CossecDataPullService', () => {
       const result = await service.pullBySlug('caguas');
 
       expect(result.slug).toBe('caguas');
-      expect(result.institutionName).toContain('Caguas');
+      expect(result.institutionName).toMatch(/Caguas/i);
       expect(result.state).toBe('PR');
       expect(result.source).toBe('cossec_public_filings');
       expect(result.disclosure).toContain('PRELIMINARY');
-      expect(result.disclosure).toContain('Q3-2025');
-      expect(result.totalAssets).toBeCloseTo(2800, 0); // $2.8B → 2800M
+      expect(result.disclosure).toMatch(/Q[1-4]-2025/);
+      // Anejo 9 Q2-2025: ~$136.6M → ~136.6 in millions
+      expect(result.totalAssets).toBeCloseTo(136.6, 0);
       expect(result.netWorth).toBeGreaterThan(0);
       expect(result.netWorthRatio).toBeGreaterThan(8);
       expect(result.netWorthRatio).toBeLessThan(15);
@@ -65,7 +66,7 @@ describe('CossecDataPullService', () => {
     });
 
     it('every loan segment has positive balance, rate, duration, and loss rate', async () => {
-      const result = await service.pullBySlug('acacia');
+      const result = await service.pullBySlug('coopaca');
       expect(result.loanSegments.length).toBeGreaterThanOrEqual(5);
       for (const segment of result.loanSegments) {
         expect(segment.balance).toBeGreaterThan(0);
@@ -76,8 +77,8 @@ describe('CossecDataPullService', () => {
     });
 
     it('caches results within the 24h TTL', async () => {
-      const a = await service.pullBySlug('bayamon');
-      const b = await service.pullBySlug('bayamon');
+      const a = await service.pullBySlug('rincon');
+      const b = await service.pullBySlug('rincon');
       expect(b).toBe(a); // same reference → served from cache
     });
 
@@ -93,7 +94,7 @@ describe('CossecDataPullService', () => {
     });
 
     it('asOfDate is a valid ISO date for the quarter end', async () => {
-      const result = await service.pullBySlug('ponce');
+      const result = await service.pullBySlug('oriental');
       const date = new Date(result.asOfDate);
       expect(Number.isNaN(date.getTime())).toBe(false);
       expect(date.getUTCFullYear()).toBe(2025);
@@ -106,7 +107,7 @@ describe('CossecDataPullService', () => {
     });
 
     it('matches full institution name (case-insensitive)', () => {
-      expect(service.resolveSlugForName('Cooperativa ACACIA')).toBe('acacia');
+      expect(service.resolveSlugForName('COOPACA')).toBe('coopaca');
     });
 
     it('returns null for unknown names', () => {

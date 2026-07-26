@@ -190,6 +190,8 @@ const envSchema = z
     // AGENT_SCHEDULER_DISABLED — different blast radius. Interpreted by
     // src/alm/ews/ews-scheduler-flag.util.ts only.
     EWS_SCHEDULER_DISABLED: z.enum(['true', 'false', '1', '0']).optional(),
+    GTM_SCHEDULER_DISABLED: z.enum(['true', 'false', '1', '0']).optional(),
+    GTM_ARTIFACT_ROOT: z.string().optional(),
 
     // ── Cache ────────────────────────────────────────────────────────
     // Default TTL for AI response cache entries. `parseInt` on bad input

@@ -14,6 +14,7 @@ import { ReportArtifactController } from './reports/report-artifact.controller';
 import { CossecReportService } from './reports/cossec-report.service';
 import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { InstitutionSeedService } from './institution-seed.service';
+import { MarketRegistrySeedService } from './market-registry-seed.service';
 import { CSVIngestionService } from './csv-ingestion.service';
 import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
@@ -185,6 +186,7 @@ import { HJMModule } from './quant/hjm.module';
     CossecReportService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
+    MarketRegistrySeedService,
     CSVIngestionService,
     AnalysisRunsService,
     IngestionLogsService,
@@ -316,6 +318,7 @@ import { HJMModule } from './quant/hjm.module';
     CossecReportService,
     WorkspaceOnboardingService,
     InstitutionSeedService,
+    MarketRegistrySeedService,
     CSVIngestionService,
     AnalysisRunsService,
     IngestionLogsService,

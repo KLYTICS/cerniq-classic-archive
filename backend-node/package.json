@@ -15,7 +15,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" && npm run verify:tenant-scope && npm run verify:no-orphan-spec && npm run verify:no-focused-tests && npm run verify:d1-no-silent-fallback && npm run verify:no-silent-catch && npm run verify:no-unseeded-random && npm run verify:no-phantom-balance-total && npm run verify:decimal-coercion && npm run verify:accent-lint && npm run verify:auth-coverage && npm run verify:body-trust && npm run verify:rule-4-audit-immutable && npm run verify:rule-9-stamping && npm run verify:rule-11-any-rationale && npm run verify:rule-12-crypto-randomness && npm run verify:coverage-floor && npm run verify:gate-selftest && npx tsc --noEmit",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" && npm run verify:tenant-scope && npm run verify:no-orphan-spec && npm run verify:no-focused-tests && npm run verify:d1-no-silent-fallback && npm run verify:no-silent-catch && npm run verify:no-unseeded-random && npm run verify:no-phantom-balance-total && npm run verify:decimal-coercion && npm run verify:accent-lint && npm run verify:auth-coverage && npm run verify:body-trust && npm run verify:rule-4-audit-immutable && npm run verify:rule-9-stamping && npm run verify:rule-11-any-rationale && npm run verify:rule-12-crypto-randomness && npm run verify:pr-cooperativa-registry && npm run verify:coverage-floor && npm run verify:gate-selftest && npx tsc --noEmit",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "verify:tenant-scope": "node scripts/verify-institution-scope-guard.mjs",
     "verify:institution-scope": "node scripts/verify-institution-scope-guard.mjs",
@@ -44,13 +44,17 @@
     "prisma:deploy": "bash ./scripts/prisma-migrate-safe.sh apply",
     "prisma:generate": "prisma generate",
     "seed:institution": "npx ts-node scripts/seed-institution.ts",
+    "seed:pr-registry": "npx ts-node scripts/seed-pr-registry.ts",
+    "verify:pr-cooperativa-registry": "node scripts/verify-pr-cooperativa-registry.mjs",
     "seed:portal-submit": "npx ts-node scripts/seed-portal-submit.ts",
     "demo:provision": "npx ts-node scripts/provision-demo-portal.ts",
     "demo:list": "npx ts-node scripts/provision-demo-portal.ts --list",
     "demo:sic": "npx ts-node scripts/sic-demo.ts",
     "cael:report": "npx ts-node scripts/cael-report.ts",
     "market:quality-scan": "npx ts-node scripts/market-quality-scan.ts",
-    "exports:test": "npx ts-node scripts/test-file-exports.ts"
+    "exports:test": "npx ts-node scripts/test-file-exports.ts",
+    "gtm:run": "npx ts-node scripts/gtm-run-pipeline.ts",
+    "coop-directory:seed": "npx ts-node scripts/seed-cooperativa-directory.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
