@@ -122,6 +122,11 @@ import { AlmDocumentExportsService } from './alm-document-exports.service';
 import { AlmController } from './alm.controller';
 import { CaelController } from './cael.controller';
 import { EwsController } from './ews/ews.controller';
+import { LoanTapeController } from './loan-tape/loan-tape.controller';
+import { LoanTapeIngestService } from './loan-tape/loan-tape-ingest.service';
+import { LoanTapeAggregationService } from './loan-tape/loan-tape-aggregation.service';
+import { GeographicConcentrationService } from './loan-tape/geographic-concentration.service';
+import { FhlbnyCollateralService } from './loan-tape/fhlbny-collateral.service';
 import { EwsSnapshotService } from './ews/ews-snapshot.service';
 import { EwsSchedulerService } from './ews/ews-scheduler.service';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -156,6 +161,7 @@ import { HJMModule } from './quant/hjm.module';
   ],
   controllers: [
     EwsController,
+    LoanTapeController,
     AlmController,
     CaelController,
     AlmAdvisorController,
@@ -220,6 +226,10 @@ import { HJMModule } from './quant/hjm.module';
     AssetEWSService,
     EwsSnapshotService,
     EwsSchedulerService,
+    LoanTapeIngestService,
+    LoanTapeAggregationService,
+    GeographicConcentrationService,
+    FhlbnyCollateralService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,

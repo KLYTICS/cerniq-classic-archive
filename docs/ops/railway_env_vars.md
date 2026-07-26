@@ -8,7 +8,9 @@ All environment variables required for the CERNIQ NestJS backend (`cerniq-api`) 
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string (Railway-managed) | `postgresql://<user>@host:5432/railway` |
 | `JWT_SECRET` | Secret for signing JWTs (min 32 chars) | `openssl rand -hex 32` |
-| `FRONTEND_URL` | Frontend origin for CORS and email links | `https://app.cerniq.io` |
+| `FRONTEND_URL` | Frontend origin for CORS and email links | `https://cerniq.io` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allowlist | `https://cerniq.io` |
+| `REDIS_URL` | Redis connection for queues/cache | `redis://default:...@host:6379` |
 
 ## Data Encryption
 
@@ -101,7 +103,6 @@ Docs: [docs/platform/auth-unification/ENV_CONTRACT.md](../platform/auth-unificat
 OAuth callback URLs (must include `/api`):
 - GitHub: `https://api.cerniq.io/api/auth/github/callback`
 - Google: `https://api.cerniq.io/api/auth/google/callback`
-
 
 ## Market Data
 

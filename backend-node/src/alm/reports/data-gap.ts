@@ -45,7 +45,8 @@ export type DataGapReason =
   | 'EWS_INPUTS_INSUFFICIENT'
   | 'INDICATOR_NOT_WIRED'
   | 'NO_LOAN_SEGMENTS'
-  | 'NO_COHORT_DATA';
+  | 'NO_COHORT_DATA'
+  | 'LOAN_TAPE_FIELD_MISSING';
 
 export interface DataGap {
   /**

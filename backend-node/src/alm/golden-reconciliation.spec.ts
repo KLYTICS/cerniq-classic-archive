@@ -27,6 +27,15 @@ import { AlmEnterpriseService } from './alm-enterprise.service';
 import { StressTestingService } from './stress-testing/stress-testing.service';
 import { CECLService } from './cecl.service';
 import { AssetEWSService } from './asset-ews.service';
+import { LoanTapeIngestService } from './loan-tape/loan-tape-ingest.service';
+import { LoanTapeAggregationService } from './loan-tape/loan-tape-aggregation.service';
+import { GeographicConcentrationService } from './loan-tape/geographic-concentration.service';
+import { FhlbnyCollateralService } from './loan-tape/fhlbny-collateral.service';
+import {
+  SAMPLE_LOAN_TAPE_AS_OF,
+  SAMPLE_LOAN_TAPE_CSV,
+} from './loan-tape/sample-loan-tape.fixture';
+import type { PrismaService } from '../prisma.service';
 import { MacroOverlayService } from './macro-overlay.service';
 import { PrMacroFeedService } from './pr-macro-feed.service';
 import { PR_MACRO_SNAPSHOT } from './data/macro/pr-macro-snapshot';
@@ -271,6 +280,90 @@ describe('Golden reconciliation: pr-cooperativa-demo', () => {
   it('computeEWS produces the canonical snapshot (W1.3 early-warning composite)', async () => {
     const actual = normalize(await ews.computeEWS(INSTITUTION_ID));
     const expected = loadOrCapture('pr-cooperativa-demo.ews.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  // ── W2.0/W2.2 loan-tape goldens ──────────────────────────────────────
+  // The committed SAMPLE_LOAN_TAPE_CSV parses through the PURE parser, is
+  // mapped to LoanRecord-shaped rows, and pins both the segment rollup and
+  // the geographic/single-borrower concentration. Fully deterministic: the
+  // tape's asOfDate is pinned and no clock or DB participates.
+  function loanTapePrismaStub(): PrismaService {
+    const parse = new LoanTapeIngestService(
+      // type-rationale: parseLoanTape is pure — the parser never touches prisma
+      null as unknown as PrismaService,
+    ).parseLoanTape(SAMPLE_LOAN_TAPE_CSV);
+    if (!parse.valid) {
+      throw new Error(
+        `sample loan tape must parse cleanly; got ${parse.errors.length} error(s)`,
+      );
+    }
+    const rows = parse.records.map((r, i) => ({
+      id: `golden-${i}`,
+      institutionId: INSTITUTION_ID,
+      asOfDate: new Date(`${SAMPLE_LOAN_TAPE_AS_OF}T00:00:00Z`),
+      externalLoanId: r.externalLoanId,
+      segmentName: r.segmentName,
+      balance: r.balance,
+      rate: r.rate,
+      originationDate: r.originationDate
+        ? new Date(`${r.originationDate}T00:00:00Z`)
+        : null,
+      maturityDate: r.maturityDate
+        ? new Date(`${r.maturityDate}T00:00:00Z`)
+        : null,
+      collateralType: r.collateralType,
+      collateralValue: r.collateralValue,
+      municipio: r.municipio,
+      delinquencyDays: r.delinquencyDays,
+      borrowerId: r.borrowerId,
+    }));
+    // type-rationale: structural prisma double for the two loan-tape readers
+    return {
+      loanRecord: { findMany: jest.fn().mockResolvedValue(rows) },
+      loanSegment: { findMany: jest.fn().mockResolvedValue([]) },
+    } as unknown as PrismaService;
+  }
+
+  it('loan-tape rollup produces the canonical snapshot (W2.0)', async () => {
+    const agg = new LoanTapeAggregationService(loanTapePrismaStub());
+    const actual = normalize(
+      await agg.rollUpToSegments(
+        INSTITUTION_ID,
+        new Date(`${SAMPLE_LOAN_TAPE_AS_OF}T00:00:00Z`),
+      ),
+    );
+    const expected = loadOrCapture('sample-loan-tape.rollup.json', actual);
+    expect(actual).toEqual(expected);
+  });
+
+  it('geographic + single-borrower concentration produces the canonical snapshot (W2.2)', async () => {
+    const geo = new GeographicConcentrationService(loanTapePrismaStub());
+    const actual = normalize(
+      await geo.analyze(
+        INSTITUTION_ID,
+        new Date(`${SAMPLE_LOAN_TAPE_AS_OF}T00:00:00Z`),
+      ),
+    );
+    const expected = loadOrCapture(
+      'sample-loan-tape.geographic-concentration.json',
+      actual,
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it('MODELED FHLBNY collateral analysis produces the canonical snapshot (W2.1)', async () => {
+    const fhlbny = new FhlbnyCollateralService(loanTapePrismaStub());
+    const actual = normalize(
+      await fhlbny.analyze(
+        INSTITUTION_ID,
+        new Date(`${SAMPLE_LOAN_TAPE_AS_OF}T00:00:00Z`),
+      ),
+    );
+    const expected = loadOrCapture(
+      'sample-loan-tape.fhlbny-collateral.json',
+      actual,
+    );
     expect(actual).toEqual(expected);
   });
 

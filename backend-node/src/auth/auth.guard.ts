@@ -13,6 +13,10 @@ import { hashApiKey, isReadOnlyMethod } from './api-key.util';
 import { ALLOW_BLOCKED_ACCESS_KEY } from './allow-blocked-access.decorator';
 import { AuthService } from './auth.service';
 import { PlatformAccessService } from './platform-access.service';
+import {
+  readSupabaseVerifyEnv,
+  verifySupabaseAccessToken,
+} from './supabase-jwt.util';
 
 // Re-export for backward compatibility
 export { ROLES_KEY, Roles } from './roles.decorator';
@@ -374,45 +378,21 @@ export class AuthGuard implements CanActivate {
   private async verifySupabaseToken(
     token: string,
   ): Promise<AuthenticatedRequestUser | null> {
-    const supabaseUrl = (process.env.SUPABASE_URL || '')
-      .trim()
-      .replace(/\/$/, '');
-    const anonKey =
-      (process.env.SUPABASE_ANON_KEY || '').trim() ||
-      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-
-    if (!supabaseUrl || !anonKey) {
+    const verified = await verifySupabaseAccessToken(
+      token,
+      readSupabaseVerifyEnv(),
+    );
+    if (!verified) {
       return null;
     }
-
-    try {
-      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        return null;
-      }
-      const user = (await response.json()) as { id?: string; email?: string };
-      if (!user?.id) {
-        return null;
-      }
-      const claims = this.decodeClaims(token);
-      return {
-        userId: user.id,
-        email: user.email || claims.email,
-        role:
-          claims.role ||
-          (Array.isArray(claims.roles) ? claims.roles[0] : 'authenticated'),
-        claims,
-        orgId: claims.org_id || claims.tenant_id || null,
-        authMethod: 'token',
-      };
-    } catch {
-      return null;
-    }
+    return {
+      userId: verified.userId,
+      email: verified.email,
+      role: verified.role,
+      claims: verified.claims,
+      orgId: verified.orgId,
+      authMethod: 'token',
+    };
   }
 
   private async verifyApiKey(

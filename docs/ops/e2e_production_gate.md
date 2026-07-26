@@ -5,6 +5,8 @@
 **Owner:** Erwin Kiess-Alfonso
 **Status:** Pre-launch gate -- all 13 steps must pass before pitching any live client
 
+> **Platform gate (Wave 1 + agents + public smoke):** see [PRODUCTION_E2E_RUNBOOK.md](PRODUCTION_E2E_RUNBOOK.md) and `npm run verify:production:platform`. This document covers the **billing funnel** only (manual steps 1–13 below).
+
 ---
 
 ## Prerequisites

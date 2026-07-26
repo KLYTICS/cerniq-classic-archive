@@ -57,7 +57,26 @@ echo "─── Auth + URLs ───"
 check FRONTEND_URL              req '^https://'   10
 check ALLOWED_ORIGINS           req '^https://'   10
 check SUPABASE_URL              req '^https://'   10
+check SUPABASE_ANON_KEY         req ''            20
 check SUPABASE_SERVICE_ROLE_KEY req ''            20
+check SUPABASE_JWKS_URL         opt '^https://'   30
+check SUPABASE_JWT_ISSUER       opt '^https://'   20
+check SUPABASE_JWT_AUDIENCE     opt ''            5
+check AUTH_ALLOW_LEGACY         opt '^(true|false|1|0)$' 4
+check KLYTICS_APP_ID            opt ''            3
+check KLYTICS_REQUIRE_ORG       opt '^(true|false|1|0)$' 4
+check KLYTICS_REQUIRE_ENTITLEMENT opt '^(true|false|1|0)$' 4
+
+# Cutover readiness advisory (not a hard fail while legacy still allowed)
+LEGACY_LINE="$(printf '%s\n' "$KV" | grep -E '^AUTH_ALLOW_LEGACY=' || true)"
+if [[ -n "$LEGACY_LINE" && "$LEGACY_LINE" =~ (false|0)$ ]]; then
+  ok "AUTH_ALLOW_LEGACY=false — Supabase cutover active"
+  check SUPABASE_JWKS_URL       req '^https://'   30
+  check SUPABASE_JWT_ISSUER     req '^https://'   20
+  check SUPABASE_JWT_AUDIENCE   req ''            5
+else
+  warn "AUTH_ALLOW_LEGACY not false — legacy Nest JWT still permitted"
+fi
 
 echo "─── AI runtime ───"
 check ANTHROPIC_API_KEY         req '^sk-ant-'    20

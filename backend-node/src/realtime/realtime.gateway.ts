@@ -16,6 +16,10 @@ import { PortfolioService } from '../portfolio/portfolio.service';
 import { OptionType } from '../options/dto/options.dto';
 import { isAllowedOrigin } from '../security/origin-allowlist';
 import { MarketStreamManagerService } from '../market-data/market-stream-manager.service';
+import {
+  readSupabaseVerifyEnv,
+  verifySupabaseAccessToken,
+} from '../auth/supabase-jwt.util';
 
 interface SubscriptionPayload {
   ticker: string;
@@ -651,31 +655,15 @@ export class RealtimeGateway
   private async tryVerifySupabaseToken(
     token: string,
   ): Promise<SocketUserCtx | null> {
-    const supabaseUrl = (process.env.SUPABASE_URL || '')
-      .trim()
-      .replace(/\/$/, '');
-    const anonKey =
-      (process.env.SUPABASE_ANON_KEY || '').trim() ||
-      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-    if (!supabaseUrl || !anonKey) return null;
-
-    try {
-      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) return null;
-      const user = (await response.json()) as { id?: string };
-      if (!user?.id) return null;
-      return {
-        userId: user.id,
-        isMasterCeo: false,
-      };
-    } catch {
-      return null;
-    }
+    const verified = await verifySupabaseAccessToken(
+      token,
+      readSupabaseVerifyEnv(),
+    );
+    if (!verified) return null;
+    return {
+      userId: verified.userId,
+      isMasterCeo: false,
+    };
   }
 
   private extractToken(client: Socket): string | null {

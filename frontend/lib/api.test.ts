@@ -28,11 +28,39 @@ vi.mock('./marketTransport', () => ({
   getMarketApiBase: vi.fn(() => 'https://market-api.test'),
 }));
 
+const isSupabaseAuthEnabledMock = vi.fn(() => false);
+const signInWithSupabasePasswordMock = vi.fn();
+const signOutSupabaseMock = vi.fn();
+
+vi.mock('./supabase/client', () => ({
+  isSupabaseAuthEnabled: () => isSupabaseAuthEnabledMock(),
+  getSupabaseBrowserClient: () => null,
+}));
+
+vi.mock('./supabase/session', () => ({
+  signInWithSupabasePassword: (...args: unknown[]) =>
+    signInWithSupabasePasswordMock(...args),
+  signOutSupabase: (...args: unknown[]) => signOutSupabaseMock(...args),
+  getSupabaseAccessToken: vi.fn().mockResolvedValue(''),
+  syncSupabaseAccessTokenToStorage: vi.fn().mockResolvedValue(''),
+}));
+
+const getStoredOrganizationIdMock = vi.fn(() => '');
+
+vi.mock('./org-context', () => ({
+  getStoredOrganizationId: () => getStoredOrganizationIdMock(),
+}));
+
 describe('APIClient', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    isSupabaseAuthEnabledMock.mockReturnValue(false);
+    signInWithSupabasePasswordMock.mockReset();
+    signOutSupabaseMock.mockReset();
+    getStoredOrganizationIdMock.mockReset();
+    getStoredOrganizationIdMock.mockReturnValue('');
     mockAxiosInstance.delete.mockReset();
     mockAxiosInstance.get.mockReset();
     mockAxiosInstance.interceptors.request.use.mockReset();
@@ -62,6 +90,16 @@ describe('APIClient', () => {
     const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
     expect(mockInstance.interceptors.request.use).toHaveBeenCalled();
     expect(mockInstance.interceptors.response.use).toHaveBeenCalled();
+  });
+
+  it('request interceptor attaches x-organization-id when org is stored', async () => {
+    getStoredOrganizationIdMock.mockReturnValue('org-abc');
+    await import('./api');
+
+    const mockInstance = (axios.create as ReturnType<typeof vi.fn>).mock.results[0].value;
+    const [handler] = mockInstance.interceptors.request.use.mock.calls[0];
+    const cfg = handler({ headers: {} });
+    expect(cfg.headers['x-organization-id']).toBe('org-abc');
   });
 
   it('exports apiClient with expected methods', async () => {
@@ -489,10 +527,30 @@ describe('APIClient', () => {
     });
   });
 
-  it('routes email/password login through the backend even when Supabase envs are set', async () => {
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project.supabase.co');
-    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-key');
-    const fetchSpy = vi.spyOn(global, 'fetch');
+  it('routes email/password login through Supabase when public env is set', async () => {
+    isSupabaseAuthEnabledMock.mockReturnValue(true);
+    signInWithSupabasePasswordMock.mockResolvedValue({
+      accessToken: 'supabase-access-token',
+      userId: 'user-1',
+      email: 'analyst@example.com',
+    });
+    mockAxiosInstance.get.mockResolvedValueOnce({
+      data: { id: 'user-1', email: 'analyst@example.com' },
+    });
+    const { apiClient } = await import('./api');
+
+    const result = await apiClient.login('analyst@example.com', 'UltraSecret123!');
+
+    expect(signInWithSupabasePasswordMock).toHaveBeenCalled();
+    expect(result.user?.id).toBe('user-1');
+    expect(mockAxiosInstance.post).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/login'),
+      expect.anything(),
+    );
+  });
+
+  it('routes email/password login through Nest when Supabase env is unset', async () => {
+    isSupabaseAuthEnabledMock.mockReturnValue(false);
     const { apiClient } = await import('./api');
     mockAxiosInstance.post.mockResolvedValueOnce({
       data: { user: { id: 'user-1', email: 'analyst@example.com' } },
@@ -504,7 +562,6 @@ describe('APIClient', () => {
       expect.stringContaining('/api/auth/login'),
       expect.objectContaining({ email: 'analyst@example.com' }),
     );
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('routes email/password signup through the backend even when Supabase envs are set', async () => {

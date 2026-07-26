@@ -4,12 +4,13 @@ import path from 'node:path';
 
 const hasSentryReleaseAuth = Boolean(process.env.SENTRY_AUTH_TOKEN);
 
+const monorepoRoot = path.resolve(__dirname, '..');
+const isVercel = Boolean(process.env.VERCEL);
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
-  outputFileTracingRoot: path.resolve(__dirname, '..'),
-  turbopack: {
-    root: path.resolve(__dirname, '..'),
-  },
+  ...(isVercel ? {} : { outputFileTracingRoot: monorepoRoot }),
+  ...(isVercel ? {} : { turbopack: { root: monorepoRoot } }),
   async rewrites() {
     const backendUrl = (process.env.NEXT_PUBLIC_NODE_API_URL || '').trim().replace(/\/+$/, '');
     if (!backendUrl) {
