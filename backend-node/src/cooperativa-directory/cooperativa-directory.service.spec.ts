@@ -13,7 +13,9 @@ jest.mock('../leads/coop-csv-seed', () => ({
       region: 'East',
     },
   ]),
-  toProspectCreateInput: jest.fn((row: { name: string }) => ({ name: row.name })),
+  toProspectCreateInput: jest.fn((row: { name: string }) => ({
+    name: row.name,
+  })),
 }));
 
 describe('CooperativaDirectoryService', () => {
@@ -55,8 +57,12 @@ describe('CooperativaDirectoryService', () => {
     prisma.prospectInstitution.update.mockResolvedValue({});
     prisma.cooperativaOrgProfile.findUnique.mockResolvedValue(null);
     prisma.cooperativaOrgProfile.create.mockResolvedValue({ id: 'profile-1' });
-    prisma.cooperativaOrgUnit.upsert.mockImplementation(({ create }: { create: { unitKey: string } }) =>
-      Promise.resolve({ id: `unit-${create.unitKey}`, unitKey: create.unitKey }),
+    prisma.cooperativaOrgUnit.upsert.mockImplementation(
+      ({ create }: { create: { unitKey: string } }) =>
+        Promise.resolve({
+          id: `unit-${create.unitKey}`,
+          unitKey: create.unitKey,
+        }),
     );
     prisma.cooperativaLeadershipSeat.upsert.mockResolvedValue({});
     service = new CooperativaDirectoryService(prisma as any);
@@ -77,7 +83,9 @@ describe('CooperativaDirectoryService', () => {
   });
 
   it('builds agent bundle with schema version', async () => {
-    prisma.cooperativaOrgProfile.findMany.mockResolvedValue([{ id: 'profile-1' }]);
+    prisma.cooperativaOrgProfile.findMany.mockResolvedValue([
+      { id: 'profile-1' },
+    ]);
     prisma.cooperativaOrgProfile.findUniqueOrThrow.mockResolvedValue({
       id: 'profile-1',
       prospectInstitutionId: 'prospect-1',
@@ -161,8 +169,8 @@ describe('CooperativaDirectoryService', () => {
     expect(bundle.institutions[0].slug).toBe('caguas');
     expect(bundle.institutions[0].primaryBuyers).toHaveLength(1);
     expect(bundle.institutions[0].outreach.grade).toBe('A');
-    expect(bundle.institutions[0].primaryBuyers[0].contactNote?.bestChannel).toBe(
-      'in_person',
-    );
+    expect(
+      bundle.institutions[0].primaryBuyers[0].contactNote?.bestChannel,
+    ).toBe('in_person');
   });
 });

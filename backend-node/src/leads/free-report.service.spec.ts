@@ -112,7 +112,10 @@ describe('FreeReportService', () => {
         firstName: 'Maria',
       });
 
-      expect(result.niiHookDollars).toBeCloseTo(136_620_545.3 * 0.6 * 0.0001, 0);
+      expect(result.niiHookDollars).toBeCloseTo(
+        136_620_545.3 * 0.6 * 0.0001,
+        0,
+      );
       expect(result.matched).toBe(true);
       expect(result.slug).toBe('caguas');
     });

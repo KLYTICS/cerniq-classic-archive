@@ -4,10 +4,8 @@ import { LeadQualificationService } from './lead-qualification.service';
 import { LeadScoringService } from './lead-scoring.service';
 import { InstitutionIntelligenceService } from './institution-intelligence.service';
 import { FreeReportService } from './free-report.service';
-import {
-  COSSEC_BENCHMARK_Q3_2025,
-  COOPERATIVA_PROSPECTS,
-} from './prospect-seed';
+import { COSSEC_BENCHMARK_Q3_2025 } from './prospect-seed';
+import { listPrCooperativas } from '../alm/data/registry/pr-cooperativas.registry';
 import {
   loadCooperativaCsvRows,
   toProspectCreateInput,
@@ -116,7 +114,12 @@ export class GtmEnrichmentService {
       `Cooperativa CSV seed complete: ${created} created, ${updated} updated (${rows.length} total)`,
     );
 
-    return { created, updated, total: rows.length, benchmarkSeeded: !existingBenchmark };
+    return {
+      created,
+      updated,
+      total: rows.length,
+      benchmarkSeeded: !existingBenchmark,
+    };
   }
 
   async enrichAllProspects(options?: {
@@ -169,7 +172,8 @@ export class GtmEnrichmentService {
 
     let intelligenceSynced = { created: 0, updated: 0 };
     if (options?.syncIntelligence !== false) {
-      intelligenceSynced = await this.intelligence.syncProspectsToAccounts(limit);
+      intelligenceSynced =
+        await this.intelligence.syncProspectsToAccounts(limit);
     }
 
     let leadsScored = 0;
@@ -180,7 +184,9 @@ export class GtmEnrichmentService {
 
     const qualifications = await Promise.all(
       prospects.map(async (prospect: { id: string; name: string }) => {
-        const qualification = await this.qualification.qualifyProspect(prospect.id);
+        const qualification = await this.qualification.qualifyProspect(
+          prospect.id,
+        );
         return {
           prospectId: prospect.id,
           name: prospect.name,
@@ -232,7 +238,9 @@ export class GtmEnrichmentService {
     const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
     if (lines.length < 2) return [];
 
-    const header = this.parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim());
+    const header = this.parseCsvLine(lines[0]).map((h) =>
+      h.toLowerCase().trim(),
+    );
     const col = (...names: string[]) => {
       for (const name of names) {
         const idx = header.findIndex((h) => h.includes(name));
@@ -280,7 +288,10 @@ export class GtmEnrichmentService {
     let contactsCreated = 0;
 
     for (const row of rows) {
-      const prospect = this.matchProspectByCompany(row.company || '', prospects);
+      const prospect = this.matchProspectByCompany(
+        row.company || '',
+        prospects,
+      );
       if (!prospect) continue;
 
       matched++;
@@ -291,7 +302,10 @@ export class GtmEnrichmentService {
       const accountId = refreshed?.intelligenceAccountId ?? null;
       if (!accountId) continue;
 
-      const fullName = [row.firstName, row.lastName].filter(Boolean).join(' ').trim();
+      const fullName = [row.firstName, row.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
       if (!fullName) continue;
 
       const normalizedName = this.normalizeName(fullName);
@@ -386,7 +400,9 @@ export class GtmEnrichmentService {
     )) {
       const stops = [];
       for (const prospect of regionProspects) {
-        const qualification = await this.qualification.qualifyProspect(prospect.id);
+        const qualification = await this.qualification.qualifyProspect(
+          prospect.id,
+        );
         const linkedInContacts =
           prospect.intelligenceAccount?.contacts.filter(
             (c: { linkedinUrl: string | null }) => c.linkedinUrl,
@@ -396,7 +412,9 @@ export class GtmEnrichmentService {
           prospectId: prospect.id,
           name: prospect.name,
           location: prospect.location || '',
-          estimatedAssetsM: Math.round(Number(prospect.estimatedAssets || 0) / 1_000_000),
+          estimatedAssetsM: Math.round(
+            Number(prospect.estimatedAssets || 0) / 1_000_000,
+          ),
           grade: qualification.grade,
           priority: qualification.priority,
           hasCossecSnapshot: Boolean(prospect.publicDataIdentifier),
@@ -411,10 +429,18 @@ export class GtmEnrichmentService {
         institutionCount: regionProspects.length,
         totalAssetsUsd: this.sumAssets(regionProspects),
         cossecSnapshotCount: regionProspects.filter(
-          (p: { publicDataIdentifier: string | null }) => p.publicDataIdentifier,
+          (p: { publicDataIdentifier: string | null }) =>
+            p.publicDataIdentifier,
         ).length,
         linkedInContactCount: regionProspects.reduce(
-          (sum: number, p: { intelligenceAccount?: { contacts: Array<{ linkedinUrl: string | null }> } | null }) =>
+          (
+            sum: number,
+            p: {
+              intelligenceAccount?: {
+                contacts: Array<{ linkedinUrl: string | null }>;
+              } | null;
+            },
+          ) =>
             sum +
             (p.intelligenceAccount?.contacts.filter(
               (c: { linkedinUrl: string | null }) => c.linkedinUrl,
@@ -441,7 +467,14 @@ export class GtmEnrichmentService {
         (p: { publicDataIdentifier: string | null }) => p.publicDataIdentifier,
       ).length,
       linkedInContactCount: prospects.reduce(
-        (sum: number, p: { intelligenceAccount?: { contacts: Array<{ linkedinUrl: string | null }> } | null }) =>
+        (
+          sum: number,
+          p: {
+            intelligenceAccount?: {
+              contacts: Array<{ linkedinUrl: string | null }>;
+            } | null;
+          },
+        ) =>
           sum +
           (p.intelligenceAccount?.contacts.filter(
             (c: { linkedinUrl: string | null }) => c.linkedinUrl,
@@ -458,7 +491,9 @@ export class GtmEnrichmentService {
   }
 
   getTier1ProspectNames(): string[] {
-    return COOPERATIVA_PROSPECTS.map((p) => p.name);
+    return listPrCooperativas()
+      .filter((c) => c.icpTier === 'tier1')
+      .map((c) => c.displayName);
   }
 
   private mergeRegionNote(existing: string | null, region: string) {
@@ -469,27 +504,30 @@ export class GtmEnrichmentService {
     return `${existing}\n${tag}`;
   }
 
-  private extractRegion(prospect: { location: string | null; notes: string | null }) {
+  private extractRegion(prospect: {
+    location: string | null;
+    notes: string | null;
+  }) {
     const fromNotes = prospect.notes?.match(/region:([A-Za-z]+)/)?.[1];
     if (fromNotes) return fromNotes;
 
     const location = prospect.location || '';
-    if (
-      /San Juan|Bayamón|Guaynabo|Carolina|Trujillo Alto/i.test(location)
-    ) {
+    if (/San Juan|Bayamón|Guaynabo|Carolina|Trujillo Alto/i.test(location)) {
       return 'Metro';
     }
     if (/Ponce|Guayama|Arroyo|Coamo|Yauco/i.test(location)) return 'South';
-    if (/Humacao|Ceiba|Fajardo|Caguas|Gurabo|Juncos/i.test(location)) return 'East';
-    if (/Mayagüez|Aguada|Aguadilla|Cabo Rojo|San Germán/i.test(location)) return 'West';
-    if (/Arecibo|Barceloneta|Manatí|Dorado|Camuy/i.test(location)) return 'North';
-    if (/Ciales|Barranquitas|Aibonito|Cayey|Comerio/i.test(location)) return 'Central';
+    if (/Humacao|Ceiba|Fajardo|Caguas|Gurabo|Juncos/i.test(location))
+      return 'East';
+    if (/Mayagüez|Aguada|Aguadilla|Cabo Rojo|San Germán/i.test(location))
+      return 'West';
+    if (/Arecibo|Barceloneta|Manatí|Dorado|Camuy/i.test(location))
+      return 'North';
+    if (/Ciales|Barranquitas|Aibonito|Cayey|Comerio/i.test(location))
+      return 'Central';
     return 'Other';
   }
 
-  private sumAssets(
-    prospects: Array<{ estimatedAssets: unknown }>,
-  ): number {
+  private sumAssets(prospects: Array<{ estimatedAssets: unknown }>): number {
     return prospects.reduce(
       (sum, prospect) => sum + Number(prospect.estimatedAssets || 0),
       0,
@@ -518,7 +556,9 @@ export class GtmEnrichmentService {
       }
     }
 
-    const companyWords = normalizedCompany.split(/\s+/).filter((w) => w.length >= 4);
+    const companyWords = normalizedCompany
+      .split(/\s+/)
+      .filter((w) => w.length >= 4);
     for (const prospect of prospects) {
       const normalizedProspect = this.normalizeName(prospect.name);
       if (companyWords.some((word) => normalizedProspect.includes(word))) {

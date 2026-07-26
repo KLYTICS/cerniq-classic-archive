@@ -4,6 +4,7 @@ import {
   matchCossecSlug,
   scoreInstitution,
 } from './cooperativa-outreach';
+import { COSSEC_SNAPSHOT_2025Q4 } from '../alm/data-pull/cossec-snapshots/cossec-2025q4';
 
 describe('cooperativa-outreach', () => {
   it('scores tier-1 finance buyer with COSSEC as high priority A', () => {
@@ -36,10 +37,20 @@ describe('cooperativa-outreach', () => {
     expect(outreach.cossec).toBe(true);
   });
 
-  it('matches known COSSEC slug', () => {
-    expect(matchCossecSlug('Cooperativa de Ahorro y Crédito de Bayamón')).toBe(
-      'bayamon',
-    );
+  it('matches a known COSSEC cooperativa in the demo snapshot to its slug', () => {
+    // The demo snapshot universe is the registry top-20 (by assets) + anchors;
+    // its slugs are COSSEC charter codes. The first entry must round-trip
+    // name -> slug through the matcher's name-normalization path.
+    const [first] = COSSEC_SNAPSHOT_2025Q4;
+    expect(matchCossecSlug(first.name)).toBe(first.slug);
+  });
+
+  it('returns null for a cooperativa outside the demo snapshot set', () => {
+    // Bayamón coops (Lomas Verdes $80.8M, Goya $5.6M) fall below the top-20
+    // demo cut, so they have no COSSEC snapshot to match against.
+    expect(
+      matchCossecSlug('Cooperativa de Ahorro y Crédito de Bayamón'),
+    ).toBeNull();
   });
 
   it('builds seat contact note only for primary buyers', () => {

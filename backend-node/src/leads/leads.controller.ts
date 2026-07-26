@@ -188,7 +188,11 @@ export class LeadsController {
   @Get('admin/api/prospects/portfolio/export.csv')
   @UseGuards(AdminKeyGuard)
   async exportPortfolioCsv(
-    @Res() res: { setHeader: (k: string, v: string) => void; send: (b: string) => void },
+    @Res()
+    res: {
+      setHeader: (k: string, v: string) => void;
+      send: (b: string) => void;
+    },
     @Query('icpTier') icpTier?: string,
     @Query('outreachStatus') outreachStatus?: string,
   ) {
@@ -211,13 +215,10 @@ export class LeadsController {
     @Query('icpTier') icpTier?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.leads.generateOutreachDraftPack(
-      lang === 'en' ? 'en' : 'es',
-      {
-        icpTier: icpTier || undefined,
-        limit: limit ? parseInt(limit, 10) : undefined,
-      },
-    );
+    return this.leads.generateOutreachDraftPack(lang === 'en' ? 'en' : 'es', {
+      icpTier: icpTier || undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get('admin/api/prospects')

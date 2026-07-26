@@ -26,9 +26,11 @@ describe('MarketRegistrySeedService', () => {
       },
       institution: {
         findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation(({ data }) =>
-          Promise.resolve({ id: `inst-${data.seedKey}`, ...data }),
-        ),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) =>
+            Promise.resolve({ id: `inst-${data.seedKey}`, ...data }),
+          ),
         update: jest.fn(),
       },
     };
@@ -43,7 +45,7 @@ describe('MarketRegistrySeedService', () => {
     expect(result.unchanged).toBe(0);
     expect(prisma.institution.create).toHaveBeenCalledTimes(91);
 
-    const first = listPrCooperativas()[0]!;
+    const first = listPrCooperativas()[0];
     expect(prisma.institution.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         seedKey: first.seedKey,
@@ -57,11 +59,7 @@ describe('MarketRegistrySeedService', () => {
 
   it('is idempotent when shells already match registry metadata', async () => {
     prisma.institution.findUnique.mockImplementation(
-      ({
-        where,
-      }: {
-        where: { workspace_seed_key: { seedKey: string } };
-      }) => {
+      ({ where }: { where: { workspace_seed_key: { seedKey: string } } }) => {
         const seedKey = where.workspace_seed_key.seedKey;
         const row = listPrCooperativas().find((r) => r.seedKey === seedKey)!;
         return Promise.resolve({

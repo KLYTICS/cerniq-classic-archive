@@ -9,9 +9,9 @@ import {
 
 describe('cooperativa-org-template', () => {
   it('slugifies cooperativa names', () => {
-    expect(slugifyCooperativaName('Cooperativa de Ahorro y Crédito de Caguas')).toBe(
-      'caguas',
-    );
+    expect(
+      slugifyCooperativaName('Cooperativa de Ahorro y Crédito de Caguas'),
+    ).toBe('caguas');
   });
 
   it('maps CSV contact roles to canonical role keys', () => {

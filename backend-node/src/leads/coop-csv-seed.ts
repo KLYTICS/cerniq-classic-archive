@@ -38,7 +38,9 @@ function parseCsvLine(line: string): string[] {
   return fields;
 }
 
-export function loadCooperativaCsvRows(csvPath = DEFAULT_CSV_PATH): CooperativaCsvRow[] {
+export function loadCooperativaCsvRows(
+  csvPath = DEFAULT_CSV_PATH,
+): CooperativaCsvRow[] {
   const resolved = path.resolve(csvPath);
   if (!fs.existsSync(resolved)) {
     throw new Error(`Cooperativa CSV not found at ${resolved}`);

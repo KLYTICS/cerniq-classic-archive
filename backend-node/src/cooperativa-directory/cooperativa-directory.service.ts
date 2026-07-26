@@ -72,9 +72,10 @@ export class CooperativaDirectoryService {
         region: row.region,
       });
 
-      const existingProfile = await this.prisma.cooperativaOrgProfile.findUnique({
-        where: { prospectInstitutionId: prospect.id },
-      });
+      const existingProfile =
+        await this.prisma.cooperativaOrgProfile.findUnique({
+          where: { prospectInstitutionId: prospect.id },
+        });
 
       const profile = existingProfile
         ? await this.prisma.cooperativaOrgProfile.update({
@@ -274,7 +275,10 @@ export class CooperativaDirectoryService {
       institutionCount: bundle.institutionCount,
       leadershipSeatCount: bundle.leadershipSeatCount,
     });
-    const lines = [header, ...bundle.institutions.map((inst) => JSON.stringify(inst))];
+    const lines = [
+      header,
+      ...bundle.institutions.map((inst) => JSON.stringify(inst)),
+    ];
     return lines.join('\n');
   }
 
@@ -319,7 +323,9 @@ export class CooperativaDirectoryService {
       where: { slug: input.slug },
     });
     if (!profile) {
-      throw new NotFoundException(`Cooperativa profile not found: ${input.slug}`);
+      throw new NotFoundException(
+        `Cooperativa profile not found: ${input.slug}`,
+      );
     }
 
     return this.prisma.cooperativaLeadershipSeat.update({
@@ -353,7 +359,9 @@ export class CooperativaDirectoryService {
       }));
 
     if (!profile) {
-      throw new NotFoundException(`Cooperativa org profile not found: ${slugOrId}`);
+      throw new NotFoundException(
+        `Cooperativa org profile not found: ${slugOrId}`,
+      );
     }
     return profile;
   }
@@ -392,7 +400,7 @@ export class CooperativaDirectoryService {
         titleEs: seat.titleEs,
         titleEn: seat.titleEn,
         unitKey,
-        unitNameEs: unitKey ? unitNameByKey.get(unitKey) ?? null : null,
+        unitNameEs: unitKey ? (unitNameByKey.get(unitKey) ?? null) : null,
         decisionTier: seat.decisionTier,
         almBuyerPriority: seat.almBuyerPriority,
         reportsToRoleKey: seat.reportsToRoleKey,
@@ -418,11 +426,11 @@ export class CooperativaDirectoryService {
 
     const orgUnits: AgentBundleOrgUnit[] = profile.units.map(
       (unit: ProfileWithStructure['units'][number]) => ({
-      unitKey: unit.unitKey,
-      nameEs: unit.nameEs,
-      nameEn: unit.nameEn,
-      sortOrder: unit.sortOrder,
-      leadership: seatsByUnit.get(unit.unitKey) ?? [],
+        unitKey: unit.unitKey,
+        nameEs: unit.nameEs,
+        nameEn: unit.nameEn,
+        sortOrder: unit.sortOrder,
+        leadership: seatsByUnit.get(unit.unitKey) ?? [],
       }),
     );
 
@@ -437,7 +445,8 @@ export class CooperativaDirectoryService {
         profile.metadata &&
         'seedContactRole' in profile.metadata
           ? String(
-              (profile.metadata as { seedContactRole?: string }).seedContactRole,
+              (profile.metadata as { seedContactRole?: string })
+                .seedContactRole,
             )
           : null) ||
         profile.prospect.contactRole ||

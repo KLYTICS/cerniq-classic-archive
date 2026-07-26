@@ -35,7 +35,11 @@ export class CooperativaDirectoryController {
   @Get('export/agent-bundle.ndjson')
   async exportAgentBundleNdjson(
     @Query('limit') limit: string | undefined,
-    @Res() res: { setHeader: Function; send: Function },
+    @Res()
+    res: {
+      setHeader: (name: string, value: string) => void;
+      send: (body: string) => void;
+    },
   ) {
     const body = await this.directory.exportAgentBundleNdjson(
       parseInt(limit || '500', 10),
@@ -51,9 +55,15 @@ export class CooperativaDirectoryController {
   @Get('export/leadership.csv')
   async exportLeadershipCsv(
     @Query('limit') limit: string | undefined,
-    @Res() res: { setHeader: Function; send: Function },
+    @Res()
+    res: {
+      setHeader: (name: string, value: string) => void;
+      send: (body: string) => void;
+    },
   ) {
-    const csv = await this.directory.exportFlatCsv(parseInt(limit || '500', 10));
+    const csv = await this.directory.exportFlatCsv(
+      parseInt(limit || '500', 10),
+    );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',

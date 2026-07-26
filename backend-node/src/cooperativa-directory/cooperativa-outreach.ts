@@ -84,8 +84,14 @@ export function matchCossecSlug(name: string): string | null {
   const normalized = normalize(name);
   for (const entry of COSSEC_SNAPSHOT_2025Q4) {
     if (normalize(entry.name) === normalized) return entry.slug;
-    if (normalized.includes(entry.slug) || entry.slug.includes(normalized.split(' ')[0] ?? '')) {
-      if (entry.slug.length >= 4 && normalized.includes(entry.slug.replace(/-/g, ' '))) {
+    if (
+      normalized.includes(entry.slug) ||
+      entry.slug.includes(normalized.split(' ')[0] ?? '')
+    ) {
+      if (
+        entry.slug.length >= 4 &&
+        normalized.includes(entry.slug.replace(/-/g, ' '))
+      ) {
         return entry.slug;
       }
     }
@@ -106,7 +112,12 @@ export function scoreInstitution(input: {
   contactRole: string;
   region: string;
   cossec: boolean;
-}): { score: number; grade: OutreachGrade; tier: OutreachTier; pri: OutreachPriority } {
+}): {
+  score: number;
+  grade: OutreachGrade;
+  tier: OutreachTier;
+  pri: OutreachPriority;
+} {
   let score = 40;
   const assets = input.estimatedAssets || 0;
 
@@ -118,7 +129,14 @@ export function scoreInstitution(input: {
   if (input.cossec) score += 15;
 
   const roleKey = resolvePrimaryRoleKey(input.contactRole);
-  if (['cfo', 'gerente_financiero', 'director_financiero', 'presidente_alco'].includes(roleKey)) {
+  if (
+    [
+      'cfo',
+      'gerente_financiero',
+      'director_financiero',
+      'presidente_alco',
+    ].includes(roleKey)
+  ) {
     score += 12;
   } else if (roleKey === 'gerente_general') {
     score += 8;
@@ -138,14 +156,19 @@ export function scoreInstitution(input: {
   return { score, grade, tier, pri };
 }
 
-function channelsFor(pri: OutreachPriority, cossec: boolean): OutreachChannel[] {
-  if (pri === 'H') return cossec ? ['ip', 'li', 'em'] : ['ip', 'li', 'em', 'ph'];
+function channelsFor(
+  pri: OutreachPriority,
+  cossec: boolean,
+): OutreachChannel[] {
+  if (pri === 'H')
+    return cossec ? ['ip', 'li', 'em'] : ['ip', 'li', 'em', 'ph'];
   if (pri === 'M') return ['li', 'em', 'ip'];
   return ['em', 'li'];
 }
 
 function hookFor(roleKey: string, assetsM: number, cossec: boolean): string {
-  const size = assetsM >= 200 ? 'tier-1' : assetsM >= 100 ? 'mid-market' : 'community';
+  const size =
+    assetsM >= 200 ? 'tier-1' : assetsM >= 100 ? 'mid-market' : 'community';
   if (roleKey === 'gerente_general') {
     return `Gerente General · ${size}: board/ALCO pack + COSSEC readiness in one bilingual brief`;
   }
@@ -159,8 +182,10 @@ function hookFor(roleKey: string, assetsM: number, cossec: boolean): string {
 }
 
 function askFor(pri: OutreachPriority): string {
-  if (pri === 'H') return '15-min in-person ALM walkthrough this week; leave bilingual one-pager';
-  if (pri === 'M') return 'LinkedIn + email: offer free COSSEC-aligned health report PDF';
+  if (pri === 'H')
+    return '15-min in-person ALM walkthrough this week; leave bilingual one-pager';
+  if (pri === 'M')
+    return 'LinkedIn + email: offer free COSSEC-aligned health report PDF';
   return 'Email nurture: quarterly COSSEC ratio brief; request decision-maker intro';
 }
 
@@ -285,7 +310,12 @@ export type CompactOutreachSummary = {
     cossecLinked: number;
     totalAssetsM: number;
   };
-  routes: Array<{ region: string; week: number; count: number; priorityH: number }>;
+  routes: Array<{
+    region: string;
+    week: number;
+    count: number;
+    priorityH: number;
+  }>;
   topTargets: Array<{
     slug: string;
     name: string;

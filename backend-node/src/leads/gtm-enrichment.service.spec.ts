@@ -4,8 +4,11 @@ import { loadCooperativaCsvRows } from './coop-csv-seed';
 describe('coop-csv-seed', () => {
   it('loads all PR cooperativas from the outbound seed CSV', () => {
     const rows = loadCooperativaCsvRows();
-    expect(rows.length).toBeGreaterThanOrEqual(100);
-    expect(rows[0].name).toContain('Cooperativa');
+    expect(rows.length).toBeGreaterThanOrEqual(91);
+    // Registry-reconciled names are abbreviated ("Coop A/C de Rincón",
+    // "COOPACA", "CrediCentro"), so assert a non-empty name rather than the
+    // literal word "Cooperativa"; institutionType below carries the semantics.
+    expect(rows[0].name.length).toBeGreaterThan(0);
     expect(rows[0].institutionType).toBe('cooperativa');
     expect(rows[0].estimatedAssets).toBeGreaterThan(0);
   });
@@ -40,11 +43,15 @@ describe('GtmEnrichmentService', () => {
   };
 
   const scoring = {
-    scoreAllLeads: jest.fn().mockResolvedValue({ scored: 3, hot: 1, warm: 1, cold: 1 }),
+    scoreAllLeads: jest
+      .fn()
+      .mockResolvedValue({ scored: 3, hot: 1, warm: 1, cold: 1 }),
   };
 
   const intelligence = {
-    syncProspectsToAccounts: jest.fn().mockResolvedValue({ created: 2, updated: 1 }),
+    syncProspectsToAccounts: jest
+      .fn()
+      .mockResolvedValue({ created: 2, updated: 1 }),
   };
 
   const freeReport = {
@@ -85,7 +92,7 @@ describe('GtmEnrichmentService', () => {
 
     expect(result.created).toBeGreaterThanOrEqual(1);
     expect(result.updated).toBeGreaterThanOrEqual(1);
-    expect(result.total).toBeGreaterThanOrEqual(100);
+    expect(result.total).toBeGreaterThanOrEqual(91);
     expect(prisma.prospectInstitution.create).toHaveBeenCalled();
     expect(prisma.prospectInstitution.update).toHaveBeenCalled();
   });

@@ -3,7 +3,8 @@ import type {
   CooperativaSeatContactNote,
 } from './cooperativa-outreach';
 
-export const COOPERATIVA_DIRECTORY_SCHEMA_VERSION = 'cerniq.cooperativa-directory.v1';
+export const COOPERATIVA_DIRECTORY_SCHEMA_VERSION =
+  'cerniq.cooperativa-directory.v1';
 
 export type AgentBundleLeadershipSeat = {
   seatId: string;

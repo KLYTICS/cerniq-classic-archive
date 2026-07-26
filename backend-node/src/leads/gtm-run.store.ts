@@ -9,10 +9,7 @@ export type GtmArtifactBundle = {
   playbook: Record<string, unknown>;
 };
 
-const DEFAULT_ARTIFACT_ROOT = path.resolve(
-  __dirname,
-  '../../../data/gtm-runs',
-);
+const DEFAULT_ARTIFACT_ROOT = path.resolve(__dirname, '../../../data/gtm-runs');
 
 export function resolveGtmArtifactRoot(): string {
   return process.env.GTM_ARTIFACT_ROOT || DEFAULT_ARTIFACT_ROOT;
@@ -66,9 +63,11 @@ export function writeGtmArtifactBundle(bundle: GtmArtifactBundle): string {
   return runDir;
 }
 
-export function readLatestGtmArtifactPointer():
-  | { runId: string; generatedAt: string; artifactPath: string }
-  | null {
+export function readLatestGtmArtifactPointer(): {
+  runId: string;
+  generatedAt: string;
+  artifactPath: string;
+} | null {
   const latestPath = path.join(resolveGtmArtifactRoot(), 'latest.json');
   if (!fs.existsSync(latestPath)) return null;
   return JSON.parse(fs.readFileSync(latestPath, 'utf8')) as {

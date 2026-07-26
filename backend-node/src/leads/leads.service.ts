@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import type { ProspectInstitution } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { SlackService } from '../notifications/slack.service';
@@ -524,7 +525,8 @@ export class LeadsService {
     for (const row of rows) {
       const tier = row.icpTier ?? 'unset';
       byTier[tier] = (byTier[tier] ?? 0) + 1;
-      byOutreach[row.outreachStatus] = (byOutreach[row.outreachStatus] ?? 0) + 1;
+      byOutreach[row.outreachStatus] =
+        (byOutreach[row.outreachStatus] ?? 0) + 1;
       if (row.contactEmail) withEmail += 1;
       if (row.institutionType === 'cooperativa') cooperativas += 1;
       assetsUsd += Number(row.estimatedAssets ?? 0);
@@ -572,7 +574,7 @@ export class LeadsService {
       return s;
     };
 
-    const lines = rows.map((r) =>
+    const lines = rows.map((r: ProspectInstitution) =>
       [
         escape(r.name),
         escape(r.publicDataIdentifier),

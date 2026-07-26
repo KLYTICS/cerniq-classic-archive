@@ -148,10 +148,15 @@ export function verifyPrCooperativaRegistry(
   }
 
   const missingTop20 = MARKET_BIBLE_TOP20_NAMES.filter(
-    (needle) => !new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(blob),
+    (needle) =>
+      !new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(
+        blob,
+      ),
   );
   if (missingTop20.length > 0) {
-    errors.push(`missing Market Bible top-20 anchors: ${missingTop20.join(', ')}`);
+    errors.push(
+      `missing Market Bible top-20 anchors: ${missingTop20.join(', ')}`,
+    );
   }
 
   const tierCounts: Record<IcpTier, number> = {
