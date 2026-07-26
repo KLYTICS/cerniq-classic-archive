@@ -285,7 +285,7 @@ describe("LoginPage", () => {
     expect(mockPush).not.toHaveBeenCalledWith("/access-required");
   });
 
-  it("routes free authenticated users to dashboard instead of access-required", async () => {
+  it("routes free (unpaid) authenticated users to access-required — hard pay gate (#96)", async () => {
     mockLogin.mockResolvedValue({
       user: { id: "user-2", email: "free@cerniq.io" },
     });
@@ -319,10 +319,10 @@ describe("LoginPage", () => {
     });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
+      expect(mockPush).toHaveBeenCalledWith("/access-required");
     });
 
-    expect(mockPush).not.toHaveBeenCalledWith("/access-required");
+    expect(mockPush).not.toHaveBeenCalledWith("/dashboard");
   });
 
   it("routes the master account to dashboard after profile resolution", async () => {
