@@ -46,11 +46,16 @@ check STRIPE_PRICE_ONE_TIME                req '^price_'     10
 check STRIPE_PRICE_MONTHLY                 req '^price_'     10
 check STRIPE_PRICE_ANNUAL                  req '^price_'     10
 check STRIPE_PRICE_PARTNER                 req '^price_'     10
-check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY   req '^pk_live_'   20
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is a FRONTEND (Vercel) build-time var, NOT a
+# Railway backend var — the API uses STRIPE_SECRET_KEY (above). It is exposed to
+# the browser and set on Vercel, never on cerniq-api. Requiring it here was a
+# false gate. (See AGENTS.md → "belong on Vercel (frontend), not Railway API env".)
 
 echo "─── Email + Observability ───"
 check RESEND_API_KEY            req '^re_'        10
-check SENTRY_DSN                req '^https://'   20
+# SENTRY_DSN is optional observability — the platform is fully operational without
+# it (same tier as SLACK_WEBHOOK_URL below). Set it to enable error reporting.
+check SENTRY_DSN                opt '^https://'   20
 check SLACK_WEBHOOK_URL         opt '^https://hooks.slack.com/' 20
 
 echo "─── Auth + URLs ───"
@@ -74,6 +79,16 @@ if [[ -n "$LEGACY_LINE" && "$LEGACY_LINE" =~ (false|0)$ ]]; then
   check SUPABASE_JWKS_URL       req '^https://'   30
   check SUPABASE_JWT_ISSUER     req '^https://'   20
   check SUPABASE_JWT_AUDIENCE   req ''            5
+  # Phase 4 coherence: with legacy VERIFICATION off, the Nest password MINT must
+  # also be off. Otherwise a password login mints an HS256 token that then fails
+  # verification (401) — a broken half-state. AUTH_DISABLE_LEGACY_MINT must be truthy.
+  MINT_LINE="$(printf '%s\n' "$KV" | grep -E '^AUTH_DISABLE_LEGACY_MINT=' || true)"
+  if [[ "$MINT_LINE" =~ (true|1|yes|on)$ ]]; then
+    ok "AUTH_DISABLE_LEGACY_MINT truthy — Nest password mint retired (coherent with legacy off)"
+  else
+    miss "AUTH_ALLOW_LEGACY=false but AUTH_DISABLE_LEGACY_MINT not truthy — password login would mint tokens that then fail verification (401). Set AUTH_DISABLE_LEGACY_MINT=true."
+    FAIL=$((FAIL+1))
+  fi
 else
   warn "AUTH_ALLOW_LEGACY not false — legacy Nest JWT still permitted"
 fi
