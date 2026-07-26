@@ -38,6 +38,11 @@ const envSchema = z
     SUPABASE_JWT_AUDIENCE: z.string().optional(),
     AUTH_ALLOW_LEGACY: z.string().optional(),
     AUTH_LEGACY_DEPRECATION_WARN: z.string().optional(),
+    // Phase 4 legacy sunset: when truthy, the Nest password mint
+    // (register/login/refresh) stops issuing legacy HS256 tokens and returns
+    // 410 Gone directing clients to Supabase session auth. Default unset =
+    // current behavior. Flip to true only after Supabase login is live in prod.
+    AUTH_DISABLE_LEGACY_MINT: z.string().optional(),
     KLYTICS_APP_ID: z.string().optional(),
     KLYTICS_REQUIRE_ORG: z.string().optional(),
     KLYTICS_REQUIRE_ENTITLEMENT: z.string().optional(),

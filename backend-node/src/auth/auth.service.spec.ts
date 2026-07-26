@@ -1433,6 +1433,48 @@ describe('AuthService', () => {
 
       expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
     });
+
+    // ── Phase 4 legacy sunset: AUTH_DISABLE_LEGACY_MINT ──
+    describe('Phase 4 legacy mint sunset (AUTH_DISABLE_LEGACY_MINT)', () => {
+      const KEY = 'AUTH_DISABLE_LEGACY_MINT';
+      let prior: string | undefined;
+      beforeEach(() => {
+        prior = process.env[KEY];
+        jwtService.sign.mockClear();
+        prisma.refreshToken.create.mockClear();
+        prisma.refreshToken.create.mockResolvedValue({});
+        prisma.refreshToken.findMany.mockResolvedValue([]);
+      });
+      afterEach(() => {
+        if (prior === undefined) delete process.env[KEY];
+        else process.env[KEY] = prior;
+      });
+
+      it('mints normally when the flag is unset (default behavior preserved)', async () => {
+        delete process.env[KEY];
+        await service.generateTokens({ id: 'u-mint', email: 'mint@test.com' });
+        expect(jwtService.sign).toHaveBeenCalled();
+        expect(prisma.refreshToken.create).toHaveBeenCalled();
+      });
+
+      it.each(['true', '1', 'yes', 'on'])(
+        'refuses to mint (410 Gone → Supabase) and creates no session when flag=%s',
+        async (val) => {
+          process.env[KEY] = val;
+          await expect(
+            service.generateTokens({ id: 'u-x', email: 'x@test.com' }),
+          ).rejects.toThrow('Legacy Nest password sessions are retired');
+          expect(jwtService.sign).not.toHaveBeenCalled();
+          expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+        },
+      );
+
+      it('still mints on falsy flag values (e.g. "false") — only truthy disables', async () => {
+        process.env[KEY] = 'false';
+        await service.generateTokens({ id: 'u-f', email: 'f@test.com' });
+        expect(jwtService.sign).toHaveBeenCalled();
+      });
+    });
   });
 
   // ── getUserOrgs ───────────────────────────────────
