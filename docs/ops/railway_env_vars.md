@@ -89,6 +89,7 @@ If `DATA_ENCRYPTION_KEY` is not set, the service logs a warning and stores/retur
 | `SUPABASE_JWT_SECRET` | Optional | HS256 fallback when JWKS unavailable |
 | `AUTH_ALLOW_LEGACY` | Yes | `false` after Supabase login verified in prod |
 | `AUTH_LEGACY_DEPRECATION_WARN` | Optional | Log legacy JWT usage |
+| `PLATFORM_RECOVERY_OWNER_BYPASS` | Optional | Must stay unset/`false` in normal prod. Opt-in (`true`) only for temporary OWNER recovery — unpaid OWNERs otherwise hit the pay gate. |
 | `KLYTICS_APP_ID` | Yes | App identifier for entitlement checks (`cerniq`) |
 | `KLYTICS_REQUIRE_ORG` | Cutover | `true` only after frontend sends `x-organization-id` |
 | `KLYTICS_REQUIRE_ENTITLEMENT` | Cutover | `true` when org entitlements enforced |
@@ -99,9 +100,9 @@ Verify presence: `bash scripts/ops/railway-verify-prod.sh`
 
 Docs: [docs/platform/auth-unification/ENV_CONTRACT.md](../platform/auth-unification/ENV_CONTRACT.md)
 
-OAuth callback URLs:
-- GitHub: `https://api.cerniq.io/auth/github/callback`
-- Google: `https://api.cerniq.io/auth/google/callback`
+OAuth callback URLs (must include `/api`):
+- GitHub: `https://api.cerniq.io/api/auth/github/callback`
+- Google: `https://api.cerniq.io/api/auth/google/callback`
 
 ## Market Data
 

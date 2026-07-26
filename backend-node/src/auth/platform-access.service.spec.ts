@@ -7,9 +7,27 @@ describe('PlatformAccessService', () => {
     process.env = { ...originalEnv };
   });
 
-  it('allows OWNER accounts through the temporary recovery bypass in production', () => {
+  it('blocks OWNER accounts when recovery bypass is unset (opt-in only)', () => {
     process.env.NODE_ENV = 'production';
     delete process.env.PLATFORM_RECOVERY_OWNER_BYPASS;
+
+    const service = new PlatformAccessService({} as any);
+    const access = service.evaluateAccess(
+      'owner@cerniq.io',
+      { tier: 'free', status: null },
+      'OWNER',
+    );
+
+    expect(access).toMatchObject({
+      platformAccessAllowed: false,
+      reason: 'subscription_required',
+      isPaid: false,
+    });
+  });
+
+  it('allows OWNER accounts only when PLATFORM_RECOVERY_OWNER_BYPASS is explicitly enabled', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.PLATFORM_RECOVERY_OWNER_BYPASS = 'true';
 
     const service = new PlatformAccessService({} as any);
     const access = service.evaluateAccess(
@@ -55,6 +73,22 @@ describe('PlatformAccessService', () => {
       isMasterCeo: true,
       reason: 'master_ceo',
     });
+  });
+
+  it('allows the developer master email kiess2005@gmail.com', () => {
+    const service = new PlatformAccessService({} as any);
+    const access = service.evaluateAccess(
+      'kiess2005@gmail.com',
+      { tier: 'free', status: null },
+      'VIEWER',
+    );
+
+    expect(access).toMatchObject({
+      platformAccessAllowed: true,
+      isMasterCeo: true,
+      reason: 'master_ceo',
+    });
+    expect(service.isMasterAccountEmail('kiess2005@gmail.com')).toBe(true);
   });
 
   it('treats master-account aliases on other domains as the same owner account', () => {

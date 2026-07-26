@@ -80,15 +80,15 @@ export function hasPlatformAccess(
   return Boolean(access?.platformAccessAllowed);
 }
 
+/**
+ * Former free-builder lane (unpaid → onboarding/dashboard). Disabled: unpaid
+ * users must hit ACCESS_REQUIRED_ROUTE and complete Stripe checkout. Kept as a
+ * named helper so call sites stay readable while always returning false.
+ */
 export function hasFreeBuilderAccess(
-  access: PlatformAccessState | null | undefined,
+  _access: PlatformAccessState | null | undefined,
 ) {
-  return (
-    Boolean(access) &&
-    !hasPlatformAccess(access) &&
-    access?.effectiveTier === 'free' &&
-    access?.reason === 'subscription_required'
-  );
+  return false;
 }
 
 export function prefersPortalExperience(
@@ -125,10 +125,12 @@ export function requiresPaidAccessPath(pathname: string | null) {
 
   const paidPrefixes = [
     '/dashboard',
+    '/onboarding',
     '/portal',
     '/portfolios',
     '/risk-analytics',
     '/settings',
+    '/alm',
   ];
 
   return paidPrefixes.some(
@@ -143,11 +145,11 @@ export function resolveAuthenticatedDestination(params: {
 }) {
   const { access, onboardingComplete } = params;
 
-  if (!hasPlatformAccess(access) && !hasFreeBuilderAccess(access)) {
+  if (!hasPlatformAccess(access)) {
     return ACCESS_REQUIRED_ROUTE;
   }
 
-  if (hasFreeBuilderAccess(access) && !onboardingComplete) {
+  if (!onboardingComplete) {
     return '/onboarding';
   }
 

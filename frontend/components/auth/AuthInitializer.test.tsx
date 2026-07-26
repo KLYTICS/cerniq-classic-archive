@@ -113,7 +113,7 @@ describe('AuthInitializer', () => {
     expect(mockReplace).toHaveBeenCalledWith('/access-required');
   });
 
-  it('does not redirect free builder users away from /alm', () => {
+  it('redirects unpaid users away from /alm to access-required — hard pay gate (#96)', () => {
     mockState.initialized = true;
     mockState.isAuthenticated = true;
     mockState.access = { platformAccessAllowed: false };
@@ -121,7 +121,7 @@ describe('AuthInitializer', () => {
 
     render(<AuthInitializer />);
 
-    expect(mockReplace).not.toHaveBeenCalledWith('/access-required');
+    expect(mockReplace).toHaveBeenCalledWith('/access-required');
   });
 
   it('redirects anonymous users on protected routes to login with a returnUrl', () => {

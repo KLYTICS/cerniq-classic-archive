@@ -8,7 +8,7 @@ import {
 } from './access';
 
 describe('access helpers', () => {
-  it('treats free subscription-required users as builder-access users', () => {
+  it('does not grant free-builder access — unpaid users must pay', () => {
     expect(
       hasFreeBuilderAccess({
         platformAccessAllowed: false,
@@ -21,7 +21,7 @@ describe('access helpers', () => {
         daysRemaining: null,
         reason: 'subscription_required',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('keeps past-due users out of the free builder lane', () => {
@@ -40,14 +40,14 @@ describe('access helpers', () => {
     ).toBe(false);
   });
 
-  it('marks portal and dashboard routes as paid-only', () => {
+  it('marks app routes as paid-only including onboarding and alm', () => {
     expect(requiresPaidAccessPath('/portal')).toBe(true);
     expect(requiresPaidAccessPath('/dashboard')).toBe(true);
-    expect(requiresPaidAccessPath('/onboarding')).toBe(false);
-    expect(requiresPaidAccessPath('/alm')).toBe(false);
+    expect(requiresPaidAccessPath('/onboarding')).toBe(true);
+    expect(requiresPaidAccessPath('/alm')).toBe(true);
   });
 
-  it('routes free builder users into onboarding until setup is complete', () => {
+  it('routes unpaid users to access-required instead of the free builder lane', () => {
     const freeAccess = {
       platformAccessAllowed: false,
       isMasterCeo: false,
@@ -65,13 +65,13 @@ describe('access helpers', () => {
         access: freeAccess,
         onboardingComplete: false,
       }),
-    ).toBe('/onboarding');
+    ).toBe(ACCESS_REQUIRED_ROUTE);
     expect(
       resolveAuthenticatedDestination({
         access: freeAccess,
         onboardingComplete: true,
       }),
-    ).toBe('/dashboard');
+    ).toBe(ACCESS_REQUIRED_ROUTE);
     expect(
       resolveAuthenticatedDestination({
         access: {
@@ -83,6 +83,19 @@ describe('access helpers', () => {
           reason: 'demo_active',
         },
         onboardingComplete: false,
+      }),
+    ).toBe('/onboarding');
+    expect(
+      resolveAuthenticatedDestination({
+        access: {
+          ...freeAccess,
+          platformAccessAllowed: true,
+          isDemo: true,
+          effectiveTier: 'demo',
+          effectiveStatus: 'active',
+          reason: 'demo_active',
+        },
+        onboardingComplete: true,
       }),
     ).toBe('/dashboard');
     expect(
