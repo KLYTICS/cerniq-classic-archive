@@ -21,6 +21,8 @@ import { OutreachExecutionService } from './outreach-execution.service';
 import { InstitutionIntelligenceService } from './institution-intelligence.service';
 import { DemoSeatService } from '../portal/demo-seat.service';
 import { DemoSeatAnalyticsService } from '../portal/demo-seat-analytics.service';
+import { GtmEnrichmentService } from './gtm-enrichment.service';
+import { GtmPipelineService } from './gtm-pipeline.service';
 import { SubmitLeadDto, UpdateLeadDto } from './leads.dto';
 import { AdminKeyGuard } from '../auth/admin-key.guard';
 
@@ -44,6 +46,8 @@ export class LeadsController {
     private readonly intelligence: InstitutionIntelligenceService,
     private readonly demoSeats: DemoSeatService,
     private readonly demoSeatAnalytics: DemoSeatAnalyticsService,
+    private readonly gtmEnrichment: GtmEnrichmentService,
+    private readonly gtmPipeline: GtmPipelineService,
   ) {}
 
   // ── Public endpoint (rate-limited at app level) ──
@@ -106,10 +110,130 @@ export class LeadsController {
     return this.leads.seedProspectPipeline();
   }
 
+  @Post('admin/api/prospects/seed-all')
+  @UseGuards(AdminKeyGuard)
+  async seedAllCooperativas() {
+    return this.gtmEnrichment.seedAllCooperativasFromCsv();
+  }
+
+  @Post('admin/api/gtm/enrich-all')
+  @UseGuards(AdminKeyGuard)
+  async enrichAllGtm(@Body() body?: { linkedInCsv?: string }) {
+    return this.gtmPipeline.executeFullPipeline({
+      triggerSource: 'api',
+      linkedInCsv: body?.linkedInCsv,
+      persistArtifacts: true,
+    });
+  }
+
+  @Post('admin/api/gtm/run')
+  @UseGuards(AdminKeyGuard)
+  async runGtmPipeline(@Body() body?: { linkedInCsv?: string }) {
+    return this.gtmPipeline.executeFullPipeline({
+      triggerSource: 'api',
+      linkedInCsv: body?.linkedInCsv,
+      persistArtifacts: true,
+    });
+  }
+
+  @Get('admin/api/gtm/runs')
+  @UseGuards(AdminKeyGuard)
+  async listGtmRuns(@Query('limit') limit?: string) {
+    return this.gtmPipeline.listRuns(parseInt(limit || '20', 10));
+  }
+
+  @Get('admin/api/gtm/runs/latest')
+  @UseGuards(AdminKeyGuard)
+  async getLatestGtmRun() {
+    return this.gtmPipeline.getLatestRun();
+  }
+
+  @Post('admin/api/gtm/enrich-prospects')
+  @UseGuards(AdminKeyGuard)
+  async enrichProspectsOnly(
+    @Query('syncIntelligence') syncIntelligence?: string,
+    @Query('scoreLeads') scoreLeads?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.gtmEnrichment.enrichAllProspects({
+      syncIntelligence: syncIntelligence !== 'false',
+      scoreLeads: scoreLeads !== 'false',
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @Post('admin/api/gtm/linkedin-import')
+  @UseGuards(AdminKeyGuard)
+  async importLinkedIn(@Body('csv') csv: string) {
+    if (!csv || typeof csv !== 'string' || csv.trim().length < 10) {
+      throw new BadRequestException(
+        'Request body must include a non-empty "csv" string (LinkedIn connections export)',
+      );
+    }
+    return this.gtmEnrichment.importLinkedInConnections(csv);
+  }
+
+  @Get('admin/api/gtm/field-playbook')
+  @UseGuards(AdminKeyGuard)
+  async getFieldSalesPlaybook() {
+    return this.gtmEnrichment.buildFieldSalesPlaybook();
+  }
+
+  @Get('admin/api/prospects/portfolio/summary')
+  @UseGuards(AdminKeyGuard)
+  async portfolioSummary() {
+    return this.leads.getPortfolioSummary();
+  }
+
+  @Get('admin/api/prospects/portfolio/export.csv')
+  @UseGuards(AdminKeyGuard)
+  async exportPortfolioCsv(
+    @Res()
+    res: {
+      setHeader: (k: string, v: string) => void;
+      send: (b: string) => void;
+    },
+    @Query('icpTier') icpTier?: string,
+    @Query('outreachStatus') outreachStatus?: string,
+  ) {
+    const csv = await this.leads.exportPortfolioCsv({
+      icpTier: icpTier || undefined,
+      outreachStatus: outreachStatus || undefined,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cerniq-coop-portfolio.csv"',
+    );
+    res.send(csv);
+  }
+
+  @Get('admin/api/prospects/portfolio/draft-pack')
+  @UseGuards(AdminKeyGuard)
+  async outreachDraftPack(
+    @Query('lang') lang?: string,
+    @Query('icpTier') icpTier?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.leads.generateOutreachDraftPack(lang === 'en' ? 'en' : 'es', {
+      icpTier: icpTier || undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
   @Get('admin/api/prospects')
   @UseGuards(AdminKeyGuard)
-  async listProspects() {
-    return this.leads.listProspects();
+  async listProspects(
+    @Query('icpTier') icpTier?: string,
+    @Query('outreachStatus') outreachStatus?: string,
+    @Query('hasEmail') hasEmail?: string,
+  ) {
+    return this.leads.listProspects({
+      icpTier: icpTier || undefined,
+      outreachStatus: outreachStatus || undefined,
+      hasEmail:
+        hasEmail === 'true' ? true : hasEmail === 'false' ? false : undefined,
+    });
   }
 
   @Get('admin/api/benchmarks')
@@ -171,10 +295,12 @@ export class LeadsController {
   async bulkOutreach(
     @Query('lang') lang?: string,
     @Query('limit') limit?: string,
+    @Query('icpTier') icpTier?: string,
   ) {
     return this.outreachExecution.executeBulkOutreach(
       lang === 'en' ? 'en' : 'es',
       parseInt(limit || '10', 10),
+      { icpTier: icpTier || undefined },
     );
   }
 

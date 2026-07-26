@@ -627,6 +627,10 @@ export default function AdminPage() {
                 <div className="mt-5 grid gap-3">
                   {[
                     ["Pipeline", "/admin/pipeline"],
+                    [
+                      "Coop Portfolio (91 + outreach)",
+                      "/admin/portfolio",
+                    ],
                     ["Prospects", "/admin/prospects"],
                     ["Demo Seats", "/admin/demo-seats"],
                     ["Intelligence", "/admin/intelligence"],

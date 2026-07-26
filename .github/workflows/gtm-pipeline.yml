@@ -1,0 +1,42 @@
+name: GTM Pipeline
+
+on:
+  schedule:
+    # Monday 11:00 UTC = 07:00 AST — full cooperativa enrichment + playbook
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+
+jobs:
+  enrich-cooperativas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend-node/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend-node
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: backend-node
+        run: npm run prisma:generate
+
+      - name: Run GTM enrichment against production API
+        env:
+          ADMIN_KEY: ${{ secrets.CERNIQ_ADMIN_KEY }}
+          API_BASE: ${{ vars.CERNIQ_API_BASE || 'https://api.cerniq.io' }}
+        run: node scripts/gtm/enrich-all-leads.mjs --out data/gtm-runs/latest-field-playbook.json
+
+      - name: Upload GTM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtm-run-${{ github.run_id }}
+          path: data/gtm-runs/
+          retention-days: 90
+          if-no-files-found: warn

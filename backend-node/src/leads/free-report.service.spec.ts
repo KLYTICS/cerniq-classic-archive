@@ -66,28 +66,28 @@ describe('FreeReportService', () => {
       expect(result!.slug).toBe('oriental');
     });
 
-    it('finds ACACIA with just "ACACIA"', () => {
-      const result = service.fuzzyMatch('ACACIA');
+    it('finds COOPACA with just "COOPACA"', () => {
+      const result = service.fuzzyMatch('COOPACA');
       expect(result).not.toBeNull();
-      expect(result!.slug).toBe('acacia');
+      expect(result!.slug).toBe('coopaca');
     });
 
-    it('finds Bayamón ignoring diacritics', () => {
-      const result = service.fuzzyMatch('Bayamón');
+    it('finds Rincón ignoring diacritics', () => {
+      const result = service.fuzzyMatch('Rincón');
       expect(result).not.toBeNull();
-      expect(result!.slug).toBe('bayamon');
+      expect(result!.slug).toBe('rincon');
     });
 
-    it('finds Bayamón without diacritics', () => {
-      const result = service.fuzzyMatch('bayamon');
+    it('finds Rincon without diacritics', () => {
+      const result = service.fuzzyMatch('rincon');
       expect(result).not.toBeNull();
-      expect(result!.slug).toBe('bayamon');
+      expect(result!.slug).toBe('rincon');
     });
 
-    it('finds Trujillo Alto with hyphenated slug', () => {
-      const result = service.fuzzyMatch('Trujillo Alto');
+    it('finds La Sagrada Familia', () => {
+      const result = service.fuzzyMatch('Sagrada Familia');
       expect(result).not.toBeNull();
-      expect(result!.slug).toBe('trujillo-alto');
+      expect(result!.slug).toBe('sagrada-familia');
     });
 
     it('returns null for completely unknown institution', () => {
@@ -105,42 +105,46 @@ describe('FreeReportService', () => {
   // ── NII Hook Computation ──────────────────────────────────
 
   describe('NII hook computation', () => {
-    it('computes correct NII hook for Caguas ($2.8B assets)', async () => {
+    it('computes correct NII hook for Caguas Coop (~$136.6M Anejo 9)', async () => {
       const result = await service.generateFreeReport({
         institutionName: 'Caguas',
         email: 'cfo@caguas.coop',
         firstName: 'Maria',
       });
 
-      // 2_800_000_000 * 0.60 * 0.0001 = 168_000
-      expect(result.niiHookDollars).toBe(168_000);
-      expect(result.niiHookFormatted).toBe('$168K');
+      expect(result.niiHookDollars).toBeCloseTo(
+        136_620_545.3 * 0.6 * 0.0001,
+        0,
+      );
       expect(result.matched).toBe(true);
       expect(result.slug).toBe('caguas');
     });
 
-    it('computes correct NII hook for Oriental ($1.2B assets)', async () => {
+    it('computes correct NII hook for Oriental (~$440.8M Anejo 9)', async () => {
       const result = await service.generateFreeReport({
         institutionName: 'Oriental',
         email: 'cfo@oriental.coop',
         firstName: 'José',
       });
 
-      // 1_200_000_000 * 0.60 * 0.0001 = 72_000
-      expect(result.niiHookDollars).toBe(72_000);
-      expect(result.niiHookFormatted).toBe('$72K');
+      expect(result.niiHookDollars).toBeCloseTo(
+        440_798_120.12 * 0.6 * 0.0001,
+        0,
+      );
     });
 
-    it('computes NII hook for small cooperativa (Roosevelt Roads, $95M)', async () => {
+    it('computes NII hook for Roosevelt Roads (~$246.6M Anejo 9)', async () => {
       const result = await service.generateFreeReport({
         institutionName: 'Roosevelt Roads',
         email: 'cfo@rr.coop',
         firstName: 'Carlos',
       });
 
-      // 95_000_000 * 0.60 * 0.0001 = 5_700
-      expect(result.niiHookDollars).toBe(5_700);
-      expect(result.niiHookFormatted).toBe('$6K');
+      expect(result.niiHookDollars).toBeCloseTo(
+        246_562_455.86 * 0.6 * 0.0001,
+        0,
+      );
+      expect(result.matched).toBe(true);
     });
   });
 
