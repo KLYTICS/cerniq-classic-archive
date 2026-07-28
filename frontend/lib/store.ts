@@ -105,7 +105,15 @@ export const useAuthStore = create<AuthState>((set) => ({
             return;
         }
 
-        set({ initialized: false });
+        // NOTE: Do NOT flip `initialized` back to `false` here. `initialized`
+        // means "auth has resolved at least once" — the initial store state is
+        // already `false`, so first boot still shows the loading state until the
+        // first hydrate completes. Re-probing the server session mid-app (e.g.
+        // from /auth/callback or a dashboard refresh) must stay transparent:
+        // blipping `initialized` false re-triggers every consumer that gates on
+        // it, and on /auth/callback that produced an infinite re-hydration loop
+        // that hammered /api/auth/session and never redirected. Each branch
+        // below still ends by setting `initialized: true`.
 
         const setUnauthenticated = () =>
             set((state) => ({

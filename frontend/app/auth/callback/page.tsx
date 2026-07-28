@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import {
@@ -14,14 +14,21 @@ const PROFILE_RESOLUTION_DELAYS_MS =
 export default function AuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialized = useAuthStore((state) => state.initialized);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const user = useAuthStore((state) => state.user);
   const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
+  // Run the resolution routine exactly once per mount. This effect is
+  // deliberately NOT gated on store fields (`initialized`, `isAuthenticated`,
+  // `user`): reading them as dependencies made the effect tear down and re-run
+  // every time `hydrateFromStorage` mutated the store mid-loop, which cancelled
+  // the in-flight routine before it could reach the login fallback — an
+  // infinite re-hydration loop. The routine drives its own hydration and always
+  // terminates in exactly one redirect (returnUrl on success, login otherwise).
+  const hasStartedRef = useRef(false);
+
   useEffect(() => {
-    if (!initialized) {
+    if (hasStartedRef.current) {
       return;
     }
+    hasStartedRef.current = true;
 
     const returnUrl = sanitizePostAuthReturnUrl(searchParams.get('returnUrl'));
     let cancelled = false;
@@ -38,13 +45,19 @@ export default function AuthCallbackPage() {
     };
 
     void (async () => {
-      if (routeAuthenticatedUser()) {
-        return;
-      }
-
       for (const delayMs of PROFILE_RESOLUTION_DELAYS_MS) {
         if (delayMs > 0) {
           await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        // A concurrent AuthInitializer hydrate may already have resolved the
+        // session — check before spending another network round-trip.
+        if (routeAuthenticatedUser()) {
+          return;
         }
 
         await hydrateFromStorage();
@@ -66,14 +79,7 @@ export default function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [
-    hydrateFromStorage,
-    initialized,
-    isAuthenticated,
-    router,
-    searchParams,
-    user?.id,
-  ]);
+  }, [hydrateFromStorage, router, searchParams]);
 
   return (
     <div className="cerniq-dashboard-page relative min-h-screen overflow-hidden text-[var(--dashboard-text-primary)]">

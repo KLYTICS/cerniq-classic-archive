@@ -242,6 +242,89 @@ test.describe('Authentication', () => {
     await expect(page.locator('body')).toContainText(/local-demo@cerniq\.local/i);
   });
 
+  test('auth callback does not livelock — unresolved session redirects to login with bounded probes', async ({
+    page,
+  }) => {
+    // Regression guard for the "stuck on Completing sign in..." livelock.
+    // hydrateFromStorage used to flip `initialized` false on every re-probe,
+    // tearing down and re-running the callback effect before it could reach the
+    // login fallback — an unbounded loop of /api/auth/session requests that
+    // never redirected. The page must reach a terminal state with only a
+    // handful of probes.
+    let sessionProbes = 0;
+    await page.route('**/api/auth/session', async (route) => {
+      sessionProbes += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ authenticated: false }),
+      });
+    });
+
+    await page.goto('/auth/callback?returnUrl=%2Fdashboard');
+
+    // Terminal state: the unresolved session bounces to /login (never hangs).
+    await page.waitForURL(/\/login/, { timeout: 15000 });
+
+    // Give any runaway loop a full second to misbehave, then assert the probe
+    // count stayed bounded. The bug produced dozens-to-unbounded probes; the
+    // fixed page issues at most the AuthInitializer boot probe plus the three
+    // retry-loop probes.
+    await page.waitForTimeout(1000);
+    expect(sessionProbes).toBeLessThanOrEqual(8);
+  });
+
+  test('auth callback routes a resolved session straight through to the workspace', async ({
+    page,
+  }) => {
+    // The "add the token in another session" path: once a valid cookie-backed
+    // session resolves, the callback must forward to the requested workspace
+    // destination instead of blocking on the spinner.
+    await page.route('**/api/auth/session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          authenticated: true,
+          user: {
+            id: 'callback-user',
+            email: 'callback@cerniq.io',
+            name: 'Callback User',
+          },
+        }),
+      });
+    });
+    await page.route('**/api/auth/profile', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'callback-user',
+          email: 'callback@cerniq.io',
+          name: 'Callback User',
+        }),
+      });
+    });
+    await page.route('**/api/workspaces', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.goto('/auth/callback?returnUrl=%2Fdashboard');
+
+    // Leaves the callback for the workspace shell (dashboard bridge or portal),
+    // and never strands the user back on /login.
+    await page.waitForURL(
+      (url) => /\/(dashboard|portal)(\b|\/)/.test(url.pathname),
+      { timeout: 15000 },
+    );
+    await expect(page).not.toHaveURL(/\/auth\/callback/);
+    await expect(page).not.toHaveURL(/\/login/);
+  });
+
   test('should show Google OAuth button when enabled', async ({ page }) => {
     await waitForLoginPage(page);
     // Google OAuth link is rendered by default (NEXT_PUBLIC_ENABLE_GOOGLE_OAUTH defaults to true)
