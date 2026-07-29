@@ -14,6 +14,11 @@ import {
 } from "@/lib/access";
 import { getPublicApiUrl } from "@/lib/api-base";
 import { sanitizePostAuthReturnUrl } from "@/lib/auth-redirect";
+import { isSupabaseAuthEnabled } from "@/lib/supabase/client";
+import {
+  signInWithSupabaseOAuth,
+  type SupabaseOAuthProvider,
+} from "@/lib/supabase/session";
 import { ArrowRight } from "lucide-react";
 
 const PROFILE_RESOLUTION_DELAYS_MS =
@@ -351,6 +356,35 @@ function LoginContent() {
   const billingSuccess = searchParams.get("billing") === "success";
   const magicMode = billingSuccess || searchParams.get("mode") === "magic-link";
   const currentUserId = user?.id;
+  const [oauthLoading, setOauthLoading] = useState<SupabaseOAuthProvider | null>(
+    null,
+  );
+
+  // Phase 4: OAuth must originate from Supabase. The legacy Nest routes
+  // (`/api/auth/{google,github}`) call `AuthService.generateTokens`, which
+  // returns 410 Gone under `AUTH_DISABLE_LEGACY_MINT` — and a minted HS256
+  // cookie would be rejected anyway while `AUTH_ALLOW_LEGACY=false`. We only
+  // fall back to the legacy href when Supabase is not configured (local dev
+  // without NEXT_PUBLIC_SUPABASE_*), never in production.
+  const handleOAuthSignIn = async (provider: SupabaseOAuthProvider) => {
+    setError("");
+    setOauthLoading(provider);
+    try {
+      const safeReturnUrl = sanitizePostAuthReturnUrl(returnUrl);
+      await signInWithSupabaseOAuth(
+        provider,
+        `${window.location.origin}/auth/callback?returnUrl=${encodeURIComponent(safeReturnUrl)}`,
+      );
+      // On success the browser navigates to the provider; nothing below runs.
+    } catch (err) {
+      setOauthLoading(null);
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("login.oauthStartFailed"),
+      );
+    }
+  };
 
   useEffect(() => {
     setLocalDemoVisible(isLocalDemoLoginVisible());
@@ -801,6 +835,37 @@ function LoginContent() {
               className={`grid gap-3 ${ENABLE_GOOGLE_OAUTH && ENABLE_GITHUB_OAUTH ? "grid-cols-2" : "grid-cols-1"}`}
             >
               {ENABLE_GOOGLE_OAUTH ? (
+                isSupabaseAuthEnabled() ? (
+                <button
+                  type="button"
+                  onClick={() => void handleOAuthSignIn("google")}
+                  disabled={oauthLoading !== null}
+                  aria-busy={oauthLoading === "google"}
+                  className="flex items-center justify-center gap-3 rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.9)] px-4 py-4 text-base font-medium text-[var(--dashboard-text-primary)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                  {oauthLoading === "google"
+                    ? t("login.oauthRedirecting")
+                    : t("common.google")}
+                </button>
+                ) : (
                 <a
                   href={getPublicApiUrl("/api/auth/google")}
                   className="flex items-center justify-center gap-3 rounded-2xl border border-[var(--dashboard-border)] bg-[rgba(255,251,239,0.9)] px-4 py-4 text-base font-medium text-[var(--dashboard-text-primary)] transition hover:bg-white"
@@ -825,6 +890,7 @@ function LoginContent() {
                   </svg>
                   {t("common.google")}
                 </a>
+                )
               ) : null}
 
               {ENABLE_GITHUB_OAUTH ? (

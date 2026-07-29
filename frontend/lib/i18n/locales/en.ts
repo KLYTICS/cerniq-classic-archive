@@ -30,6 +30,8 @@ export const en: TranslationKeys = {
     emailPlaceholder: 'name@institution.com',
     forgotPassword: 'Forgot password?',
     orContinueWith: 'Or continue with',
+    oauthRedirecting: 'Redirecting...',
+    oauthStartFailed: 'Could not start sign-in. Please try again.',
     noAccount: "Don't have an account? Sign up",
     hasAccount: 'Already have an account? Sign in',
     tagline: 'Institutional Risk Intelligence Platform',
