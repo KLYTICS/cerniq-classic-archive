@@ -30,6 +30,8 @@ export const es: TranslationKeys = {
     emailPlaceholder: 'nombre@institucion.com',
     forgotPassword: '\u00bfOlvidaste tu contrase\u00f1a?',
     orContinueWith: 'O contin\u00faa con',
+    oauthRedirecting: 'Redirigiendo...',
+    oauthStartFailed: 'No se pudo iniciar el acceso. Int\u00e9ntalo de nuevo.',
     noAccount: '\u00bfNo tienes cuenta? Reg\u00edstrate',
     hasAccount: '\u00bfYa tienes cuenta? Inicia sesi\u00f3n',
     tagline: 'Plataforma de Inteligencia de Riesgo Institucional',

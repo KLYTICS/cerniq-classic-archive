@@ -7,6 +7,10 @@ import {
   buildLoginUrlForReturnUrl,
   sanitizePostAuthReturnUrl,
 } from '@/lib/auth-redirect';
+import {
+  hasSupabaseOAuthCallbackParams,
+  waitForSupabaseSession,
+} from '@/lib/supabase/session';
 
 const PROFILE_RESOLUTION_DELAYS_MS =
   process.env.NODE_ENV === 'test' ? [0, 1, 1] : [0, 350, 900];
@@ -45,6 +49,19 @@ export default function AuthCallbackPage() {
     };
 
     void (async () => {
+      // Supabase OAuth (Phase 4) lands here with a `?code=` that the browser
+      // client exchanges for a session via `detectSessionInUrl`. That exchange
+      // is a network round-trip, so we must wait for it before concluding the
+      // user is unauthenticated — otherwise a valid Google sign-in would race
+      // the retry loop and get bounced to /login.
+      if (hasSupabaseOAuthCallbackParams()) {
+        await waitForSupabaseSession();
+
+        if (cancelled) {
+          return;
+        }
+      }
+
       for (const delayMs of PROFILE_RESOLUTION_DELAYS_MS) {
         if (delayMs > 0) {
           await new Promise((resolve) => window.setTimeout(resolve, delayMs));

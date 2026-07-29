@@ -4,6 +4,8 @@ import {
     normalizePlatformAccess,
     type PlatformAccessState,
 } from './access';
+import { isSupabaseAuthEnabled } from './supabase/client';
+import { syncSupabaseAccessTokenToStorage } from './supabase/session';
 
 interface User {
     id: string;
@@ -140,6 +142,36 @@ export const useAuthStore = create<AuthState>((set) => ({
                 initialized: true,
             }));
         };
+
+        // Supabase-issued sessions (password AND OAuth) authenticate with an
+        // `Authorization: Bearer` header, not a cookie — so the `/api/auth/session`
+        // probe below (which only forwards cookies) can never see them. Resolve
+        // them first: sync the Supabase access token into sessionStorage, where
+        // the axios interceptor picks it up, then read the profile with it.
+        // Without this, a successful Google sign-in would land authenticated in
+        // Supabase but "logged out" in the app and bounce back to /login.
+        if (isSupabaseAuthEnabled()) {
+            try {
+                const supabaseToken = await syncSupabaseAccessTokenToStorage();
+                if (supabaseToken) {
+                    const profile = await apiClient.getCurrentUser();
+                    const supabaseUser = normalizeUser(profile);
+                    if (supabaseUser) {
+                        setAuthenticated(
+                            supabaseUser,
+                            normalizePlatformAccess(
+                                (profile as { access?: unknown } | null)?.access ?? null,
+                            ),
+                        );
+                        return;
+                    }
+                }
+            } catch {
+                // Fall through to the cookie/localStorage paths below. A failed
+                // profile read here is not authoritative — the legacy cookie
+                // session or a cached user may still be valid.
+            }
+        }
 
         // Migrate legacy capex_ keys to cerniq_ keys
         const legacyRaw = localStorage.getItem(LEGACY_AUTH_USER_STORAGE_KEY);

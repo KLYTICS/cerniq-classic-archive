@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGetCurrentUser } = vi.hoisted(() => ({
-  mockGetCurrentUser: vi.fn(),
-}));
+const { mockGetCurrentUser, mockIsSupabaseAuthEnabled, mockSyncSupabaseToken } =
+  vi.hoisted(() => ({
+    mockGetCurrentUser: vi.fn(),
+    mockIsSupabaseAuthEnabled: vi.fn(() => false),
+    mockSyncSupabaseToken: vi.fn(async () => ''),
+  }));
 
 vi.mock('./api', () => ({
   apiClient: {
@@ -11,11 +14,23 @@ vi.mock('./api', () => ({
   },
 }));
 
+vi.mock('./supabase/client', () => ({
+  isSupabaseAuthEnabled: mockIsSupabaseAuthEnabled,
+}));
+
+vi.mock('./supabase/session', () => ({
+  syncSupabaseAccessTokenToStorage: mockSyncSupabaseToken,
+}));
+
 import { useAuthStore } from './store';
 
 describe('useAuthStore', () => {
   beforeEach(() => {
     mockGetCurrentUser.mockReset();
+    mockIsSupabaseAuthEnabled.mockReset();
+    mockIsSupabaseAuthEnabled.mockReturnValue(false);
+    mockSyncSupabaseToken.mockReset();
+    mockSyncSupabaseToken.mockResolvedValue('');
     window.localStorage.clear();
     window.sessionStorage.clear();
     useAuthStore.setState({
@@ -78,5 +93,73 @@ describe('useAuthStore', () => {
 
     expect(observed).not.toContain(false);
     expect(useAuthStore.getState().initialized).toBe(true);
+  });
+
+  it('authenticates a Supabase bearer session that the cookie probe cannot see', async () => {
+    // Phase 4 Google/OAuth sign-in issues a *Supabase* session, which travels as
+    // an `Authorization: Bearer` header — the `/api/auth/session` probe only
+    // forwards cookies, so it returns authenticated:false for these users.
+    // Without the Supabase-first branch in hydrateFromStorage, a successful
+    // Google sign-in would land authenticated in Supabase but "logged out" in
+    // the app and bounce straight back to /login.
+    mockIsSupabaseAuthEnabled.mockReturnValue(true);
+    mockSyncSupabaseToken.mockResolvedValue('supabase-jwt');
+    mockGetCurrentUser.mockResolvedValue({
+      id: 'google-user',
+      email: 'founder@cerniq.io',
+      name: 'Founder',
+    });
+
+    // The cookie probe explicitly denies the session, proving authentication
+    // came from the Supabase bearer path and not from a cookie fallback.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ authenticated: false }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      await useAuthStore.getState().hydrateFromStorage();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const state = useAuthStore.getState();
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.user).toMatchObject({
+      id: 'google-user',
+      email: 'founder@cerniq.io',
+    });
+    expect(state.initialized).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the cookie session when Supabase has no token', async () => {
+    // Supabase configured but not signed in (e.g. legacy cookie user): the
+    // Supabase branch must not short-circuit or strand the cookie session.
+    mockIsSupabaseAuthEnabled.mockReturnValue(true);
+    mockSyncSupabaseToken.mockResolvedValue('');
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        authenticated: true,
+        user: { id: 'cookie-user', email: 'cookie@cerniq.io' },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      await useAuthStore.getState().hydrateFromStorage();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const state = useAuthStore.getState();
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.user).toMatchObject({ id: 'cookie-user' });
+    expect(mockGetCurrentUser).not.toHaveBeenCalled();
   });
 });

@@ -30,6 +30,8 @@ export interface TranslationKeys {
     emailPlaceholder: string;
     forgotPassword: string;
     orContinueWith: string;
+    oauthRedirecting: string;
+    oauthStartFailed: string;
     noAccount: string;
     hasAccount: string;
     tagline: string;
