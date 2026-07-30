@@ -15,7 +15,13 @@
  * NOT spin up the full Nest application, so it's fast enough to run from the loop of
  * a watch script.
  */
-import { PrismaClient } from '@prisma/client';
+// Prisma 7 refuses a bare `new PrismaClient()` — it requires a driver adapter.
+// PrismaService already constructs the PrismaPg adapter + pg.Pool from
+// DATABASE_URL, so reuse it here rather than hand-rolling a second adapter and
+// letting the two drift. Constructing it outside Nest is fine: the DI lifecycle
+// hooks (onModuleInit/onModuleDestroy) are not required for a one-shot CLI, and
+// Prisma connects lazily on first query.
+import { PrismaService } from '../src/prisma.service';
 import { InstitutionSeedService } from '../src/alm/institution-seed.service';
 import { listFixtures } from '../src/alm/data/fixtures';
 
@@ -61,7 +67,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const prisma = new PrismaClient();
+  const prisma = new PrismaService();
   try {
     // The seed service expects a NestJS-injected PrismaService, but its surface is just
     // PrismaClient methods + $transaction. We can satisfy that contract directly.
