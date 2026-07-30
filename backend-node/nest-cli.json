@@ -7,6 +7,7 @@
     "assets": [
       {
         "include": "alm/data/registry/**/*.json",
+        "outDir": "dist/src",
         "watchAssets": true
       }
     ]
