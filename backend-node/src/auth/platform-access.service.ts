@@ -4,10 +4,20 @@ import { PrismaService } from '../prisma.service';
 /** Primary provisioned CEO account (password bootstrap + canonical alias target). */
 export const MASTER_ACCOUNT_EMAIL = 'data.ai.kiess@gmail.com';
 export const MASTER_ACCOUNT_LOCAL_PART = 'data.ai.kiess';
-/** All emails that receive master CEO platform access while developing / operating. */
+/**
+ * All emails that receive master CEO platform access while developing / operating.
+ *
+ * Membership here bypasses the pay gate (`reason: 'master_ceo'`) and the org
+ * membership check in `AuthGuard`, so every entry is a full-privilege operator
+ * account. Keep this list minimal and add only founder-controlled addresses.
+ */
 export const MASTER_ACCOUNT_EMAILS = [
   MASTER_ACCOUNT_EMAIL,
   'kiess2005@gmail.com',
+  // Founder demo/operator account. Without this, a Supabase-issued JWT for this
+  // address 403s (PLATFORM_ACCESS_REQUIRED) on every gated route — including
+  // GET /api/alm/institutions, which blocked the production E2E bootstrap.
+  'eskiessalfonso@gmail.com',
 ] as const;
 export const PLATFORM_ACCESS_REQUIRED_CODE = 'PLATFORM_ACCESS_REQUIRED';
 

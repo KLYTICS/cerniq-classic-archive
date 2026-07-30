@@ -91,6 +91,48 @@ describe('PlatformAccessService', () => {
     expect(service.isMasterAccountEmail('kiess2005@gmail.com')).toBe(true);
   });
 
+  it('grants master access to the founder demo account eskiessalfonso@gmail.com', () => {
+    // Regression guard: this address is UNPAID (tier free / no subscription).
+    // Before it was added to MASTER_ACCOUNT_EMAILS, its Supabase-issued JWT
+    // 403'd with PLATFORM_ACCESS_REQUIRED on every gated route — including
+    // GET /api/alm/institutions, which is exactly what the production E2E
+    // bootstrap probes, so Phases 2-3 could never start.
+    const service = new PlatformAccessService({} as any);
+    const access = service.evaluateAccess(
+      'eskiessalfonso@gmail.com',
+      { tier: 'free', status: null },
+      'VIEWER',
+    );
+
+    expect(access).toMatchObject({
+      platformAccessAllowed: true,
+      isMasterCeo: true,
+      reason: 'master_ceo',
+    });
+    expect(service.isMasterAccountEmail('eskiessalfonso@gmail.com')).toBe(true);
+    // Case/whitespace variants must resolve too — Supabase normalizes emails
+    // lowercase, but the guard receives whatever the JWT carries.
+    expect(service.isMasterAccountEmail('  EsKiessAlfonso@Gmail.com ')).toBe(
+      true,
+    );
+  });
+
+  it('still denies a non-master unpaid account', () => {
+    // Proves the grant above is an allowlist entry, not a blanket gate removal.
+    const service = new PlatformAccessService({} as any);
+    const access = service.evaluateAccess(
+      'someone.else@example.com',
+      { tier: 'free', status: null },
+      'VIEWER',
+    );
+
+    expect(access.platformAccessAllowed).toBe(false);
+    expect(access.isMasterCeo).toBe(false);
+    expect(service.isMasterAccountEmail('someone.else@example.com')).toBe(
+      false,
+    );
+  });
+
   it('treats master-account aliases on other domains as the same owner account', () => {
     const service = new PlatformAccessService({} as any);
     const access = service.evaluateAccess(
