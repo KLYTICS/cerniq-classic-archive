@@ -46,6 +46,17 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
+# Fail the BUILD if a runtime data asset is missing from the image.
+#
+# `nest build` copies nest-cli.json `assets` relative to sourceRoot, but tsconfig
+# emits compiled JS under dist/src/ (no explicit rootDir), so an asset can land in
+# dist/ while its consumer reads join(__dirname, ...) under dist/src/ — the image
+# builds and pushes fine, then the container dies at import time with ENOENT and
+# Railway only surfaces it as "1/1 replicas never became healthy" after a 5-minute
+# healthcheck window. Asserting here turns that into an immediate, legible failure.
+RUN test -f dist/src/alm/data/registry/pr-cooperativas-q2-2025.json \
+  || (echo "FATAL: cooperativa registry JSON missing from dist/src — check nest-cli.json assets outDir" && exit 1)
+
 # Transfer file ownership to the non-root `node` user (uid 1000). The
 # chown happens here once rather than in each COPY to keep image layers
 # cache-friendly.
