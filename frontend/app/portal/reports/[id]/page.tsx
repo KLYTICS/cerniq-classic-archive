@@ -22,6 +22,7 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
 } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 import {
   BarChart,
   Bar,
@@ -1129,7 +1130,7 @@ export default function ReportSuite() {
           () => controller.abort(),
           REPORT_VIEWER_TIMEOUT_MS,
         );
-        const res = await fetch(getPublicApiUrl(`/api/portal/jobs/${jobId}`), {
+        const res = await authFetch(getPublicApiUrl(`/api/portal/jobs/${jobId}`), {
           credentials: "include",
           signal: controller.signal,
         });

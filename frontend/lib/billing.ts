@@ -1,6 +1,7 @@
 import type { PortalSubscription } from './subscription';
 import { getPublicApiUrl } from './api-base';
 import { asRecord, unwrapApiData } from './api-response';
+import { authFetch } from './auth-fetch';
 
 export type CheckoutTier = 'one_time' | 'monthly' | 'annual' | 'partner';
 
@@ -65,7 +66,7 @@ export async function createCheckoutSession({
 }
 
 export async function getCurrentSubscription(): Promise<PortalSubscription> {
-  const response = await fetch(getPublicApiUrl('/api/billing/subscription'), {
+  const response = await authFetch(getPublicApiUrl('/api/billing/subscription'), {
     credentials: 'include',
   });
 

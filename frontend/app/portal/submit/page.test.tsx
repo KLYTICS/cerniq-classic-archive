@@ -109,6 +109,9 @@ vi.mock('@/lib/api', () => ({
   apiClient: {
     openPortalReportCycle: openPortalReportCycleMock,
   },
+  // `authFetch` reads the bearer token from here before every request; omitting
+  // it made the mocked module shape diverge from the real one.
+  getAccessToken: () => 'test-access-token',
 }));
 
 vi.mock('lucide-react', () => {

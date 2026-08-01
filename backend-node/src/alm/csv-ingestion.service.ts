@@ -98,9 +98,21 @@ export class CSVIngestionService {
       .split('\n')
       .filter((l) => l.trim().length > 0);
 
+    // Distinguish "the upload arrived empty" from "the file has a header but no
+    // data". Collapsing both into one message actively misled: a 0-byte body
+    // caused by a dropped multipart upload was reported as a malformed CSV,
+    // sending the user to re-check data that was never the problem.
+    if (csvContent.trim().length === 0) {
+      return this.emptyResult(
+        'The uploaded file arrived empty (0 bytes). The file itself may be fine — ' +
+          'this usually means the upload was interrupted before the data reached the server. ' +
+          'Please re-select the file and try again.',
+      );
+    }
+
     if (lines.length < 2) {
       return this.emptyResult(
-        'CSV must have a header row and at least one data row',
+        `The file has only ${lines.length} non-empty line(s); a CSV needs a header row and at least one data row`,
       );
     }
 

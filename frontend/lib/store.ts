@@ -4,6 +4,7 @@ import {
     normalizePlatformAccess,
     type PlatformAccessState,
 } from './access';
+import { authFetch } from './auth-fetch';
 import { isSupabaseAuthEnabled } from './supabase/client';
 import { syncSupabaseAccessTokenToStorage } from './supabase/session';
 
@@ -212,7 +213,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         // OAuth/login may have a valid server-side cookie before localStorage is populated.
         if (shouldProbeServerSession()) {
             try {
-                const response = await fetch('/api/auth/session', {
+                const response = await authFetch('/api/auth/session', {
                     credentials: 'include',
                     cache: 'no-store',
                 });

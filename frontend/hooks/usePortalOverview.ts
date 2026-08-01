@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getPublicApiUrl } from '@/lib/api-base';
+import { authFetch } from '@/lib/auth-fetch';
 import { unwrapApiData } from '@/lib/api-response';
 import type { PortalOverview } from '@/lib/portal-overview';
 
@@ -20,12 +21,15 @@ export function usePortalOverview(enabled = true) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(getPublicApiUrl('/api/portal/overview'), {
-        credentials: 'include',
+      const res = await authFetch(getPublicApiUrl('/api/portal/overview'), {
         cache: 'no-store',
       });
       if (!res.ok) {
-        throw new Error('Could not load portal overview.');
+        throw new Error(
+          res.status === 401
+            ? 'Your session expired. Sign in again to load the portal.'
+            : 'Could not load portal overview.',
+        );
       }
       const payload = unwrapApiData<PortalOverview | null>(
         await res.json().catch(() => null),

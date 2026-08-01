@@ -116,21 +116,32 @@ describe('DashboardPage', () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
-  it('hands authenticated onboarded users into the portal workspace', async () => {
+  // Regression guard: this page used to router.replace() straight into the
+  // portal, which made /dashboard unreachable for every signed-in user — the
+  // module shortcuts rendered for one frame and vanished. It must now RENDER.
+  it('renders the command center for onboarded users instead of redirecting', async () => {
     authState.isAuthenticated = true;
     authState.onboardingComplete = true;
 
     render(<DashboardPage />);
 
-    await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/portal/submit?createCycle=1');
-    });
+    expect(
+      await screen.findByRole('heading', {
+        name: /your institutional command center/i,
+      }),
+    ).toBeInTheDocument();
 
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    // The portal stays the primary call to action, just no longer forced.
     expect(
       screen.getByRole('link', { name: /continue to reporting workspace/i }),
     ).toHaveAttribute('href', '/portal/submit?createCycle=1');
     expect(
       screen.getByRole('link', { name: /portfolio manager/i }),
     ).toHaveAttribute('href', '/portfolios');
+    expect(
+      screen.getByRole('link', { name: /alm and risk models/i }),
+    ).toHaveAttribute('href', '/alm');
   });
 });
