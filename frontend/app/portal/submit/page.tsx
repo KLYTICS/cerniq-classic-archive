@@ -26,7 +26,11 @@ import { useTranslation } from "@/lib/i18n";
 import ProgressTracker from "@/components/portal/ProgressTracker";
 import ReportProgressWS from "@/components/portal/ReportProgressWS";
 import DocumentExportButtons from "@/components/exports/DocumentExportButtons";
-import { getBalanceSheetTemplateUrl, getPublicApiUrl } from "@/lib/api-base";
+import {
+  getBalanceSheetTemplateUrl,
+  getDirectApiUrl,
+  getPublicApiUrl,
+} from "@/lib/api-base";
 import { apiClient } from "@/lib/api";
 import { authFetch } from "@/lib/auth-fetch";
 import { asRecord, unwrapApiData } from "@/lib/api-response";
@@ -41,9 +45,41 @@ import {
 } from "@/lib/portal-overview";
 import { usePortalOverview } from "@/hooks/usePortalOverview";
 
+/**
+ * A question the importer asks when it cannot read a file confidently.
+ * `deferrable: false` means the import genuinely cannot proceed without an
+ * answer — the backend refuses to invent a value (a fabricated 0% rate would
+ * silently distort NII and EVE).
+ */
+interface ImportQuestion {
+  id: string;
+  field: string;
+  kind: "map_column" | "provide_default" | "confirm";
+  prompt: string;
+  promptEs: string;
+  options: string[];
+  deferrable: boolean;
+  suggestion: string | null;
+}
+
+interface ImportInference {
+  delimiter: string;
+  headerRowIndex: number;
+  skippedPreambleRows: number;
+  sourceHeaders: string[];
+  dataRowCount: number;
+  sampleRows: string[][];
+  notes: string[];
+}
+
 interface SubmitResponse {
   valid: boolean;
   status: string;
+  questions?: ImportQuestion[];
+  inference?: ImportInference;
+  /** Assumptions applied by schema inference, surfaced so they are disclosed. */
+  importNotes?: string[];
+  autoMapped?: boolean;
   errors?: Array<{
     row?: number | null;
     field?: string | null;
@@ -186,6 +222,188 @@ function CSVPreview({ file }: { file: File }) {
           {t("... and more rows", "... y mas filas")}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Rendered when the importer read the file but needs answers before it will
+ * import. Deliberately shows what it DID work out (delimiter, header row,
+ * detected columns, row count) so the file feels understood rather than
+ * rejected, then asks only for what it refuses to guess.
+ */
+function ImportQuestionsCard({
+  response,
+  answers,
+  onAnswer,
+  onRetry,
+  retrying,
+}: {
+  response: SubmitResponse;
+  answers: Record<string, string>;
+  onAnswer: (id: string, value: string) => void;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+  const questions = response.questions || [];
+  const inference = response.inference;
+
+  const blocking = questions.filter((question) => !question.deferrable);
+  const answered = blocking.filter((question) =>
+    (answers[question.id] || "").trim(),
+  );
+  const ready = answered.length === blocking.length;
+
+  return (
+    <div className="cerniq-panel border-amber-200 bg-amber-50/40 p-6">
+      <div className="flex items-start gap-3">
+        <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div className="flex-1">
+          <h2 className="text-sm font-semibold text-slate-900">
+            {t(
+              "We read your file — a few details are missing",
+              "Leimos su archivo — faltan algunos detalles",
+            )}
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {t(
+              "CERNIQ will not invent values it cannot find. Answer the questions below and re-submit the same file.",
+              "CERNIQ no inventara valores que no encuentra. Responda las preguntas y vuelva a enviar el mismo archivo.",
+            )}
+          </p>
+
+          {inference ? (
+            <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-amber-200 bg-white/70 p-3 text-xs sm:grid-cols-4">
+              <div>
+                <dt className="text-slate-400">{t("Separator", "Separador")}</dt>
+                <dd className="mt-0.5 font-medium text-slate-700">
+                  {inference.delimiter}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">
+                  {t("Header row", "Fila de encabezado")}
+                </dt>
+                <dd className="mt-0.5 font-medium text-slate-700">
+                  {inference.headerRowIndex + 1}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">
+                  {t("Data rows", "Filas de datos")}
+                </dt>
+                <dd className="mt-0.5 font-medium text-slate-700">
+                  {inference.dataRowCount}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">
+                  {t("Columns found", "Columnas encontradas")}
+                </dt>
+                <dd className="mt-0.5 font-medium text-slate-700">
+                  {inference.sourceHeaders.length}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+
+          <div className="mt-4 space-y-4">
+            {questions.map((question) => (
+              <div
+                key={question.id}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <p className="text-sm text-slate-700">
+                  {locale === "en" ? question.prompt : question.promptEs}
+                  {question.deferrable ? (
+                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">
+                      {t("optional", "opcional")}
+                    </span>
+                  ) : (
+                    <span className="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-rose-600">
+                      {t("required", "requerido")}
+                    </span>
+                  )}
+                </p>
+
+                {question.kind === "map_column" ? (
+                  <select
+                    value={answers[question.id] || ""}
+                    onChange={(event) =>
+                      onAnswer(question.id, event.target.value)
+                    }
+                    className="mt-2 w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#1ABFFF] focus:outline-none"
+                  >
+                    <option value="">
+                      {t("Select a column...", "Seleccione una columna...")}
+                    </option>
+                    {question.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={answers[question.id] || ""}
+                      placeholder={
+                        question.suggestion ||
+                        t("Enter a value", "Ingrese un valor")
+                      }
+                      onChange={(event) =>
+                        onAnswer(question.id, event.target.value)
+                      }
+                      className="w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#1ABFFF] focus:outline-none"
+                    />
+                    {question.options.length > 0 ? (
+                      <select
+                        value=""
+                        onChange={(event) =>
+                          event.target.value &&
+                          onAnswer(question.id, event.target.value)
+                        }
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 focus:border-[#1ABFFF] focus:outline-none"
+                      >
+                        <option value="">
+                          {t("or map a column...", "o asigne una columna...")}
+                        </option>
+                        {question.options.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={onRetry}
+            disabled={!ready || retrying}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#1B3A6B] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#163258] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Upload className="h-4 w-4" />
+            {retrying
+              ? t("Importing...", "Importando...")
+              : t("Import with these answers", "Importar con estas respuestas")}
+          </button>
+          {!ready ? (
+            <p className="mt-2 text-xs text-slate-500">
+              {t(
+                `${answered.length} of ${blocking.length} required answers provided.`,
+                `${answered.length} de ${blocking.length} respuestas requeridas.`,
+              )}
+            </p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -453,6 +671,8 @@ export default function PortalSubmit() {
   );
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  /** question.id -> the user's answer, for a NEEDS_INPUT round. */
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const autoBootstrapAttemptedRef = useRef(false);
 
@@ -701,8 +921,34 @@ export default function PortalSubmit() {
     if (!displayJob?.id || !file) return;
 
     setUploading(true);
-    setResult(null);
     setSubmittedState(null);
+
+    // Answers to a previous NEEDS_INPUT round travel back with the file.
+    // Multipart fields are strings, so the resolution is JSON-encoded.
+    const pendingQuestions = result?.questions || [];
+    const sourceHeaders = result?.inference?.sourceHeaders || [];
+    const columnOverrides: Record<string, number> = {};
+    const defaults: Record<string, string> = {};
+
+    for (const question of pendingQuestions) {
+      const answer = (answers[question.id] || "").trim();
+      if (!answer) continue;
+
+      if (question.kind === "map_column") {
+        const index = sourceHeaders.indexOf(answer);
+        if (index >= 0) {
+          columnOverrides[question.field] = index;
+        }
+      } else {
+        defaults[question.field] = answer;
+      }
+    }
+
+    const hasResolution =
+      Object.keys(columnOverrides).length > 0 ||
+      Object.keys(defaults).length > 0;
+
+    setResult(null);
 
     try {
       const formData = new FormData();
@@ -710,9 +956,18 @@ export default function PortalSubmit() {
       if (analysisPeriod) {
         formData.append("analysisPeriod", analysisPeriod);
       }
+      if (hasResolution) {
+        formData.append(
+          "importMapping",
+          JSON.stringify({ columnOverrides, defaults }),
+        );
+      }
 
+      // Direct at the API origin, NOT through the same-origin rewrite: the
+      // proxy hop delivered a 0-byte body to multer, so a perfectly valid CSV
+      // came back as "must have a header row and at least one data row".
       const res = await authFetch(
-        getPublicApiUrl(`/api/portal/jobs/${displayJob.id}/submit`),
+        getDirectApiUrl(`/api/portal/jobs/${displayJob.id}/submit`),
         {
           method: "POST",
           body: formData,
@@ -828,6 +1083,50 @@ export default function PortalSubmit() {
           completedSteps={tracker.completedSteps}
         />
       </div>
+
+      {result?.status === "NEEDS_INPUT" ? (
+        <ImportQuestionsCard
+          response={result}
+          answers={answers}
+          onAnswer={(id, value) =>
+            setAnswers((previous) => ({ ...previous, [id]: value }))
+          }
+          onRetry={() => void handleUpload()}
+          retrying={uploading}
+        />
+      ) : null}
+
+      {/* An auto-mapped import must never look identical to one that matched the
+          canonical template exactly — the assumptions are disclosed up front. */}
+      {submittedState?.autoMapped && submittedState.importNotes?.length ? (
+        <div className="cerniq-panel border-cyan-200 bg-cyan-50/40 p-6">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-cyan-600" />
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">
+                {t(
+                  "Imported with automatic mapping",
+                  "Importado con mapeo automatico",
+                )}
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {t(
+                  "Your file did not match the CERNIQ template, so it was read and mapped automatically. These assumptions were applied:",
+                  "Su archivo no coincidia con la plantilla CERNIQ, asi que fue leido y mapeado automaticamente. Se aplicaron estas suposiciones:",
+                )}
+              </p>
+              <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
+                {submittedState.importNotes.map((note) => (
+                  <li key={note} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cyan-500" />
+                    <span>{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

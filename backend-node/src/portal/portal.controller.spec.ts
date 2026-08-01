@@ -4,6 +4,7 @@ import { PortalController } from './portal.controller';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { CSVIngestionService } from '../alm/csv-ingestion.service';
+import { CsvSchemaInferenceService } from '../alm/csv-schema-inference.service';
 import { IngestionLogsService } from '../alm/ingestion-logs.service';
 import { EmailService } from '../email/email.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
@@ -181,6 +182,9 @@ describe('PortalController', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: AlmEnterpriseService, useValue: almEnterprise },
         { provide: CSVIngestionService, useValue: csvIngestion },
+        // Real instance: it is pure (no I/O), and the upload path now routes
+        // through it whenever the strict parse fails.
+        CsvSchemaInferenceService,
         { provide: IngestionLogsService, useValue: ingestionLogs },
         { provide: EmailService, useValue: email },
         { provide: DataCryptoService, useValue: dataCrypto },
@@ -598,6 +602,51 @@ describe('PortalController', () => {
       ).rejects.toThrow('Job is not ready for data submission');
     });
 
+    // Shape is understood (canonical headers) but the VALUES are rejected, so
+    // there is nothing to ask the user — this must still hard-fail.
+    const readableFile = {
+      originalname: 'balance_sheet.csv',
+      buffer: Buffer.from(
+        'category,subcategory,name,balance,rate,duration,rateType\n' +
+          'asset,cash_equivalents,Cash,1000000,4.5,0.1,fixed',
+      ),
+    } as Express.Multer.File;
+
+    it('returns NEEDS_INPUT with questions when the file shape is ambiguous', async () => {
+      prisma.reportJob.findFirst.mockResolvedValue({
+        id: 'j1',
+        status: 'AWAITING_DATA',
+        institutionId: null,
+      });
+      csvIngestion.parseCSV.mockReturnValue({
+        valid: false,
+        errors: [{ row: 0, field: 'headers', message: 'missing columns' }],
+        warnings: [],
+        items: [],
+        summary: {
+          totalRows: 0,
+          validRows: 0,
+          errorRows: 1,
+          totalAssets: 0,
+          totalLiabilities: 0,
+        },
+      });
+      prisma.reportJob.update.mockResolvedValue({});
+
+      // mockFile has headers `category,item,amount`: no rate column at all, so
+      // the importer must ask rather than invent one.
+      const result = await controller.submitData(mockReq(), 'j1', mockFile, {});
+
+      expect(result.status).toBe('NEEDS_INPUT');
+      expect(result.valid).toBe(false);
+      expect(result.questions?.length).toBeGreaterThan(0);
+      expect(result.questions?.some((q: { field: string }) => q.field === 'rate')).toBe(true);
+      // The job stays actionable so the user can answer and retry.
+      expect(prisma.reportJob.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'AWAITING_DATA' } }),
+      );
+    });
+
     it('should return validation errors when CSV is invalid', async () => {
       prisma.reportJob.findFirst.mockResolvedValue({
         id: 'j1',
@@ -619,7 +668,12 @@ describe('PortalController', () => {
       });
       prisma.reportJob.update.mockResolvedValue({});
 
-      const result = await controller.submitData(mockReq(), 'j1', mockFile, {});
+      const result = await controller.submitData(
+        mockReq(),
+        'j1',
+        readableFile,
+        {},
+      );
 
       expect(result.valid).toBe(false);
       expect(result.status).toBe('VALIDATION_FAILED');

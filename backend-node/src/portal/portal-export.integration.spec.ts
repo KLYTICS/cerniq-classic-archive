@@ -23,6 +23,7 @@ import { PortalController } from './portal.controller';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { CSVIngestionService } from '../alm/csv-ingestion.service';
+import { CsvSchemaInferenceService } from '../alm/csv-schema-inference.service';
 import { IngestionLogsService } from '../alm/ingestion-logs.service';
 import { EmailService } from '../email/email.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
@@ -102,6 +103,7 @@ describe('Portal export endpoints (HTTP integration)', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: AlmEnterpriseService, useValue: almEnterprise },
         { provide: CSVIngestionService, useValue: { parseCSV: jest.fn() } },
+        CsvSchemaInferenceService,
         {
           provide: IngestionLogsService,
           useValue: { listJobLogs: jest.fn(), recordLog: jest.fn() },

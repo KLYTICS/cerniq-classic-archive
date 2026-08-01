@@ -16,6 +16,7 @@ import { WorkspaceOnboardingService } from './workspace-onboarding.service';
 import { InstitutionSeedService } from './institution-seed.service';
 import { MarketRegistrySeedService } from './market-registry-seed.service';
 import { CSVIngestionService } from './csv-ingestion.service';
+import { CsvSchemaInferenceService } from './csv-schema-inference.service';
 import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
@@ -188,6 +189,7 @@ import { HJMModule } from './quant/hjm.module';
     InstitutionSeedService,
     MarketRegistrySeedService,
     CSVIngestionService,
+    CsvSchemaInferenceService,
     AnalysisRunsService,
     IngestionLogsService,
     ComplianceCalendarService,
@@ -320,6 +322,7 @@ import { HJMModule } from './quant/hjm.module';
     InstitutionSeedService,
     MarketRegistrySeedService,
     CSVIngestionService,
+    CsvSchemaInferenceService,
     AnalysisRunsService,
     IngestionLogsService,
     ComplianceCalendarService,

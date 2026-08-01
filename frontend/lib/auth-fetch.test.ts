@@ -12,6 +12,10 @@ vi.mock('./supabase/session', () => ({
     syncSupabaseAccessTokenToStorageMock(),
 }));
 
+vi.mock('./api-base', () => ({
+  getConfiguredApiOrigin: () => 'https://api.cerniq.io',
+}));
+
 import { authFetch } from './auth-fetch';
 
 function lastRequestInit(): RequestInit {
@@ -54,11 +58,22 @@ describe('authFetch', () => {
   // Regression guard: export downloads can point at object storage (R2 signed
   // URLs). Sending the session token there would leak a live credential to a
   // third-party host.
-  it('never sends the bearer token cross-origin', async () => {
+  it('never sends the bearer token to an untrusted host', async () => {
     await authFetch('https://storage.example.com/reports/report_es.pdf');
 
     expect(lastHeaders().has('Authorization')).toBe(false);
     expect(getAccessTokenMock).not.toHaveBeenCalled();
+  });
+
+  // File uploads post straight at the API origin to dodge the rewrite hop that
+  // delivers a 0-byte multipart body — so that origin MUST still be credentialed.
+  it('sends the bearer token to the configured API origin', async () => {
+    await authFetch('https://api.cerniq.io/api/portal/jobs/job-1/submit', {
+      method: 'POST',
+      body: new FormData(),
+    });
+
+    expect(lastHeaders().get('Authorization')).toBe('Bearer stored-token');
   });
 
   it('does not overwrite an Authorization header supplied by the caller', async () => {

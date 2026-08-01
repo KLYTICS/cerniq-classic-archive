@@ -32,6 +32,10 @@ import { Roles } from '../auth/roles.decorator';
 import { PrismaService } from '../prisma.service';
 import { AlmEnterpriseService } from '../alm/alm-enterprise.service';
 import { CSVIngestionService } from '../alm/csv-ingestion.service';
+import {
+  CsvSchemaInferenceService,
+  type ResolutionInput,
+} from '../alm/csv-schema-inference.service';
 import { EmailService } from '../email/email.service';
 import { IngestionLogsService } from '../alm/ingestion-logs.service';
 import { DataCryptoService } from '../crypto/data-crypto.service';
@@ -141,6 +145,7 @@ export class PortalController {
     private readonly prisma: PrismaService,
     private readonly almEnterprise: AlmEnterpriseService,
     private readonly csvIngestion: CSVIngestionService,
+    private readonly schemaInference: CsvSchemaInferenceService,
     private readonly ingestionLogs: IngestionLogsService,
     private readonly email: EmailService,
     private readonly dataCrypto: DataCryptoService,
@@ -629,6 +634,8 @@ export class PortalController {
       preferredLanguage?: 'en' | 'es' | 'both';
       totalAssets?: number | string;
       analysisPeriod?: string;
+      /** JSON answers to a prior NEEDS_INPUT response (multipart carries strings). */
+      importMapping?: string;
     },
   ) {
     const userId = req.user.userId;
@@ -648,7 +655,77 @@ export class PortalController {
 
     // Parse and validate CSV
     const csvContent = file.buffer.toString('utf-8');
-    const parseResult = this.csvIngestion.parseCSV(csvContent);
+    let parseResult = this.csvIngestion.parseCSV(csvContent);
+
+    // ── Dynamic ingestion fallback ───────────────────────────────────
+    // The strict parser demands an exact header set. Real cooperativa exports
+    // rarely match it (semicolon-delimited Spanish Excel, title rows above the
+    // header, `Saldo` instead of `balance`, `1.234,56` instead of `1234.56`),
+    // and every one of those used to hard-fail. When the strict pass fails, try
+    // to understand the file instead of rejecting it: infer its shape, rewrite
+    // it into the canonical form, and re-run the SAME validator so there is
+    // still exactly one validation path.
+    //
+    // If the file cannot be read confidently we return the open questions
+    // rather than a dead end — the importer asks, it never invents a value.
+    const importNotes: string[] = [];
+    if (!parseResult.valid) {
+      const inference = this.schemaInference.infer(csvContent);
+      const resolution = this.parseImportResolution(body.importMapping);
+
+      if (inference.status !== 'unusable') {
+        const converted = this.schemaInference.toCanonicalCsv(
+          csvContent,
+          inference,
+          resolution,
+        );
+
+        if (converted) {
+          const retried = this.csvIngestion.parseCSV(converted.csv);
+          if (retried.valid) {
+            parseResult = retried;
+            importNotes.push(...inference.notes, ...converted.notes);
+            this.logger.log(
+              `Portal upload for job ${jobId} recovered by schema inference ` +
+                `(delimiter=${inference.delimiterLabel}, headerRow=${inference.headerRowIndex}, rows=${retried.summary.validRows})`,
+            );
+          }
+        }
+      }
+
+      // Still unusable: hand back the questions so the UI can ask them.
+      if (!parseResult.valid && inference.questions.length > 0) {
+        await this.prisma.reportJob.update({
+          where: { id: jobId },
+          data: { status: 'AWAITING_DATA' },
+        });
+
+        return {
+          valid: false,
+          status: 'NEEDS_INPUT',
+          jobId,
+          institutionId: job.institutionId,
+          institutionName: job.institutionName,
+          inference: {
+            delimiter: inference.delimiterLabel,
+            headerRowIndex: inference.headerRowIndex,
+            skippedPreambleRows: inference.skippedPreambleRows,
+            sourceHeaders: inference.sourceHeaders,
+            detectedColumns: inference.columns,
+            dataRowCount: inference.dataRowCount,
+            sampleRows: inference.sampleRows,
+            notes: inference.notes,
+          },
+          questions: inference.questions,
+          errors: inference.unusableReason
+            ? [{ message: inference.unusableReason }]
+            : [],
+          warnings: inference.notes,
+          nextHref: `/portal/submit?jobId=${jobId}`,
+        };
+      }
+    }
+
     if (!parseResult.valid) {
       await this.ingestionLogs.recordLog({
         userId,
@@ -794,6 +871,11 @@ export class PortalController {
       jobId,
       itemsImported: parseResult.items.length,
       warningCount: parseResult.warnings.length,
+      // Every assumption schema inference applied travels with the response so
+      // the UI can disclose it. A recovered import must never look identical to
+      // one that matched the canonical template exactly.
+      importNotes,
+      autoMapped: importNotes.length > 0,
       institutionId: institution.id,
       institutionName: instName,
       ingestionLogId: log.id,
@@ -1499,6 +1581,54 @@ export class PortalController {
       primaryRegulator: input.primaryRegulator || 'COSSEC',
       preferredLanguage: input.preferredLanguage || 'es',
     });
+  }
+
+  /**
+   * Decode the answers the user gave to a prior NEEDS_INPUT response.
+   *
+   * Multipart form fields are strings, so the mapping arrives JSON-encoded.
+   * Malformed input is treated as "no answers given" rather than an exception:
+   * the caller then re-asks the questions, which is a better outcome than a
+   * 400 that loses the upload.
+   */
+  private parseImportResolution(raw?: string): ResolutionInput {
+    if (!raw || typeof raw !== 'string') {
+      return {};
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') {
+        return {};
+      }
+
+      const record = parsed as {
+        columnOverrides?: unknown;
+        defaults?: unknown;
+      };
+
+      const resolution: ResolutionInput = {};
+
+      if (
+        record.columnOverrides &&
+        typeof record.columnOverrides === 'object'
+      ) {
+        resolution.columnOverrides =
+          record.columnOverrides as ResolutionInput['columnOverrides'];
+      }
+      if (record.defaults && typeof record.defaults === 'object') {
+        resolution.defaults = record.defaults as ResolutionInput['defaults'];
+      }
+
+      return resolution;
+    } catch (error) {
+      this.logger.warn(
+        `Ignoring malformed importMapping payload: ${
+          error instanceof Error ? error.message : 'unparseable'
+        }`,
+      );
+      return {};
+    }
   }
 
   private async requirePaidPortalAccess(userId: string) {

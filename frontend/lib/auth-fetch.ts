@@ -18,6 +18,7 @@
  * working without touching call sites again.
  */
 import { getAccessToken } from './api';
+import { getConfiguredApiOrigin } from './api-base';
 import { syncSupabaseAccessTokenToStorage } from './supabase/session';
 
 function hasAuthorizationHeader(headers: Headers): boolean {
@@ -25,19 +26,32 @@ function hasAuthorizationHeader(headers: Headers): boolean {
 }
 
 /**
- * Only same-origin CerniQ API routes may receive the bearer token. Export
- * download links can point at object storage (R2 signed URLs); attaching the
- * session token there would leak a live credential to a third-party host and
- * can invalidate the signature. Mirrors the guard in `lib/document-exports.ts`.
+ * Only CerniQ-owned origins may receive the bearer token: the page's own
+ * origin, plus the configured API origin (file uploads post straight at
+ * `api.cerniq.io` to avoid the rewrite hop that drops multipart bodies).
+ *
+ * Everything else is refused. Export download links can point at object
+ * storage (R2 signed URLs); attaching the session token there would leak a
+ * live credential to a third-party host and can invalidate the signature.
+ * Mirrors the guard in `lib/document-exports.ts`.
  */
-function isSameOriginApiRequest(input: string): boolean {
+function isTrustedApiOrigin(input: string): boolean {
   if (typeof window === 'undefined') {
     return false;
   }
 
   try {
     const url = new URL(input, window.location.origin);
-    return url.origin === window.location.origin;
+    if (url.origin === window.location.origin) {
+      return true;
+    }
+
+    const apiOrigin = getConfiguredApiOrigin();
+    if (!apiOrigin) {
+      return false;
+    }
+
+    return url.origin === new URL(apiOrigin, window.location.origin).origin;
   } catch {
     return false;
   }
@@ -78,7 +92,7 @@ export async function authFetch(
 ): Promise<Response> {
   const headers = new Headers(init.headers);
 
-  if (!hasAuthorizationHeader(headers) && isSameOriginApiRequest(input)) {
+  if (!hasAuthorizationHeader(headers) && isTrustedApiOrigin(input)) {
     const token = await resolveBearerToken();
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);

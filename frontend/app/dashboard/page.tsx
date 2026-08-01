@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Briefcase,
@@ -91,7 +90,6 @@ export default function DashboardPage() {
     onboardingComplete,
     hydrateFromStorage,
   } = useAuthStore();
-  const router = useRouter();
   const { locale } = useTranslation();
   const t = (en: string, es: string) => (locale === 'en' ? en : es);
   const getModuleHref = (href: string) =>
@@ -105,15 +103,12 @@ export default function DashboardPage() {
     }
   }, [hydrateFromStorage, initialized]);
 
-  useEffect(() => {
-    if (!initialized) {
-      return;
-    }
-
-    if (isAuthenticated && onboardingComplete) {
-      router.replace(PORTAL_WORKSPACE_HREF);
-    }
-  }, [initialized, isAuthenticated, onboardingComplete, router]);
+  // NOTE: this deliberately does NOT redirect onboarded users into the portal.
+  // It used to `router.replace(PORTAL_WORKSPACE_HREF)`, which made /dashboard
+  // unreachable for every signed-in user — the module shortcuts below rendered
+  // for a frame and then vanished. dd61e57c kept /dashboard as a compatibility
+  // surface; a surface you cannot open is not a compatibility surface. The
+  // portal remains the primary call-to-action on the page instead.
 
   if (!initialized) {
     return (
@@ -174,14 +169,14 @@ export default function DashboardPage() {
       <div className="cerniq-dashboard-page min-h-screen px-6 py-10">
         <div className="mx-auto max-w-6xl space-y-6">
           <SurfaceCard
-            eyebrow={t('Workspace handoff', 'Handoff del workspace')}
+            eyebrow={t('Command center', 'Centro de mando')}
             title={t(
-              'Opening your institutional command center',
-              'Abriendo su centro de mando institucional',
+              'Your institutional command center',
+              'Su centro de mando institucional',
             )}
             description={t(
-              'CERNIQ routes live users straight into the reporting workspace. If the redirect takes a moment, use the module shortcuts below.',
-              'CERNIQ enruta a usuarios activos directamente al workspace de reportes. Si el redireccionamiento tarda un momento, use los accesos rapidos de abajo.',
+              'Every CERNIQ module in one place. Start with the reporting workspace to turn a balance-sheet upload into a board-ready COSSEC report, or jump straight into ALM, portfolio, and execution analytics.',
+              'Todos los modulos de CERNIQ en un solo lugar. Comience con el workspace de reportes para convertir una carga de balance en un informe COSSEC listo para junta, o vaya directo a analitica ALM, de portafolio y de ejecucion.',
             )}
             actions={
               <>
