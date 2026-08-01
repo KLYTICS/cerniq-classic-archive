@@ -12,6 +12,7 @@ import {
   Sparkles,
   ArrowRight,
 } from 'lucide-react';
+import { authFetch } from '@/lib/auth-fetch';
 import { analytics, EVENTS } from '@/lib/analytics';
 import { getPublicApiUrl } from '@/lib/api-base';
 import { unwrapApiData } from '@/lib/api-response';
@@ -72,7 +73,7 @@ export default function PortalBilling() {
     setLoadingPortal(true);
     try {
       analytics.track(EVENTS.PORTAL_BILLING_OPENED, { tier });
-      const res = await fetch(getPublicApiUrl('/api/billing/portal'), {
+      const res = await authFetch(getPublicApiUrl('/api/billing/portal'), {
         method: 'POST',
         credentials: 'include',
       });

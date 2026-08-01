@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
+import { authFetch } from '@/lib/auth-fetch';
 import {
   MetricStrip,
   SkeletonLoader,
@@ -478,7 +479,7 @@ export default function PortalHome() {
   async function startCycle() {
     setStarting(true);
     try {
-      const res = await fetch(getPublicApiUrl('/api/portal/jobs/open-cycle'), {
+      const res = await authFetch(getPublicApiUrl('/api/portal/jobs/open-cycle'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

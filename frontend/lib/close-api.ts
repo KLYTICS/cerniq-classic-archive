@@ -7,6 +7,7 @@
  */
 
 import { getPublicApiBase } from './api-base';
+import { authFetch } from './auth-fetch';
 
 const API_BASE = getPublicApiBase();
 
@@ -95,7 +96,7 @@ export interface CloseCycleDetail extends CloseCycleSummary {
 }
 
 async function jfetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await authFetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
     ...init,
@@ -224,7 +225,7 @@ export const closeApi = {
   uploadGlCsv: async (orgId: string, file: File): Promise<GlUploadResult> => {
     const form = new FormData();
     form.append('file', file);
-    const res = await fetch(`${API_BASE}/api/close/${orgId}/gl-upload`, {
+    const res = await authFetch(`${API_BASE}/api/close/${orgId}/gl-upload`, {
       method: 'POST',
       credentials: 'include',
       body: form,

@@ -28,7 +28,8 @@ import ReportProgressWS from "@/components/portal/ReportProgressWS";
 import DocumentExportButtons from "@/components/exports/DocumentExportButtons";
 import { getBalanceSheetTemplateUrl, getPublicApiUrl } from "@/lib/api-base";
 import { apiClient } from "@/lib/api";
-import { unwrapApiData } from "@/lib/api-response";
+import { authFetch } from "@/lib/auth-fetch";
+import { asRecord, unwrapApiData } from "@/lib/api-response";
 import {
   type PortalExportSummary,
   type PortalOverviewJob,
@@ -710,18 +711,53 @@ export default function PortalSubmit() {
         formData.append("analysisPeriod", analysisPeriod);
       }
 
-      const res = await fetch(
+      const res = await authFetch(
         getPublicApiUrl(`/api/portal/jobs/${displayJob.id}/submit`),
         {
           method: "POST",
-          credentials: "include",
           body: formData,
         },
       );
 
-      const payload = unwrapApiData<SubmitResponse>(
-        await res.json().catch(() => ({})),
-      );
+      const body = await res.json().catch(() => ({}));
+
+      // A non-2xx response carries the API error envelope, which has no `valid`
+      // field. Unwrapping it straight into SubmitResponse made `valid` undefined
+      // — falsy, so the UI silently fell into the validation-failed branch with
+      // zero error rows and the upload appeared to do nothing. Surface the real
+      // reason instead.
+      if (!res.ok) {
+        const envelope = asRecord(body);
+        const apiError = asRecord(envelope?.error);
+        const serverMessage =
+          typeof apiError?.message === "string" ? apiError.message : null;
+
+        setResult({
+          valid: false,
+          status: "ERROR",
+          errors: [
+            {
+              message:
+                res.status === 401
+                  ? t(
+                      "Your session expired. Sign in again, then re-upload.",
+                      "Su sesion expiro. Inicie sesion de nuevo y vuelva a cargar.",
+                    )
+                  : serverMessage ||
+                    t(
+                      "The server rejected this upload. Please try again.",
+                      "El servidor rechazo esta carga. Intente de nuevo.",
+                    ),
+            },
+          ],
+        });
+        analytics.track(EVENTS.PORTAL_DATA_VALIDATION_FAILED, {
+          jobId: displayJob.id,
+        });
+        return;
+      }
+
+      const payload = unwrapApiData<SubmitResponse>(body);
       setResult(payload);
 
       if (payload.valid) {

@@ -9,6 +9,7 @@ import {
   hasPlatformAccess,
   resolveAuthenticatedDestination,
 } from '@/lib/access';
+import { authFetch } from '@/lib/auth-fetch';
 import { buildLoginUrlForReturnUrl } from '@/lib/auth-redirect';
 import { createCheckoutSession, type CheckoutTier } from '@/lib/billing';
 import { isRememberedPortalUser, rememberPortalUser } from '@/lib/subscription';
@@ -170,7 +171,7 @@ export default function AccessRequiredPage() {
     setBillingError('');
 
     try {
-      const res = await fetch(getPublicApiUrl('/api/billing/portal'), {
+      const res = await authFetch(getPublicApiUrl('/api/billing/portal'), {
         method: 'POST',
         credentials: 'include',
       });

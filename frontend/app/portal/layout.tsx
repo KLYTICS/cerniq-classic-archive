@@ -11,6 +11,7 @@ import {
   LogOut,
   HelpCircle,
 } from 'lucide-react';
+import { authFetch } from '@/lib/auth-fetch';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CerniqLockup } from '@/components/brand/CerniqLogo';
 import PortalPaywall from '@/components/portal/PortalPaywall';
@@ -111,7 +112,7 @@ export default function PortalLayout({
         }
 
         try {
-          const profileRes = await fetch(getPublicApiUrl('/api/auth/session'), {
+          const profileRes = await authFetch(getPublicApiUrl('/api/auth/session'), {
             credentials: 'include',
             cache: 'no-store',
           });
@@ -139,7 +140,7 @@ export default function PortalLayout({
             throw new Error('Malformed profile payload');
           }
 
-          const subRes = await fetch(getPublicApiUrl('/api/billing/subscription'), {
+          const subRes = await authFetch(getPublicApiUrl('/api/billing/subscription'), {
             credentials: 'include',
             cache: 'no-store',
           });
@@ -178,7 +179,7 @@ export default function PortalLayout({
   }, [router, isPortalLoginRoute]);
 
   const logout = async () => {
-    await fetch(getPublicApiUrl('/api/auth/logout'), {
+    await authFetch(getPublicApiUrl('/api/auth/logout'), {
       method: 'POST',
       credentials: 'include',
     });

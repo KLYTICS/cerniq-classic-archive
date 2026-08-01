@@ -13,6 +13,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 import { useTranslation } from "@/lib/i18n";
 import { unwrapApiData } from "@/lib/api-response";
 import { getAccessToken } from "@/lib/api";
@@ -166,7 +167,7 @@ function usePollFallback(
     const interval = setInterval(async () => {
       try {
         const token = getAccessToken() || null;
-        const res = await fetch(`${NODE_API_URL}/api/portal/jobs/${jobId}`, {
+        const res = await authFetch(`${NODE_API_URL}/api/portal/jobs/${jobId}`, {
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });

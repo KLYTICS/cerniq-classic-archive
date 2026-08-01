@@ -19,8 +19,22 @@ export async function GET() {
   try {
     const headerBag = await headers();
     const cookie = headerBag.get('cookie') || '';
+    // Forward the bearer token as well as the cookie. Since the Phase 4 auth
+    // sunset (`AUTH_DISABLE_LEGACY_MINT=true`) the backend no longer mints an
+    // `access_token` cookie, so a cookie-only probe always came back 401 and
+    // this route reported `authenticated: false` for genuinely signed-in users
+    // — which logged them straight back out on every page load.
+    const authorization = headerBag.get('authorization') || '';
+    const forwardedHeaders: Record<string, string> = {};
+    if (cookie) {
+      forwardedHeaders.cookie = cookie;
+    }
+    if (authorization) {
+      forwardedHeaders.authorization = authorization;
+    }
+
     const response = await fetch(`${apiOrigin}/api/auth/profile`, {
-      headers: cookie ? { cookie } : {},
+      headers: forwardedHeaders,
       cache: 'no-store',
     });
 
