@@ -119,23 +119,54 @@ railway up --service "$EXPECTED_SVC_ID" --detach
 # so a cutover is not instant. Railway also keeps the old container serving
 # until the new one passes its healthcheck, which is exactly why a 200 here
 # proves nothing on its own.
+deployment_status() {
+  railway deployment list --service "$EXPECTED_SVC_ID" --json 2>/dev/null \
+    | python3 -c 'import sys,json
+d=json.load(sys.stdin); rows=d if isinstance(d,list) else d.get("deployments",[])
+print(rows[0].get("status","") if rows else "")' 2>/dev/null || echo ''
+}
+
+# Two independent signals, because neither alone is sufficient:
+#   * uptime dropping below the baseline proves a NEW container is serving;
+#   * Railway's deployment status is authoritative about the build itself.
+# Railway skips the container swap when the built image is identical to what is
+# already running, so a SUCCESS deployment with no uptime reset is a legitimate
+# no-op deploy, not a failure. Requiring the uptime drop alone produced a false
+# negative on 2026-08-02 for exactly that case.
 echo ""
-echo "Waiting for cutover (uptime must drop below the baseline)..."
+echo "Waiting for cutover (uptime drop) or a SUCCESS no-op deployment..."
 for i in $(seq 1 40); do
   sleep 15
   BODY="$(curl -s --max-time 10 "$API_URL/health" 2>/dev/null || echo '')"
+  DSTATUS="$(deployment_status)"
   if [ -z "$BODY" ]; then
-    printf '  [%4ds] unreachable\n' "$((i * 15))"
+    printf '  [%4ds] unreachable            deployment=%s\n' "$((i * 15))" "${DSTATUS:-?}"
     continue
   fi
   read -r UP DB ST <<<"$(printf '%s' "$BODY" | python3 -c \
     'import sys,json;d=json.load(sys.stdin)["data"];print(int(float(d["uptime"])),d["db"],d["status"])' 2>/dev/null || echo '0 ? ?')"
-  printf '  [%4ds] uptime=%-7s db=%-10s status=%s\n' "$((i * 15))" "$UP" "$DB" "$ST"
-  # A genuinely new container reports an uptime lower than the old one's, and
-  # its database must be reachable before we call the deploy good.
-  if [ "$UP" -lt "$BASELINE" ] && [ "$DB" = "connected" ]; then
+  printf '  [%4ds] uptime=%-7s db=%-10s status=%-9s deployment=%s\n' \
+    "$((i * 15))" "$UP" "$DB" "$ST" "${DSTATUS:-?}"
+
+  if [ "$DSTATUS" = "FAILED" ] || [ "$DSTATUS" = "CRASHED" ]; then
+    echo "" >&2
+    echo "Deployment reported $DSTATUS. The previous container may still be serving." >&2
+    echo "Check: railway logs --service $EXPECTED_SVC_ID" >&2
+    exit 1
+  fi
+
+  [ "$DB" = "connected" ] || continue
+
+  if [ "$UP" -lt "$BASELINE" ]; then
     echo ""
     echo "Backend is live on a new container (uptime ${UP}s < baseline ${BASELINE}s), database healthy."
+    exit 0
+  fi
+
+  if [ "$DSTATUS" = "SUCCESS" ] && [ "$i" -ge 8 ]; then
+    echo ""
+    echo "Deployment SUCCESS with no container swap — Railway reused the running"
+    echo "image because the build was identical. Backend healthy, database connected."
     exit 0
   fi
 done
