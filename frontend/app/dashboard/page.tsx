@@ -18,7 +18,7 @@ import { useTranslation } from '@/lib/i18n';
 import { useAuthStore } from '@/lib/store';
 
 const PORTAL_WORKSPACE_HREF = '/portal/submit?createCycle=1';
-const GATED_MODULE_HREFS = new Set(['/alm', '/execution-quality', '/portfolios']);
+const GATED_MODULE_HREFS = new Set(['/alm']);
 
 function SurfaceCard({
   eyebrow,
@@ -132,24 +132,6 @@ export default function DashboardPage() {
         description={t(
           'Start the upload-to-report cycle, manage jobs, and retrieve board-ready output.',
           'Inicie el ciclo de carga a informe, administre jobs y recupere salidas listas para junta.',
-        )}
-      />
-      <ModuleLink
-        href={getModuleHref('/portfolios')}
-        icon={<Briefcase className="h-5 w-5" />}
-        title={t('Portfolio manager', 'Gestor de portafolio')}
-        description={t(
-          'Review mandates, holdings, cash, and position-level performance without leaving the platform.',
-          'Revise mandatos, posiciones, caja y desempeno sin salir de la plataforma.',
-        )}
-      />
-      <ModuleLink
-        href={getModuleHref('/execution-quality')}
-        icon={<Target className="h-5 w-5" />}
-        title={t('Execution review', 'Revision de ejecucion')}
-        description={t(
-          'Inspect slippage, fill quality, and trade-cost posture for active investment books.',
-          'Inspeccione slippage, calidad de fills y postura de costos para libros de inversion activos.',
         )}
       />
       <ModuleLink

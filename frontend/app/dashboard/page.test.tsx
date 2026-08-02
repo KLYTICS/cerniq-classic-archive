@@ -80,16 +80,10 @@ describe('DashboardPage', () => {
       screen.getByRole('link', { name: /view interactive demo/i }),
     ).toHaveAttribute('href', '/demo');
     expect(
-      screen.getByRole('link', { name: /portfolio manager/i }),
-    ).toHaveAttribute('href', '/login?returnUrl=%2Fportfolios');
-    expect(
-      screen.getByRole('link', { name: /execution review/i }),
-    ).toHaveAttribute('href', '/login?returnUrl=%2Fexecution-quality');
-    expect(
       screen.getByRole('link', { name: /ALM and risk models/i }),
     ).toHaveAttribute('href', '/login?returnUrl=%2Falm');
-    expect(screen.getByText(/Portfolio manager/i)).toBeInTheDocument();
-    expect(screen.getByText(/Execution review/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reporting workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/ALM and risk models/i)).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -111,8 +105,8 @@ describe('DashboardPage', () => {
       screen.getByRole('link', { name: /review pilot steps/i }),
     ).toHaveAttribute('href', '/get-started');
     expect(
-      screen.getByRole('link', { name: /portfolio manager/i }),
-    ).toHaveAttribute('href', '/portfolios');
+      screen.getByRole('link', { name: /ALM and risk models/i }),
+    ).toHaveAttribute('href', '/alm');
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -137,9 +131,6 @@ describe('DashboardPage', () => {
     expect(
       screen.getByRole('link', { name: /continue to reporting workspace/i }),
     ).toHaveAttribute('href', '/portal/submit?createCycle=1');
-    expect(
-      screen.getByRole('link', { name: /portfolio manager/i }),
-    ).toHaveAttribute('href', '/portfolios');
     expect(
       screen.getByRole('link', { name: /alm and risk models/i }),
     ).toHaveAttribute('href', '/alm');

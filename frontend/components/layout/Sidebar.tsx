@@ -35,10 +35,8 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { href: '/dashboard',        icon: BarChart3, labelKey: 'sidebar.dashboard' },
-  { href: '/portfolios',       icon: Briefcase, labelKey: 'sidebar.portfolios' },
-  { href: '/risk-analytics',   icon: Activity,  labelKey: 'sidebar.riskAnalytics' },
-  { href: '/execution-quality',icon: Zap,       labelKey: 'sidebar.executionQuality' },
-  { href: '/spendcheck',       icon: CreditCard,labelKey: 'sidebar.expenses' },
+  { href: '/alm',              icon: Activity,  labelKey: 'sidebar.alm' },
+  { href: '/portal',           icon: Briefcase, labelKey: 'sidebar.portal' },
 ];
 
 const settingsNav: NavItem[] = [

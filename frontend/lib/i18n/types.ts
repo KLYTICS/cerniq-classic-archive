@@ -137,10 +137,8 @@ export interface TranslationKeys {
     enterprise: string;
     settings: string;
     dashboard: string;
-    portfolios: string;
-    riskAnalytics: string;
-    executionQuality: string;
-    expenses: string;
+    alm: string;
+    portal: string;
     almIntelligence: string;
     overview: string;
     rateSensitivity: string;

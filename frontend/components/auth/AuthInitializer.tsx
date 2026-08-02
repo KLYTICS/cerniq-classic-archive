@@ -16,8 +16,6 @@ const AUTH_ROUTE_PREFIXES = [
   '/dashboard',
   '/onboarding',
   '/portal',
-  '/portfolios',
-  '/risk-analytics',
   '/settings',
   '/alm',
   ACCESS_REQUIRED_ROUTE,

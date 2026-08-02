@@ -107,8 +107,6 @@ export function isProtectedAppPath(pathname: string | null) {
     '/dashboard',
     '/onboarding',
     '/portal',
-    '/portfolios',
-    '/risk-analytics',
     '/settings',
     '/alm',
   ];
@@ -127,8 +125,6 @@ export function requiresPaidAccessPath(pathname: string | null) {
     '/dashboard',
     '/onboarding',
     '/portal',
-    '/portfolios',
-    '/risk-analytics',
     '/settings',
     '/alm',
   ];
