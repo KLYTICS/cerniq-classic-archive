@@ -93,17 +93,34 @@ fi
 
 # ── Deploy, always with an explicit --service ────────────────────────────────
 cd "$BACKEND"
+read_uptime() {
+  curl -s --max-time 10 "$API_URL/health" 2>/dev/null \
+    | python3 -c 'import sys,json;print(int(float(json.load(sys.stdin)["data"]["uptime"])))' 2>/dev/null \
+    || echo ''
+}
+
+# Baseline BEFORE deploying. The cutover test is "uptime dropped below the value
+# the OLD container was already reporting", so it must be seeded from a real
+# reading. Seeding from a sentinel like 999999 makes the very first sample
+# satisfy the comparison and reports success while the build is still running —
+# observed 2026-08-02, when this script declared a live cutover against a
+# deployment still in BUILDING.
+BASELINE="$(read_uptime)"
+[ -n "$BASELINE" ] || BASELINE=0
+echo ""
+echo "Baseline uptime before deploy: ${BASELINE}s"
+
 echo ""
 echo "Deploying backend-node/ to $EXPECTED_SVC_NAME..."
 railway up --service "$EXPECTED_SVC_ID" --detach
 
 # ── Wait for the API to come back on a NEW container ─────────────────────────
 # `prisma migrate deploy` runs from the Dockerfile CMD before the server starts,
-# so a cutover is not instant. A falling uptime is the signal that the new
-# container actually replaced the old one.
+# so a cutover is not instant. Railway also keeps the old container serving
+# until the new one passes its healthcheck, which is exactly why a 200 here
+# proves nothing on its own.
 echo ""
-echo "Waiting for cutover (uptime resets when the new container takes over)..."
-PREV_UPTIME=999999
+echo "Waiting for cutover (uptime must drop below the baseline)..."
 for i in $(seq 1 40); do
   sleep 15
   BODY="$(curl -s --max-time 10 "$API_URL/health" 2>/dev/null || echo '')"
@@ -112,15 +129,15 @@ for i in $(seq 1 40); do
     continue
   fi
   read -r UP DB ST <<<"$(printf '%s' "$BODY" | python3 -c \
-    'import sys,json;d=json.load(sys.stdin)["data"];print(d["uptime"],d["db"],d["status"])' 2>/dev/null || echo '0 ? ?')"
+    'import sys,json;d=json.load(sys.stdin)["data"];print(int(float(d["uptime"])),d["db"],d["status"])' 2>/dev/null || echo '0 ? ?')"
   printf '  [%4ds] uptime=%-7s db=%-10s status=%s\n' "$((i * 15))" "$UP" "$DB" "$ST"
-  # New container: uptime went backwards AND the database is reachable.
-  if [ "${UP%.*}" -lt "${PREV_UPTIME%.*}" ] && [ "$DB" = "connected" ]; then
+  # A genuinely new container reports an uptime lower than the old one's, and
+  # its database must be reachable before we call the deploy good.
+  if [ "$UP" -lt "$BASELINE" ] && [ "$DB" = "connected" ]; then
     echo ""
-    echo "Backend is live on a new container with a healthy database."
+    echo "Backend is live on a new container (uptime ${UP}s < baseline ${BASELINE}s), database healthy."
     exit 0
   fi
-  PREV_UPTIME="$UP"
 done
 
 echo "" >&2
