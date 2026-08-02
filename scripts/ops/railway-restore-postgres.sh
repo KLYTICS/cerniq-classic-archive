@@ -94,15 +94,31 @@ if not DO_RESTORE:
     print('Re-run with --restore to perform it.')
     sys.exit(0)
 
-print('\nRedeploying from the configured source (NOT the failed snapshot)...')
+print('\nTriggering a FRESH deploy from the configured source...')
+# Mutation choice matters, and the two obvious candidates are both wrong:
+#
+#   railway redeploy / deploymentRedeploy  -> re-runs a specific past deployment
+#   serviceInstanceRedeploy                -> re-runs the service's LATEST deployment
+#
+# Both replay a deployment *snapshot*. The snapshot here is the API source that
+# `railway up` mistakenly uploaded onto this service, carrying its own
+# railway.toml (builder=DOCKERFILE), so every one of them rebuilds the CerniQ
+# API image on the database service and fails. Observed four times:
+# 655042eb, e34a9b12, 529ed044, 2e2b5bd7 — all builder=DOCKERFILE, image=None,
+# while the service config itself reads a perfectly correct
+# ghcr.io/railwayapp-templates/postgres-ssl:18 + RAILPACK.
+#
+# serviceInstanceDeployV2 creates a NEW deployment from the service's current
+# source instead of replaying a snapshot, which is the only path back to the
+# image.
 res = gql(
     'mutation($env: String!, $svc: String!) {'
-    '  serviceInstanceRedeploy(environmentId: $env, serviceId: $svc) }',
+    '  serviceInstanceDeployV2(environmentId: $env, serviceId: $svc) }',
     {'env': ENV, 'svc': SVC},
 )
 if res.get('errors'):
-    sys.exit(f'Redeploy failed: {json.dumps(res["errors"])[:400]}')
-print('Redeploy accepted.')
+    sys.exit(f'Deploy failed: {json.dumps(res["errors"])[:400]}')
+print('Deploy accepted:', json.dumps(res.get('data'))[:120])
 PY
 
 if [ "$RESTORE" -eq 1 ]; then
