@@ -98,6 +98,16 @@ phase0_preflight() {
     bash "$SCRIPT_DIR/health-check.sh" "$API_URL" "$FRONTEND_URL"
   fi
 
+  # Where Supabase actually sends an authenticated user. This lives in the
+  # Supabase project, not in this repo, Railway, or Vercel — so no other check
+  # here can see it. On 2026-08-02 the Site URL was http://localhost:3000 and
+  # every sign-in bounced to localhost while every HTTP status stayed 200.
+  if [[ "${SKIP_AUTH_REDIRECT_VERIFY:-}" != "1" ]]; then
+    CERNIQ_EXPECTED_ORIGIN="$FRONTEND_URL" bash "$SCRIPT_DIR/ops/verify-auth-redirects.sh"
+  else
+    echo "  ⊘ auth-redirect verify skipped (SKIP_AUTH_REDIRECT_VERIFY=1)"
+  fi
+
   if [[ -n "${DATABASE_URL:-}" ]]; then
     (cd "$REPO_ROOT/backend-node" && npx prisma migrate status)
   else
