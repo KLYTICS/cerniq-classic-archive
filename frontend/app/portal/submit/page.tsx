@@ -1150,7 +1150,29 @@ export default function PortalSubmit() {
   };
 
   const handleUpload = async () => {
-    if (!displayJob?.id || !file) return;
+    // Never return silently. A dead Submit button with no explanation is
+    // indistinguishable from a broken platform — which is exactly how this was
+    // reported. Name the missing precondition instead.
+    if (!displayJob?.id || !file) {
+      setResult({
+        valid: false,
+        status: "ERROR",
+        errors: [
+          {
+            message: !displayJob?.id
+              ? t(
+                  "No report cycle is selected. Pick a cycle in step 2, then submit.",
+                  "No hay ciclo de informe seleccionado. Elija un ciclo en el paso 2 y envie.",
+                )
+              : t(
+                  "No file is attached. Choose a CSV in step 4, then submit.",
+                  "No hay archivo adjunto. Elija un CSV en el paso 4 y envie.",
+                ),
+          },
+        ],
+      });
+      return;
+    }
 
     setUploading(true);
     setSubmittedState(null);
@@ -1262,19 +1284,26 @@ export default function PortalSubmit() {
           jobId: displayJob.id,
         });
       }
-    } catch {
+    } catch (err) {
+      // A bare `catch {}` here reported "Network error" for every transport
+      // failure, discarding the only evidence of what went wrong. Keep the
+      // friendly headline, append the actual reason.
+      const detail =
+        err instanceof Error && err.message ? ` (${err.message})` : "";
       setResult({
         valid: false,
         status: "ERROR",
         errors: [
           {
-            message: t(
-              "Network error. Please try again.",
-              "Error de conexion. Intente de nuevo.",
-            ),
+            message:
+              t(
+                "Could not reach the CERNIQ API. Please try again.",
+                "No se pudo contactar la API de CERNIQ. Intente de nuevo.",
+              ) + detail,
           },
         ],
       });
+      setScanRefreshKey((k) => k + 1);
     } finally {
       setUploading(false);
     }
@@ -1691,6 +1720,7 @@ export default function PortalSubmit() {
                     <button
                       onClick={handleUpload}
                       disabled={!displayJob.id || !file || uploading}
+                      aria-describedby="submit-blocked-reason"
                       className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#E8A020] px-6 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-[#d19218] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {uploading ? (
@@ -1708,6 +1738,23 @@ export default function PortalSubmit() {
                         </>
                       )}
                     </button>
+
+                    {!uploading && (!displayJob.id || !file) ? (
+                      <p
+                        id="submit-blocked-reason"
+                        className="mt-2 text-center text-xs text-slate-500"
+                      >
+                        {!displayJob.id
+                          ? t(
+                              "Select a report cycle in step 2 to enable Submit.",
+                              "Seleccione un ciclo de informe en el paso 2 para habilitar Enviar.",
+                            )
+                          : t(
+                              "Attach a CSV in step 4 to enable Submit.",
+                              "Adjunte un CSV en el paso 4 para habilitar Enviar.",
+                            )}
+                      </p>
+                    ) : null}
 
                     <ScanHistory
                       jobId={displayJob.id}

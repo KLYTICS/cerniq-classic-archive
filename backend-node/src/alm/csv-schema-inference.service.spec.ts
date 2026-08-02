@@ -269,4 +269,33 @@ describe('CsvSchemaInferenceService', () => {
       expect(result.summary.totalLiabilities).toBe(165);
     });
   });
+
+  // A PR cooperativa export: semicolon-delimited, Spanish headers, feminine
+  // "fija", and a bare "Reprecio" column. Every part of this combination
+  // previously failed — `fija` was rejected by the validator and `Reprecio`
+  // was not a recognised header, so variable-rate rows lost the reprice date
+  // that the repricing-gap analysis is built on.
+  it('round-trips a Spanish semicolon cooperativa export, including Reprecio and fija', () => {
+    const csv = [
+      'Categoria;Subcategoria;Nombre;Saldo Actual;Tasa;Duracion;Tipo de Tasa;Reprecio;Vencimiento',
+      'activo;hipotecas_residenciales;Pool A;7.5;5.75;12.0;fija;;2038-03-01',
+      'pasivo;depositos_ahorro;Ahorro Socios;24.0;1.50;0.25;variable;2026-06-01;',
+    ].join('\n');
+
+    const inference = svc.infer(csv);
+    expect(inference.status).not.toBe('unusable');
+    expect(inference.mapping.repriceDate).toBe(7);
+
+    const converted = svc.toCanonicalCsv(csv, inference, {
+      columnOverrides: {},
+      defaults: {},
+    });
+    expect(converted).not.toBeNull();
+    expect(converted!.csv).toContain('2026-06-01');
+
+    // The whole point of inference is that the STRICT parser then accepts it.
+    const reparsed = strict.parseCSV(converted!.csv);
+    expect(reparsed.valid).toBe(true);
+    expect(reparsed.summary.validRows).toBe(2);
+  });
 });

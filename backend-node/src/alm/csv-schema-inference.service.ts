@@ -150,6 +150,12 @@ const FIELD_SYNONYMS: Record<CanonicalField, string[]> = {
     'revision',
     'repricing',
     'fecha_reprecio',
+    // Bare "Reprecio" is what PR cooperativa exports actually use as the column
+    // heading; only the compound `fecha_reprecio` was recognised, so the column
+    // was silently dropped and every variable-rate row lost its reprice date —
+    // which is the input the repricing-gap analysis depends on.
+    'reprecio',
+    'reprecios',
     'next_reprice',
     'proxima_revision',
   ],

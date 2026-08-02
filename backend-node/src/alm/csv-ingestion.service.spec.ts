@@ -94,6 +94,25 @@ describe('CSVIngestionService', () => {
     expect(result.items[0].rateType).toBe('fixed');
   });
 
+  // "tasa" is feminine in Spanish, so "tasa fija" is the correct and by far the
+  // most common form. The validator historically accepted only the masculine
+  // "fijo", so a correctly-written cooperativa export was rejected outright.
+  it.each([
+    ['fija', 'fixed'],
+    ['fijo', 'fixed'],
+    ['hibrida', 'hybrid'],
+    ['hibrido', 'hybrid'],
+    ['variable', 'variable'],
+  ])('accepts Spanish rate type "%s" as %s', (spanish, canonical) => {
+    const csv = [
+      'category,subcategory,name,balance,rate,duration,rateType',
+      `asset,commercial_loans,Prestamo,10,5.25,4.5,${spanish}`,
+    ].join('\n');
+    const result = service.parseCSV(csv);
+    expect(result.valid).toBe(true);
+    expect(result.items[0].rateType).toBe(canonical);
+  });
+
   it('handles "pasivo" as liability category', () => {
     const csv = [
       'category,subcategory,name,balance,rate,duration,rateType',

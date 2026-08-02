@@ -34,7 +34,23 @@ const SUBCATEGORY_ALIASES: Record<string, string> = {
 };
 
 const VALID_CATEGORIES = ['asset', 'liability', 'activo', 'pasivo'];
-const VALID_RATE_TYPES = ['fixed', 'variable', 'hybrid', 'fijo', 'variable'];
+// Spanish rate types as cooperativas actually write them. "tasa" is feminine,
+// so **"fija" is the correct and by far the most common form** — the list
+// previously accepted only the masculine "fijo", rejecting well-formed exports
+// from essentially every Spanish-language cooperativa. `variable` is identical
+// in both languages; `hibrida`/`híbrida` mirror `hybrid`.
+const RATE_TYPE_SYNONYMS: Record<string, string> = {
+  fixed: 'fixed',
+  variable: 'variable',
+  hybrid: 'hybrid',
+  fijo: 'fixed',
+  fija: 'fixed',
+  hibrido: 'hybrid',
+  hibrida: 'hybrid',
+  híbrido: 'hybrid',
+  híbrida: 'hybrid',
+};
+const VALID_RATE_TYPES = Object.keys(RATE_TYPE_SYNONYMS);
 
 const ASSET_SUBCATEGORIES = new Set([
   'commercial_loans',
@@ -272,7 +288,7 @@ export class CSVIngestionService {
         headerMap,
         'ratetype',
       ).toLowerCase();
-      const rateType = rawRateType === 'fijo' ? 'fixed' : rawRateType;
+      const rateType = RATE_TYPE_SYNONYMS[rawRateType] || rawRateType;
 
       // D22: duration validated up-front. 0-600 months (50y max).
       const rawDuration = this.getField(row, headerMap, 'duration');
@@ -565,8 +581,8 @@ export class CSVIngestionService {
         row: rowNum,
         field: 'rateType',
         value: rateType,
-        message: `Invalid rate type "${rateType}". Must be: fixed, variable, hybrid (or fijo)`,
-        messageEs: `Tipo de tasa inválido "${rateType}". Debe ser: fixed, variable, hybrid, o fijo`,
+        message: `Invalid rate type "${rateType}". Must be: fixed, variable, hybrid (or fijo/fija, hibrido/hibrida)`,
+        messageEs: `Tipo de tasa inválido "${rateType}". Debe ser: fixed, variable, hybrid (o fijo/fija, hibrido/hibrida)`,
       });
     }
 
