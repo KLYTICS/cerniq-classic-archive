@@ -13,7 +13,7 @@ import { PRICING } from '@/lib/pricing';
 export const metadata: Metadata = {
   title: "CERNIQ — Institutional Treasury, Risk, and Portfolio Intelligence",
   description:
-    "CERNIQ is the institutional operating system for treasury, ALM, portfolio visibility, execution review, and board-ready reporting. Bilingual output, regulatory posture, and CFO-first workflows in one command surface.",
+    "CERNIQ is the institutional operating system for treasury, ALM, liquidity and rate risk, and board-ready COSSEC/NCUA reporting. Bilingual output, regulatory posture, and CFO-first workflows in one command surface.",
   keywords:
     "institutional finance software, treasury intelligence, ALM software, asset liability management, portfolio visibility, execution quality, risk operating system, board reporting, credit union ALM, community bank risk platform, COSSEC compliance, NCUA ratios, Basel IRRBB, bilingual board reports, institutional risk intelligence, CERNIQ",
   metadataBase: new URL("https://cerniq.io"),
@@ -86,7 +86,7 @@ export default function RootLayout({
                 address: { '@type': 'PostalAddress', addressLocality: 'San Juan', addressRegion: 'PR', addressCountry: 'US' },
               },
               featureList:
-                'Treasury intelligence, ALM analysis, portfolio visibility, execution review, board-ready reporting, duration gap, NII sensitivity, EVE, Monte Carlo, CECL, Basel IRRBB, bilingual EN/ES outputs',
+                'Treasury intelligence, ALM analysis, liquidity risk, board-ready reporting, COSSEC, NCUA, duration gap, NII sensitivity, EVE, Monte Carlo, CECL, Basel IRRBB, bilingual EN/ES outputs',
             }),
           }}
         />

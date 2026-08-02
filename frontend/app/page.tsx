@@ -544,7 +544,7 @@ export default function LandingPage() {
                   </h1>
                   <p className="mt-6 max-w-2xl text-base leading-8 text-[var(--dashboard-text-secondary)] sm:text-lg">
                     {t(
-                      "CERNIQ gives treasury, ALCO, risk, and investment teams one operating layer for upload-to-report delivery, rate posture, portfolio visibility, execution review, and board-ready output.",
+                      "CERNIQ gives treasury, ALCO, and risk teams one operating layer for upload-to-report delivery, rate posture, liquidity coverage, and board-ready output.",
                       "CERNIQ le da a tesoreria, ALCO, riesgo e inversiones una sola capa operativa para entrega de reportes, postura de tasas, visibilidad de portafolio, revision de ejecucion y salidas listas para junta.",
                     )}
                   </p>

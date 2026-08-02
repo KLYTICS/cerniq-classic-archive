@@ -87,8 +87,11 @@ describe('LandingPage', () => {
     expect(screen.getAllByText(/View Interactive Demo/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/One institutional system\. Multiple working surfaces\./i)).toBeInTheDocument();
     expect(screen.getByText(/Tell us how your treasury and risk workflow runs today\./i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Portfolio visibility/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Execution review/i).length).toBeGreaterThan(0);
+    // The homepage is anchored on the surfaces that still exist. "Portfolio
+    // visibility" and "Execution review" were removed with the trading line;
+    // asserting them here would re-enable copy for modules that 404.
+    expect(screen.getAllByText(/Treasury intelligence/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Risk operating system/i).length).toBeGreaterThan(0);
   });
 
   it('routes compliance navigation through the public compliance path', () => {

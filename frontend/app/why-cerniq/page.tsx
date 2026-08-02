@@ -51,7 +51,7 @@ export default function WhyCerniqPage() {
           </h1>
           <p className="mt-4 text-lg text-slate-600 leading-relaxed">
             {t(
-              'CERNIQ keeps ALM and reporting as the anchor, then connects that workflow to portfolio visibility, execution review, and institutional stakeholder output in one command surface.',
+              'CERNIQ keeps ALM and reporting as the anchor, then connects that workflow to liquidity posture, exam readiness, and institutional stakeholder output in one command surface.',
               'CERNIQ mantiene ALM y reportes como ancla, y luego conecta ese flujo con visibilidad de portafolio, revision de ejecucion y salida institucional en una sola superficie de mando.'
             )}
           </p>
