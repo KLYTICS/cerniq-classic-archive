@@ -80,6 +80,24 @@ export class PlatformAccessService {
     );
   }
 
+  /**
+   * True only for the ONE provisioned CEO account — `MASTER_ACCOUNT_EMAIL`, or a
+   * Gmail alias that folds onto it via `normalizeMasterAccountEmail`.
+   *
+   * This is deliberately narrower than `isMasterAccountEmail`, and the
+   * distinction is load-bearing. `isMasterAccountEmail` answers "does this
+   * address get master *platform access*" and is true for several **different
+   * people**. Identity provisioning must not use that answer: routing every one
+   * of those addresses into `ensureMasterAccountProvisioned` makes each of them
+   * resolve to the canonical account's row, which both confuses identity and
+   * — when the caller's own row already owns the incoming auth id — throws
+   * `Unique constraint failed on the fields: (id)` and 500s the login.
+   * See the 2026-08-02 entry in docs/SESSION_HANDOFF.md.
+   */
+  isCanonicalMasterAccountEmail(email?: string | null) {
+    return this.normalizeMasterAccountEmail(email) === MASTER_ACCOUNT_EMAIL;
+  }
+
   async getAccessForUser(
     userId: string,
     email?: string | null,

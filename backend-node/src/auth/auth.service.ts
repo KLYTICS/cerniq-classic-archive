@@ -300,7 +300,16 @@ export class AuthService {
 
     const normalizedEmail = this.normalizeUserEmail(email);
 
-    if (this.platformAccess.isMasterAccountEmail(normalizedEmail)) {
+    // Only the canonical CEO account is provisioned through the master path.
+    // `isMasterAccountEmail` is true for several *different* people (it governs
+    // platform access, not identity); using it here made every one of them
+    // resolve to the canonical row, and threw
+    // `Unique constraint failed on the fields: (id)` whenever the signer's own
+    // row already owned the incoming auth id — a hard 500 on login.
+    // Non-canonical master emails fall through to the normal path below, which
+    // finds them by id, then by email, and only creates when neither exists.
+    // They still receive master platform access via PlatformAccessService.
+    if (this.platformAccess.isCanonicalMasterAccountEmail(normalizedEmail)) {
       return this.ensureMasterAccountProvisioned({
         authUserId,
         provider,
@@ -1217,9 +1226,30 @@ export class AuthService {
     let user = existing;
 
     if (!user) {
+      // Adopt the caller's auth id only when it is genuinely free. A master
+      // sign-in carries the *signer's* id, which may already belong to their own
+      // row; creating the canonical account with it violates the `id` unique
+      // constraint and surfaces as a 500 on an otherwise valid login.
+      const requestedId = (params?.authUserId || '').trim();
+      const idTaken = requestedId
+        ? (await this.prisma.user.findUnique({
+            where: { id: requestedId },
+            select: { id: true },
+          })) !== null
+        : false;
+
+      if (requestedId && idTaken) {
+        this.logger.warn({
+          event: 'master_provision_id_conflict',
+          requestedId,
+          detail:
+            'auth id already belongs to another user; provisioning the master account with a fresh id instead',
+        });
+      }
+
       user = await this.prisma.user.create({
         data: {
-          id: params?.authUserId || crypto.randomUUID(),
+          id: !requestedId || idTaken ? crypto.randomUUID() : requestedId,
           email: MASTER_ACCOUNT_EMAIL,
           name: MASTER_ACCOUNT_NAME,
           passwordHash,

@@ -57,6 +57,7 @@ describe('AuthService', () => {
   let platformAccess: {
     evaluateAccess: jest.Mock;
     isMasterAccountEmail: jest.Mock;
+    isCanonicalMasterAccountEmail: jest.Mock;
     normalizeMasterAccountEmail: jest.Mock;
   };
 
@@ -98,15 +99,29 @@ describe('AuthService', () => {
       verify: jest.fn(),
     };
 
+    const isCanonicalMaster = (email?: string | null) => {
+      const normalized = (email || '').trim().toLowerCase();
+      return (
+        normalized === 'data.ai.kiess@gmail.com' ||
+        normalized === 'data.ai.kiess' ||
+        normalized.startsWith('data.ai.kiess@')
+      );
+    };
+
     platformAccess = {
+      // Mirrors the real MASTER_ACCOUNT_EMAILS: master platform access is held
+      // by several DIFFERENT people, not just the canonical provisioned account.
+      // The previous mock returned true only for data.ai.kiess, which is why the
+      // production 500 on eskiessalfonso@gmail.com was never reproduced here.
       isMasterAccountEmail: jest.fn((email?: string | null) => {
         const normalized = (email || '').trim().toLowerCase();
         return (
-          normalized === 'data.ai.kiess@gmail.com' ||
-          normalized === 'data.ai.kiess' ||
-          normalized.startsWith('data.ai.kiess@')
+          isCanonicalMaster(normalized) ||
+          normalized === 'kiess2005@gmail.com' ||
+          normalized === 'eskiessalfonso@gmail.com'
         );
       }),
+      isCanonicalMasterAccountEmail: jest.fn(isCanonicalMaster),
       normalizeMasterAccountEmail: jest.fn((email?: string | null) => {
         const normalized = (email || '').trim().toLowerCase();
         if (
@@ -258,6 +273,42 @@ describe('AuthService', () => {
       expect(result.id).toBe('auth-user-id');
     });
 
+    // Regression: production 500 on 2026-08-02.
+    // eskiessalfonso@gmail.com holds master platform access but is NOT the
+    // canonical provisioned account. Routing it through
+    // ensureMasterAccountProvisioned looked up the canonical row (absent), then
+    // tried to create it using THIS signer's auth id — which their own row
+    // already owned — producing
+    // `Unique constraint failed on the fields: (id)` and a 500 on every login.
+    it('resolves a non-canonical master email to its OWN row without provisioning the canonical account', async () => {
+      const ownRow = {
+        id: 'supabase-uid-eskiess',
+        email: 'eskiessalfonso@gmail.com',
+        name: 'Erwin Kiess',
+        avatarUrl: null,
+        provider: 'supabase',
+        providerId: 'supabase-uid-eskiess',
+        emailVerified: true,
+        role: 'OWNER',
+        passwordHash: null,
+      };
+      // Found by id on the very first lookup — the normal path.
+      prisma.user.findUnique.mockResolvedValueOnce(ownRow);
+      prisma.workspace.findFirst.mockResolvedValue({ id: 'ws-1' });
+
+      const result = await service.resolveApplicationUser({
+        authUserId: 'supabase-uid-eskiess',
+        email: 'eskiessalfonso@gmail.com',
+        provider: 'supabase',
+        providerId: 'supabase-uid-eskiess',
+      });
+
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(result.id).toBe('supabase-uid-eskiess');
+      // Identity must be their own, never folded onto the canonical account.
+      expect(result.email).toBe('eskiessalfonso@gmail.com');
+    });
+
     it('should reuse an existing email-matched app user instead of creating a second row', async () => {
       const devPassword =
         process.env.DEV_MASTER_ACCOUNT_PASSWORD || 'change-me-in-env';
@@ -289,6 +340,11 @@ describe('AuthService', () => {
   describe('getUserProfile', () => {
     it('should provision and return the profile for an authenticated master account missing a local row', async () => {
       prisma.user.findUnique
+        .mockResolvedValueOnce(null)
+        // ensureMasterAccountProvisioned now checks that the incoming auth id is
+        // free before adopting it (null = free). Without that check, adopting an
+        // id another row already owns throws
+        // `Unique constraint failed on the fields: (id)`.
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
