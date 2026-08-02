@@ -268,6 +268,55 @@ describe('PortalSubmit', () => {
     expect(loadOverviewMock).toHaveBeenCalled();
   });
 
+  // Regression: a job stuck in VALIDATION_FAILED rendered its STORED error in
+  // alarming red indefinitely. A user who had already selected a good file
+  // still saw "CSV must have a header row and at least one data row" and
+  // concluded the upload was broken. The stored result must be presented as
+  // history, not as a verdict on the file currently staged.
+  it('labels a stored validation failure as a previous attempt, not a fresh verdict', () => {
+    hookState.overview = {
+      ...overviewMock,
+      // The rendered state derives from the SELECTED job, so the jobs array and
+      // latestActionableJob must both reflect the failure.
+      jobs: overviewMock.jobs.map((job) => ({
+        ...job,
+        status: 'VALIDATION_FAILED',
+      })),
+      workflowState: 'validation_failed',
+      latestActionableJob: {
+        ...overviewMock.latestActionableJob,
+        status: 'VALIDATION_FAILED',
+      },
+      validationSummary: {
+        sourceFilename: 'cerniq-balance-sheet-v1(1).csv',
+        status: 'FAILED',
+        totalRows: 0,
+        validRows: 0,
+        errorRows: 1,
+        importedCount: 0,
+        warningCount: 0,
+        errorCount: 1,
+        warnings: [],
+        errors: [
+          { message: 'CSV must have a header row and at least one data row' },
+        ],
+      },
+    } as unknown as typeof overviewMock;
+
+    render(<PortalSubmit />);
+
+    expect(
+      screen.getByText(/Result of your previous attempt/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Validation needs attention/i),
+    ).not.toBeInTheDocument();
+    // The row accounting is shown so the scan is inspectable, not just a message.
+    expect(
+      screen.getByText('cerniq-balance-sheet-v1(1).csv'),
+    ).toBeInTheDocument();
+  });
+
   it('documents the real CSV schema in the help rail', () => {
     render(<PortalSubmit />);
 

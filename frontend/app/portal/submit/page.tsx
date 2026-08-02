@@ -187,8 +187,13 @@ function CSVPreview({ file }: { file: File }) {
           {t("Preview (first 5 rows)", "Vista previa (primeras 5 filas)")}
         </p>
       </div>
+      {/* `w-full` pins the table to the container width, so `whitespace-nowrap`
+          cells get clipped instead of scrolling and the right-hand columns
+          (rateType, repriceDate, maturityDate) are unreachable. `w-max` lets the
+          table grow to its natural width so the scroll container actually
+          engages; `min-w-full` keeps it flush when the file is narrow. */}
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-max min-w-full text-xs">
           <thead>
             <tr className="bg-slate-50/60">
               {headers.map((header) => (
@@ -441,34 +446,104 @@ function trackerForState(state: string) {
   }
 }
 
+/**
+ * Shows the outcome of a CSV scan.
+ *
+ * Two distinct cases, which the previous version conflated — and that
+ * conflation is what made the portal look broken: a job left in
+ * VALIDATION_FAILED kept rendering its *stored* error in alarming red forever,
+ * so a user who had already picked a good file still saw
+ * "CSV must have a header row and at least one data row" and reasonably
+ * concluded the upload was failing again.
+ *
+ *   current  — errors from the upload just attempted (`uploadErrors`)
+ *   prior    — the persisted result of an EARLIER attempt (`summary`)
+ *
+ * The prior case is kept rather than hidden, because the scan history is the
+ * audit trail. It is just clearly labelled as history and styled as such.
+ * Either way the counts are shown, so the scan is inspectable instead of a
+ * bare message: rows read, rows valid, rows rejected, rows imported.
+ */
 function ValidationSummaryCard({
   summary,
   uploadErrors,
+  hasStagedFile,
 }: {
   summary: PortalValidationSummary | null;
   uploadErrors: SubmitResponse["errors"];
+  hasStagedFile?: boolean;
 }) {
   const { locale } = useTranslation();
   const t = (en: string, es: string) => (locale === "en" ? en : es);
-  const errors =
-    uploadErrors && uploadErrors.length > 0
-      ? uploadErrors
-      : summary?.errors || [];
-  const warnings = summary?.warnings || [];
+
+  const isCurrent = Boolean(uploadErrors && uploadErrors.length > 0);
+  const errors = isCurrent ? uploadErrors || [] : summary?.errors || [];
+  const warnings = isCurrent ? [] : summary?.warnings || [];
 
   if (errors.length === 0 && warnings.length === 0) {
     return null;
   }
 
+  const tone = isCurrent
+    ? {
+        wrap: "border-rose-200 bg-rose-50",
+        icon: "text-rose-600",
+        title: "text-rose-700",
+        body: "text-rose-700",
+      }
+    : {
+        wrap: "border-amber-200 bg-amber-50/70",
+        icon: "text-amber-600",
+        title: "text-amber-800",
+        body: "text-amber-800",
+      };
+
+  const heading = isCurrent
+    ? t("Validation needs attention", "La validacion necesita atencion")
+    : t("Result of your previous attempt", "Resultado de su intento anterior");
+
+  const scanned = summary && !isCurrent ? summary : null;
+
   return (
-    <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+    <div className={`mt-4 rounded-2xl border p-4 ${tone.wrap}`}>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+        <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${tone.icon}`} />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-rose-700">
-            {t("Validation needs attention", "La validacion necesita atencion")}
-          </p>
-          <ul className="mt-2 space-y-1 text-xs leading-5 text-rose-700">
+          <p className={`text-sm font-semibold ${tone.title}`}>{heading}</p>
+
+          {!isCurrent ? (
+            <p className={`mt-1 text-xs ${tone.body}`}>
+              {hasStagedFile
+                ? t(
+                    "This is history, not a check of the file you just selected. Submit to run a fresh scan.",
+                    "Esto es historial, no una revision del archivo que acaba de seleccionar. Envie para ejecutar un nuevo escaneo.",
+                  )
+                : t(
+                    "Select a file below and submit to run a fresh scan.",
+                    "Seleccione un archivo abajo y envie para ejecutar un nuevo escaneo.",
+                  )}
+            </p>
+          ) : null}
+
+          {scanned ? (
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
+              {[
+                [t("File", "Archivo"), scanned.sourceFilename || "--"],
+                [t("Rows read", "Filas leidas"), String(scanned.totalRows)],
+                [t("Valid", "Validas"), String(scanned.validRows)],
+                [t("Rejected", "Rechazadas"), String(scanned.errorRows)],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-[10px] uppercase tracking-wide opacity-70">
+                    {label}
+                  </dt>
+                  <dd className="font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+
+          <ul className={`mt-3 space-y-1 text-xs leading-5 ${tone.body}`}>
             {errors.slice(0, 4).map((error, index) => (
               <li key={`${error.message}-${index}`}>
                 •{" "}
@@ -478,6 +553,14 @@ function ValidationSummaryCard({
               </li>
             ))}
           </ul>
+          {errors.length > 4 ? (
+            <p className={`mt-1 text-[11px] ${tone.body} opacity-80`}>
+              {t(
+                `+${errors.length - 4} more issue(s)`,
+                `+${errors.length - 4} problema(s) mas`,
+              )}
+            </p>
+          ) : null}
           {warnings.length > 0 ? (
             <p className="mt-3 text-xs text-amber-700">
               {t(
@@ -488,6 +571,152 @@ function ValidationSummaryCard({
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+
+/** One row of the ingestion audit trail, as returned by the API. */
+interface ScanAttempt {
+  id: string;
+  sourceFilename: string | null;
+  status: string;
+  totalRows: number | null;
+  validRows: number | null;
+  errorRows: number | null;
+  importedCount: number | null;
+  createdAt: string;
+}
+
+/**
+ * Every scan this job has ever run, newest first.
+ *
+ * `GET /api/portal/jobs/:jobId/ingestion-logs` has existed the whole time and
+ * nothing consumed it, so a failed upload left the user staring at a single red
+ * sentence with no way to see what the scanner actually read. This makes the
+ * process inspectable and repeatable: each attempt shows its file, when it ran,
+ * and the row accounting (read / valid / rejected / imported), so two attempts
+ * can be compared instead of guessed at.
+ *
+ * Fails quiet: the audit trail is diagnostic, and a history that cannot load is
+ * never a reason to block the upload UI behind an error.
+ */
+function ScanHistory({ jobId, refreshKey }: { jobId: string; refreshKey: number }) {
+  const { locale } = useTranslation();
+  const t = (en: string, es: string) => (locale === "en" ? en : es);
+  const [attempts, setAttempts] = useState<ScanAttempt[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const res = await authFetch(
+          getDirectApiUrl(`/api/portal/jobs/${jobId}/ingestion-logs`),
+        );
+        if (!res.ok) return;
+        const body = await res.json().catch(() => ({}));
+        const rows = unwrapApiData<ScanAttempt[]>(body);
+        if (!cancelled && Array.isArray(rows)) setAttempts(rows);
+      } catch {
+        // Diagnostic only — never surface as a blocking error.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, refreshKey]);
+
+  if (!loading && attempts.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+      >
+        <span className="text-xs font-semibold text-slate-700">
+          {t("Scan history", "Historial de escaneos")}
+          <span className="ml-2 font-normal text-slate-400">
+            {attempts.length}
+          </span>
+        </span>
+        <span className="text-xs text-slate-400">{open ? "\u2212" : "+"}</span>
+      </button>
+
+      {open ? (
+        <div className="max-h-72 overflow-y-auto border-t border-slate-200">
+          <div className="overflow-x-auto">
+            <table className="w-max min-w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50/70 text-slate-500">
+                  {[
+                    t("When", "Cuando"),
+                    t("File", "Archivo"),
+                    t("Result", "Resultado"),
+                    t("Read", "Leidas"),
+                    t("Valid", "Validas"),
+                    t("Rejected", "Rechazadas"),
+                    t("Imported", "Importadas"),
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="whitespace-nowrap px-3 py-2 text-left font-semibold"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {attempts.map((a) => {
+                  const failed = a.status !== "IMPORTED";
+                  return (
+                    <tr key={a.id}>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                        {new Date(a.createdAt).toLocaleString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                        {a.sourceFilename || "--"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <span
+                          className={
+                            failed
+                              ? "rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700"
+                              : "rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+                          }
+                        >
+                          {a.status}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                        {a.totalRows ?? "--"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                        {a.validRows ?? "--"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                        {a.errorRows ?? "--"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                        {a.importedCount ?? "--"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -662,6 +891,9 @@ export default function PortalSubmit() {
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  // Bumped after every submit so the scan history refetches and the user
+  // sees the attempt they just made without reloading the page.
+  const [scanRefreshKey, setScanRefreshKey] = useState(0);
   const [analysisPeriod, setAnalysisPeriod] =
     useState<string>(getCurrentQuarter());
   const [uploading, setUploading] = useState(false);
@@ -1009,11 +1241,13 @@ export default function PortalSubmit() {
         analytics.track(EVENTS.PORTAL_DATA_VALIDATION_FAILED, {
           jobId: displayJob.id,
         });
+        setScanRefreshKey((k) => k + 1);
         return;
       }
 
       const payload = unwrapApiData<SubmitResponse>(body);
       setResult(payload);
+      setScanRefreshKey((k) => k + 1);
 
       if (payload.valid) {
         analytics.track(EVENTS.PORTAL_DATA_SUBMITTED, {
@@ -1287,6 +1521,7 @@ export default function PortalSubmit() {
                       <ValidationSummaryCard
                         summary={activeValidationSummary}
                         uploadErrors={result?.errors}
+                        hasStagedFile={Boolean(file)}
                       />
                     ) : null}
                   </div>
@@ -1473,6 +1708,11 @@ export default function PortalSubmit() {
                         </>
                       )}
                     </button>
+
+                    <ScanHistory
+                      jobId={displayJob.id}
+                      refreshKey={scanRefreshKey}
+                    />
                   </div>
                 </div>
               </div>
