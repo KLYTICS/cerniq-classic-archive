@@ -26,6 +26,7 @@ import { EmailService } from './email/email.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { DemoRequestDto } from './dto/demo-request.dto';
 import { ExitMetricsService } from './admin/exit-metrics.service';
+import { ReportStorageService } from './pipeline/report-storage.service';
 import type { Response } from 'express';
 
 function shouldExposeDetailedHealth(): boolean {
@@ -195,6 +196,7 @@ export class AppController {
     private readonly cacheService: CacheService,
     private readonly emailService: EmailService,
     private readonly exitMetricsService: ExitMetricsService,
+    private readonly reportStorage: ReportStorageService,
   ) {}
 
   private async isCacheReachable(): Promise<boolean> {
@@ -279,6 +281,9 @@ export class AppController {
     }
 
     checks.cache = (await this.isCacheReachable()) ? 'up' : 'degraded';
+    checks.reportStorage = this.reportStorage.isCloudConfigured
+      ? 'up'
+      : 'degraded';
 
     const memory = getHealthMemorySnapshot();
     const status = determineOverallHealthStatus({

@@ -16,6 +16,7 @@ import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
 import { CacheService } from './cache/cache.service';
 import { ExitMetricsService } from './admin/exit-metrics.service';
+import { ReportStorageService } from './pipeline/report-storage.service';
 
 jest.mock('node:fs', () => {
   const actual = jest.requireActual('node:fs');
@@ -91,6 +92,12 @@ describe('AppController', () => {
         {
           provide: CacheService,
           useValue: cacheService,
+        },
+        {
+          // Report storage is surfaced as a NON-CORE health check; configured
+          // here so the controller can report it without S3/R2 credentials.
+          provide: ReportStorageService,
+          useValue: { isCloudConfigured: true },
         },
         {
           provide: ExitMetricsService,
@@ -230,6 +237,28 @@ describe('AppController', () => {
   });
 
   // ── determineOverallHealthStatus ───────────────────────────────────
+
+  // Report storage is reported but must never gate overall health: an
+  // unconfigured bucket silently degrades reports to a volatile in-memory
+  // buffer (they 404 after the next restart), which operators must SEE — but
+  // it is not a reason to pull the API out of a load balancer.
+  it('reports degraded report storage without marking the platform degraded', () => {
+    const status = determineOverallHealthStatus({
+      dbConnected: true,
+      checks: { api: 'up', cache: 'up', reportStorage: 'degraded' },
+      memory: {
+        source: 'container',
+        primaryPercent: 10,
+        heapPercent: 10,
+        rssPercent: 10,
+        limitMB: 1024,
+        heapUsedMB: 10,
+        heapTotalMB: 20,
+        rssMB: 100,
+      },
+    });
+    expect(status).toBe('ok');
+  });
 
   it('stays ok when only optional services (a non-core check) are degraded', () => {
     const status = determineOverallHealthStatus({
