@@ -640,7 +640,9 @@ describe('PortalController', () => {
       expect(result.status).toBe('NEEDS_INPUT');
       expect(result.valid).toBe(false);
       expect(result.questions?.length).toBeGreaterThan(0);
-      expect(result.questions?.some((q: { field: string }) => q.field === 'rate')).toBe(true);
+      expect(
+        result.questions?.some((q: { field: string }) => q.field === 'rate'),
+      ).toBe(true);
       // The job stays actionable so the user can answer and retry.
       expect(prisma.reportJob.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { status: 'AWAITING_DATA' } }),

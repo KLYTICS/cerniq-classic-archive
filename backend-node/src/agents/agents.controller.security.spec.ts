@@ -8,7 +8,7 @@ import type { AgentRunnerService } from './runner/agent-runner.service';
 import type { AgentRunService } from './runner/agent-run.service';
 import type { AgentAuditService } from './runner/agent-audit.service';
 import type { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
-import type { OrgMembershipGuard } from '../close/guards/org-membership.guard';
+import type { OrgMembershipGuard } from '../common/guards/org-membership.guard';
 
 // Locks the contract closing AUTH_COVERAGE_AUDIT gap #1:
 //

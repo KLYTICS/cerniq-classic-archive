@@ -13,8 +13,7 @@ export default function Footer({ t, compact }: FooterProps) {
   const acquisition = getAcquisitionCopy(
     t('en', 'es') === 'en' ? 'en' : 'es',
   );
-  const portfolioManagerHref = buildLoginUrlForReturnUrl('/portfolios');
-  const executionReviewHref = buildLoginUrlForReturnUrl('/execution-quality');
+  const almHref = buildLoginUrlForReturnUrl('/alm');
 
   if (compact) {
     return (
@@ -42,8 +41,7 @@ export default function Footer({ t, compact }: FooterProps) {
             <a href={PUBLIC_PATHS.demo} className="block text-slate-500 hover:text-slate-800">{acquisition.proofCta}</a>
             <a href="/dashboard" className="block text-slate-500 hover:text-slate-800">{t('Command Center', 'Centro de Mando')}</a>
             <a href={PUBLIC_PATHS.pricing} className="block text-slate-500 hover:text-slate-800">{t('Pricing', 'Precios')}</a>
-            <a href={portfolioManagerHref} className="block text-slate-500 hover:text-slate-800">{t('Portfolio Manager', 'Gestor de Portafolio')}</a>
-            <a href={executionReviewHref} className="block text-slate-500 hover:text-slate-800">{t('Execution Review', 'Revision de Ejecucion')}</a>
+            <a href={almHref} className="block text-slate-500 hover:text-slate-800">{t('ALM Workspace', 'Espacio ALM')}</a>
           </div>
         </div>
         <div>

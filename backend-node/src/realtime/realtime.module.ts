@@ -1,13 +1,18 @@
 import { Module } from '@nestjs/common';
-import { RealtimeGateway } from './realtime.gateway';
 import { PipelineGateway } from './pipeline.gateway';
-import { MarketDataModule } from '../market-data/market-data.module';
-import { OptionsModule } from '../options/options.module';
-import { PortfolioModule } from '../portfolio/portfolio.module';
 
+/**
+ * Report-progress websocket for the customer portal.
+ *
+ * This module also hosted `RealtimeGateway`, which streamed quotes for the
+ * trading surfaces and pulled in MarketData/Options/Portfolio. Those product
+ * lines were removed. `PipelineGateway` is retained because the portal
+ * (`frontend/components/portal/ReportProgressWS.tsx`) connects to its
+ * `/pipeline` namespace to follow a report job — it depends on nothing beyond
+ * socket.io and the shared origin allowlist.
+ */
 @Module({
-  imports: [MarketDataModule, OptionsModule, PortfolioModule],
-  providers: [RealtimeGateway, PipelineGateway],
-  exports: [RealtimeGateway, PipelineGateway],
+  providers: [PipelineGateway],
+  exports: [PipelineGateway],
 })
 export class RealtimeModule {}

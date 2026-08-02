@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
 import { DemoSeatService } from '../portal/demo-seat.service';
-import { DailyPipelineService } from '../jobs/daily-pipeline.service';
 import { AuditService } from '../audit/audit.service';
 import {
   SessionContinuityService,
@@ -22,7 +21,6 @@ export class ControlTowerService {
     private readonly prisma: PrismaService,
     private readonly intelligence: IntelligenceService,
     private readonly demoSeats: DemoSeatService,
-    private readonly dailyPipeline: DailyPipelineService,
     private readonly audit: AuditService,
     private readonly sessionContinuity: SessionContinuityService,
   ) {}
@@ -188,11 +186,6 @@ export class ControlTowerService {
         description: 'Run a stale-only intelligence refresh pass.',
       },
       {
-        action: 'run_pipeline' as const,
-        label: 'Run market pipeline',
-        description: 'Trigger the daily market pipeline manually.',
-      },
-      {
         action: 'sweep_demo_seats' as const,
         label: 'Sweep demo seats',
         description: 'Expire overdue demo seats and refresh their status.',
@@ -336,12 +329,6 @@ export class ControlTowerService {
             staleOnly: true,
             trigger: 'control_tower',
           }),
-        );
-      case 'run_pipeline':
-        return this.logAction(
-          action,
-          'Pipeline run completed',
-          await this.dailyPipeline.runPipeline(),
         );
       case 'sweep_demo_seats':
         return this.logAction(

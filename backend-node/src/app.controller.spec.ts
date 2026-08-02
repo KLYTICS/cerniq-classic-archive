@@ -14,8 +14,6 @@ import { PrismaService } from './prisma.service';
 import { AuthGuard } from './auth/auth.guard';
 import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
-import { MarketDataService } from './market-data/market-data.service';
-import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
 import { CacheService } from './cache/cache.service';
 import { ExitMetricsService } from './admin/exit-metrics.service';
 
@@ -91,14 +89,6 @@ describe('AppController', () => {
           useValue: emailService,
         },
         {
-          provide: MarketDataService,
-          useValue: { getHealth: jest.fn().mockReturnValue({ status: 'up' }) },
-        },
-        {
-          provide: MarketStreamManagerService,
-          useValue: { getStreamStatus: jest.fn().mockReturnValue({}) },
-        },
-        {
           provide: CacheService,
           useValue: cacheService,
         },
@@ -136,9 +126,10 @@ describe('AppController', () => {
     expect(status.name).toBe('CERNIQ API');
     expect(status.version).toBe('2.0.0');
     expect(status.endpoints).toBeDefined();
-    expect(status.endpoints).toHaveProperty('marketData');
-    expect(status.endpoints).toHaveProperty('charts');
-    expect(status.endpoints).toHaveProperty('risk');
+    // The marketData/charts/risk/options/execution entries went with the
+    // trading product line; the portal's report-progress socket is what
+    // survives in the endpoint directory.
+    expect(status.endpoints).toHaveProperty('realtime');
   });
 
   // ── Memory Snapshot ────────────────────────────────────────────────
@@ -240,10 +231,10 @@ describe('AppController', () => {
 
   // ── determineOverallHealthStatus ───────────────────────────────────
 
-  it('stays ok when only optional services (marketData) are degraded', () => {
+  it('stays ok when only optional services (a non-core check) are degraded', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
-      checks: { api: 'up', cache: 'up', marketData: 'degraded' },
+      checks: { api: 'up', cache: 'up', optionalDependency: 'degraded' },
       memory: {
         source: 'container',
         primaryPercent: 42,
@@ -261,7 +252,7 @@ describe('AppController', () => {
   it('marks health degraded when a core service (cache) is degraded', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
-      checks: { api: 'up', cache: 'degraded', marketData: 'up' },
+      checks: { api: 'up', cache: 'degraded', optionalDependency: 'up' },
       memory: {
         source: 'container',
         primaryPercent: 42,
@@ -279,7 +270,7 @@ describe('AppController', () => {
   it('keeps health ok for healthy dependencies and safe memory', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
-      checks: { api: 'up', cache: 'up', marketData: 'healthy' },
+      checks: { api: 'up', cache: 'up', optionalDependency: 'healthy' },
       memory: {
         source: 'container',
         primaryPercent: 42,
@@ -369,7 +360,7 @@ describe('AppController', () => {
   it('stays ok when only optional service is unhealthy', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
-      checks: { api: 'up', marketData: 'unhealthy' },
+      checks: { api: 'up', optionalDependency: 'unhealthy' },
       memory: {
         source: 'heap',
         primaryPercent: 30,
@@ -387,7 +378,7 @@ describe('AppController', () => {
   it('marks health degraded when core api service is unhealthy', () => {
     const status = determineOverallHealthStatus({
       dbConnected: true,
-      checks: { api: 'unhealthy', marketData: 'up' },
+      checks: { api: 'unhealthy', optionalDependency: 'up' },
       memory: {
         source: 'heap',
         primaryPercent: 30,

@@ -118,26 +118,6 @@ const platformPillars = [
     bodyEs:
       "Ejecute ALM, estres, liquidez y cumplimiento en el mismo flujo institucional en vez de reportes desconectados.",
   },
-  {
-    href: "/portfolios",
-    icon: LineChart,
-    title: "Portfolio visibility",
-    titleEs: "Visibilidad de portafolio",
-    body:
-      "Track mandates, holdings, cash, and allocation context so treasury and investment conversations stay linked.",
-    bodyEs:
-      "Siga mandatos, posiciones, caja y asignacion para mantener conectadas tesoreria e inversiones.",
-  },
-  {
-    href: "/execution-quality",
-    icon: Target,
-    title: "Execution review",
-    titleEs: "Revision de ejecucion",
-    body:
-      "Bring desk-style execution quality and slippage review into the same environment used for board and committee output.",
-    bodyEs:
-      "Integre revision de ejecucion y slippage al mismo entorno usado para comite y junta.",
-  },
 ];
 
 const operatingLinks = [
@@ -147,27 +127,13 @@ const operatingLinks = [
     labelEs: "Abrir centro de mando",
   },
   {
-    href: "/portfolios",
-    label: "Review mandates",
-    labelEs: "Revisar mandatos",
-  },
-  {
-    href: "/execution-quality",
-    label: "Inspect slippage",
-    labelEs: "Inspeccionar slippage",
-  },
-  {
     href: "/alm",
     label: "Run ALM models",
     labelEs: "Correr modelos ALM",
   },
 ];
 
-const PUBLIC_GATED_MODULE_PATHS = new Set([
-  "/alm",
-  "/execution-quality",
-  "/portfolios",
-]);
+const PUBLIC_GATED_MODULE_PATHS = new Set(["/alm"]);
 
 const workflowSteps = [
   {
@@ -889,22 +855,6 @@ export default function LandingPage() {
                     ),
                   },
                   {
-                    label: "/portfolios",
-                    title: t("Portfolio manager", "Gestor de portafolio"),
-                    body: t(
-                      "Mandates, positions, cash, and unrealized performance in the same product family.",
-                      "Mandatos, posiciones, caja y rendimiento no realizado en la misma familia de producto.",
-                    ),
-                  },
-                  {
-                    label: "/execution-quality",
-                    title: t("Execution review", "Revision de ejecucion"),
-                    body: t(
-                      "Desk-style slippage and fill-quality review for teams with active books.",
-                      "Revision tipo desk de slippage y fills para equipos con libros activos.",
-                    ),
-                  },
-                  {
                     label: "/alm",
                     title: t("ALM and board outputs", "ALM y salidas para junta"),
                     body: t(
@@ -940,8 +890,8 @@ export default function LandingPage() {
                 "Muestre la plataforma como sistema operativo, no como generador aislado de informes.",
               )}
               body={t(
-                "Use the walkthrough to prove the command-center narrative: workspace entry, upload flow, analysis sequence, and the jump into adjacent portfolio and execution surfaces.",
-                "Use la demostracion para probar la narrativa de centro de mando: entrada al workspace, carga, secuencia de analisis y salto hacia portafolio y ejecucion.",
+                "Use the walkthrough to prove the command-center narrative: workspace entry, upload flow, analysis sequence, and delivery of the board-ready report.",
+                "Use la demostración para probar la narrativa de centro de mando: entrada al workspace, carga, secuencia de análisis y entrega del informe listo para junta.",
               )}
             />
 

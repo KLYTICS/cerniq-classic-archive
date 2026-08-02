@@ -3,7 +3,7 @@ import { EnterpriseBatchService } from './enterprise-batch.service';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import { EnterpriseController } from './enterprise.controller';
 import { ApiKeyAuthGuard } from '../api-v1/guards/api-key-auth.guard';
-import { OrgMembershipGuard } from '../close/guards/org-membership.guard';
+import { OrgMembershipGuard } from '../common/guards/org-membership.guard';
 
 /**
  * Enterprise Module — W3-7

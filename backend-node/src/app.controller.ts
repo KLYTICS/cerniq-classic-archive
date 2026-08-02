@@ -25,8 +25,6 @@ import { AdminKeyGuard } from './auth/admin-key.guard';
 import { EmailService } from './email/email.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { DemoRequestDto } from './dto/demo-request.dto';
-import { MarketDataService } from './market-data/market-data.service';
-import { MarketStreamManagerService } from './market-data/market-stream-manager.service';
 import { ExitMetricsService } from './admin/exit-metrics.service';
 import type { Response } from 'express';
 
@@ -175,8 +173,8 @@ export function determineOverallHealthStatus(params: {
       : params.memory.primaryPercent >= 95;
 
   // Only core services (api, database, cache) determine overall health.
-  // Optional services (marketData) are informational — their failure
-  // should not mark the platform as degraded for load balancers.
+  // Any non-core check is informational — its failure must not mark the
+  // platform degraded for load balancers.
   const coreDegraded = Object.entries(params.checks).some(
     ([key, status]) =>
       CORE_HEALTH_KEYS.has(key) && isDependencyDegraded(status),
@@ -196,8 +194,6 @@ export class AppController {
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
     private readonly emailService: EmailService,
-    private readonly marketDataService: MarketDataService,
-    private readonly marketStreamManager: MarketStreamManagerService,
     private readonly exitMetricsService: ExitMetricsService,
   ) {}
 
@@ -283,11 +279,6 @@ export class AppController {
     }
 
     checks.cache = (await this.isCacheReachable()) ? 'up' : 'degraded';
-
-    const marketDataHealth = this.marketDataService.getHealth(
-      this.marketStreamManager.getStreamStatus(),
-    );
-    checks.marketData = marketDataHealth.status;
 
     const memory = getHealthMemorySnapshot();
     const status = determineOverallHealthStatus({
@@ -480,19 +471,11 @@ export class AppController {
       latencyMs: Date.now() - redisStart,
     };
 
-    const marketDataHealth = this.marketDataService.getHealth(
-      this.marketStreamManager.getStreamStatus(),
-    );
     const memory = getHealthMemorySnapshot();
-    services.marketData = {
-      status: marketDataHealth.status,
-      latencyMs: 0,
-    };
 
-    // Core services (DB, cache) determine overall health.
-    // Optional services (marketData) are informational only — their
-    // failure should not drag the platform to "degraded" for load
-    // balancers or uptime monitors.
+    // Core services (DB, cache) determine overall health. Any non-core
+    // check is informational only and must not drag the platform to
+    // "degraded" for load balancers or uptime monitors.
     const coreServices = ['database', 'cache'] as const;
     const allCoreUp = coreServices.every((key) => {
       const s = services[key];
@@ -516,7 +499,6 @@ export class AppController {
         },
       }),
       services,
-      marketData: marketDataHealth,
     };
   }
 
@@ -632,12 +614,7 @@ export class AppController {
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
       endpoints: {
-        marketData: '/api/market-data',
-        charts: '/api/charts',
-        risk: '/api/risk',
-        options: '/api/options',
-        execution: '/api/execution',
-        realtime: '/market-data (WebSocket)',
+        realtime: '/pipeline (WebSocket)',
       },
     };
   }

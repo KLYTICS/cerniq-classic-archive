@@ -21,7 +21,7 @@ import {
   ApiKeyAuthGuard,
   type ApiKeyUser,
 } from '../api-v1/guards/api-key-auth.guard';
-import { OrgMembershipGuard } from '../close/guards/org-membership.guard';
+import { OrgMembershipGuard } from '../common/guards/org-membership.guard';
 import {
   CreateBatchBodySchema,
   BatchIdParamSchema,

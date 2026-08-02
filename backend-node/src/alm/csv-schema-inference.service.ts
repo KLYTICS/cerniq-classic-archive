@@ -799,7 +799,7 @@ export class CsvSchemaInferenceService {
         prompt:
           'No duration column found. Map one, or supply an average duration in years. You can defer this — the report will run but will disclose that repricing-gap figures are incomplete.',
         promptEs:
-          'No se encontro columna de duracion. Asigne una, o indique una duracion promedio en anos. Puede diferirlo — el informe correra pero revelara que las cifras de brecha de reprecio estan incompletas.',
+          'No se encontró columna de duración. Asigne una, o indique una duración promedio en años. Puede diferirlo — el informe correrá pero revelará que las cifras de brecha de reprecio están incompletas.',
         options: sourceHeaders,
         deferrable: true,
         suggestion: null,

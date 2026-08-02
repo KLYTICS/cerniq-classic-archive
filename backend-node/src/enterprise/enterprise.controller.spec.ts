@@ -8,7 +8,7 @@ import { EnterpriseController } from './enterprise.controller';
 import { ApiKeyAuthGuard } from '../api-v1/guards/api-key-auth.guard';
 import type { EnterpriseBatchService } from './enterprise-batch.service';
 import type { WebhookDeliveryService } from './webhook-delivery.service';
-import type { OrgMembershipGuard } from '../close/guards/org-membership.guard';
+import type { OrgMembershipGuard } from '../common/guards/org-membership.guard';
 
 // Post-migration controller spec (commit 97e588da scaffold +
 // migration #1 of 1 in this lane). The 5 admin-key behavior tests

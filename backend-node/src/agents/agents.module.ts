@@ -20,7 +20,7 @@ import { EmailModule } from '../email/email.module';
 import { AgentQueueModule } from '../queue/agent/agent-queue.module';
 import { AgentChainService } from './runner/agent-chain.service';
 import { InstitutionScopeGuard } from '../agent-api/guards/institution-scope.guard';
-import { OrgMembershipGuard } from '../close/guards/org-membership.guard';
+import { OrgMembershipGuard } from '../common/guards/org-membership.guard';
 
 @Module({
   // forwardRef on AgentQueueModule breaks the AgentsModule ↔

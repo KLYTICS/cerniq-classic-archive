@@ -4,7 +4,6 @@ export type OperatorActionKind =
   | 'refresh_intelligence'
   | 'open_portal_cycle'
   | 'sweep_demo_seats'
-  | 'run_pipeline'
   | 'retry_pipeline_job'
   | 'refresh_session_snapshot';
 

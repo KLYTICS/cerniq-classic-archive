@@ -16,17 +16,9 @@ import { ApiVersionMiddleware } from './common/middleware/api-version.middleware
 import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor';
-import { MarketDataModule } from './market-data/market-data.module';
-import { TickerModule } from './ticker/ticker.module';
-import { PortfolioModule } from './portfolio/portfolio.module';
-import { RiskModule } from './risk/risk.module';
-import { ValuationModule } from './valuation/valuation.module';
-import { OptionsModule } from './options/options.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { CacheModule } from './cache/cache.module';
-import { ExecutionModule } from './execution/execution.module';
 import { OrganizationsModule } from './organizations/organizations.module';
-import { ExpensesModule } from './expenses/expenses.module';
 import { StorageModule } from './storage/storage.module';
 import { LlmModule } from './llm/llm.module';
 import { AuthModule } from './auth/auth.module';
@@ -47,7 +39,6 @@ import { ApiV1Module } from './api-v1/api-v1.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
-import { CloseModule } from './close/close.module';
 import { ModelRegistryModule } from './model-registry/model-registry.module';
 import { GovernanceModule } from './governance/governance.module';
 import { AdminModule } from './admin/admin.module';
@@ -57,7 +48,6 @@ import { AgentTrustModule } from './agent-trust/agent-trust.module';
 import { AgentEvalModule } from './agent-eval/agent-eval.module';
 import { AgentOtelModule } from './agent-observability-otel/agent-otel.module';
 import { AiAdvisorModule } from './ai-advisor/ai-advisor.module';
-import { CpaModule } from './cpa/cpa.module';
 import { CossecModule } from './cossec/cossec.module';
 import { RealtimeAlmModule } from './realtime-alm/realtime-alm.module';
 import { EnterpriseModule } from './enterprise/enterprise.module';
@@ -136,18 +126,10 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     // Application-level encryption (AES-256-GCM)
     DataCryptoModule,
     CacheModule,
-    MarketDataModule,
-    TickerModule,
-    PortfolioModule,
-    RiskModule,
-    ValuationModule,
-    OptionsModule,
     RealtimeModule,
-    ExecutionModule,
     // SpendCheck modules
     AuthModule,
     OrganizationsModule,
-    ExpensesModule,
     StorageModule,
     LlmModule,
     AnalyticsModule,
@@ -183,7 +165,6 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     // Operator control tower
     AdminModule,
     // Month-end Close Cockpit (CFO → CPA workflow)
-    CloseModule,
     // FAANG Audit P1: Formal model governance registry
     ModelRegistryModule,
     // FAANG Audit P1: Governed scenarios + benchmarks
@@ -203,7 +184,6 @@ import { ExitMetricsService } from './admin/exit-metrics.service';
     // Wave 03: AI Advisor — bilingual conversational ALM analysis (Claude claude-sonnet-4-6).
     AiAdvisorModule,
     // Wave 03: CPA White-Label — multi-tenant CPA firm management + branded reports.
-    CpaModule,
     // Wave 02 Gap: COSSEC examination findings parser ingest + sample report generator.
     CossecModule,
     // Wave 03: Real-time ALM dashboard — SOFR/Treasury feeds, rate alerts, WebSocket push.

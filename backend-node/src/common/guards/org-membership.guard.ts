@@ -4,26 +4,26 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 
 // OrgMembershipGuard verifies the JWT-authenticated caller belongs to the
-// organization referenced in the URL — either directly via `:orgId`, or
-// transitively via `:cycleId` → CloseCycle.organizationId. It mirrors the
+// organization referenced in the URL via `:orgId`. It mirrors the
 // InstitutionScopeGuard pattern (see commit 8f69c148, agent-api/guards/) but
-// for the organization-scoped Close Cockpit surface where ownership flows
-// through OrganizationMember instead of Workspace.ownerId.
+// for organization-scoped surfaces where ownership flows through
+// OrganizationMember instead of Workspace.ownerId.
 //
-// Why the cycleId resolver: every CloseCycle has a non-null organizationId
-// FK, so cycle-scoped routes can be authorized by a single 1-hop lookup
-// without changing controller signatures or service contracts.
+// Previously lived at `close/guards/`. It moved here when the Close Cockpit
+// was removed: `agents` and `enterprise` still depend on it, and it never had
+// anything to do with Close beyond a `:cycleId` → CloseCycle.organizationId
+// resolver. That branch was dropped with the routes that used it — no
+// surviving route carries a `:cycleId` param, so it was unreachable.
 //
-// Pass-through when neither :orgId nor :cycleId is in the route — same rule
-// that lets InstitutionScopeGuard sit at the controller class level on a
-// mixed-route controller. AuthGuard upstream is the baseline auth check;
-// when the route has nothing tenant-scoped to verify, we pass.
+// Pass-through when `:orgId` is not in the route — the same rule that lets
+// InstitutionScopeGuard sit at the controller class level on a mixed-route
+// controller. AuthGuard upstream is the baseline auth check; when the route
+// has nothing tenant-scoped to verify, we pass.
 //
 // Master CEO override mirrors auth.guard.ts so platform support and audit
 // users keep cross-tenant access.
@@ -45,31 +45,12 @@ export class OrgMembershipGuard implements CanActivate {
     }
 
     if (req.user?.access?.isMasterCeo === true) {
-      // Fast-path: skip cycleId resolution + membership lookup.
+      // Fast-path: skip the membership lookup.
       // Mirrors the original pre-extraction behavior.
       return true;
     }
 
-    let orgId: string | undefined = req.params?.orgId;
-
-    if (!orgId && req.params?.cycleId) {
-      let cycle: { organizationId: string } | null;
-      try {
-        cycle = await this.prisma.closeCycle.findUnique({
-          where: { id: req.params.cycleId },
-          select: { organizationId: true },
-        });
-      } catch (err) {
-        this.logger.error(
-          `cycle lookup failed for ${req.params.cycleId}: ${String(err)}`,
-        );
-        throw new ForbiddenException('cycle access check failed');
-      }
-      if (!cycle) {
-        throw new NotFoundException('cycle not found');
-      }
-      orgId = cycle.organizationId;
-    }
+    const orgId: string | undefined = req.params?.orgId;
 
     if (!orgId) {
       return true;
@@ -91,10 +72,6 @@ export class OrgMembershipGuard implements CanActivate {
    * `NotFoundException` semantics so callers get matching HTTP status
    * codes via Nest's exception filter, same fail-closed-on-Prisma-throw
    * behaviour, same master-CEO bypass.
-   *
-   * Unblocks the body-supplied `organizationId` fix on
-   * `agents/agents.controller.ts` (and the future audit-doc-flagged
-   * fixes on `agent-trust`, `agent-eval`).
    */
   async verifyMembership(
     orgId: string,

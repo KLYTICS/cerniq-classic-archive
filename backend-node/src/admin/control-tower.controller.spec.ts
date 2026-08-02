@@ -34,16 +34,19 @@ describe('ControlTowerController', () => {
 
     const controller = moduleRef.get(ControlTowerController);
     const result = await controller.runAction({
-      action: 'run_pipeline',
+      action: 'refresh_intelligence',
       userId: undefined,
       jobId: undefined,
     });
 
     expect(result).toEqual({ ok: true });
-    expect(controlTower.runAction).toHaveBeenCalledWith('run_pipeline', {
-      action: 'run_pipeline',
-      userId: undefined,
-      jobId: undefined,
-    });
+    expect(controlTower.runAction).toHaveBeenCalledWith(
+      'refresh_intelligence',
+      {
+        action: 'refresh_intelligence',
+        userId: undefined,
+        jobId: undefined,
+      },
+    );
   });
 });

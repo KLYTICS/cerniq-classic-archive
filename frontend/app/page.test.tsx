@@ -118,11 +118,6 @@ describe('LandingPage', () => {
     render(<LandingPage />);
 
     fireEvent.click(
-      screen.getByRole('button', { name: /portfolio visibility/i }),
-    );
-    expect(pushMock).toHaveBeenLastCalledWith('/login?returnUrl=%2Fportfolios');
-
-    fireEvent.click(
       screen.getByRole('button', { name: /run ALM models/i }),
     );
     expect(pushMock).toHaveBeenLastCalledWith('/login?returnUrl=%2Falm');
@@ -135,11 +130,8 @@ describe('LandingPage', () => {
       screen.getByRole('link', { name: /command center/i }),
     ).toHaveAttribute('href', '/dashboard');
     expect(
-      screen.getByRole('link', { name: /portfolio manager/i }),
-    ).toHaveAttribute('href', '/login?returnUrl=%2Fportfolios');
-    expect(
-      screen.getByRole('link', { name: /execution review/i }),
-    ).toHaveAttribute('href', '/login?returnUrl=%2Fexecution-quality');
+      screen.getByRole('link', { name: /ALM workspace/i }),
+    ).toHaveAttribute('href', '/login?returnUrl=%2Falm');
   });
 
   it('tracks landing lead submissions with the backward-compatible source label', async () => {

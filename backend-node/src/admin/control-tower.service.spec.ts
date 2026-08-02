@@ -84,7 +84,6 @@ describe('ControlTowerService', () => {
       prisma as any,
       intelligence as any,
       demoSeats as any,
-      { runPipeline: jest.fn() } as any,
       { log: jest.fn() } as any,
       {
         getSnapshot: jest.fn().mockResolvedValue({
@@ -146,7 +145,6 @@ describe('ControlTowerService', () => {
         listAdminDemoSeats: jest.fn(),
         sweepExpired: jest.fn(),
       } as any,
-      { runPipeline: jest.fn() } as any,
       { log: jest.fn() } as any,
       { getSnapshot: jest.fn() } as any,
     );
@@ -191,7 +189,6 @@ describe('ControlTowerService', () => {
       } as any,
       { getOverview: jest.fn(), refreshAccounts: jest.fn() } as any,
       { listAdminDemoSeats: jest.fn(), sweepExpired: jest.fn() } as any,
-      { runPipeline: jest.fn() } as any,
       { log: jest.fn() } as any,
       { getSnapshot: jest.fn() } as any,
     );
@@ -233,7 +230,6 @@ describe('ControlTowerService', () => {
       } as any,
       { getOverview: jest.fn(), refreshAccounts: jest.fn() } as any,
       { listAdminDemoSeats: jest.fn(), sweepExpired: jest.fn() } as any,
-      { runPipeline: jest.fn() } as any,
       { log: jest.fn() } as any,
       { getSnapshot: jest.fn() } as any,
     );

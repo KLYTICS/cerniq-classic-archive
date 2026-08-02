@@ -167,15 +167,14 @@ const MATCHERS = Object.keys(ACCENTS).map((bare) => ({
 const BASELINE = {
   // Remaining offenders after the 2026-06-07 cleanup landings. Counts reflect
   // the expanded 73-term dictionary. Two classes left, both deferred:
-  //   • Large/untested customer-PDF generators (pipeline.worker, ap-report,
-  //     alco-pack) — need a render-reviewed pass (ES-2/ES-3).
+  //   • Large/untested customer-PDF generators (pipeline.worker, alco-pack)
+  //     — need a render-reviewed pass (ES-2/ES-3).
   //   • Files that also carry ñ-tildes / contextually-risky words (más, está)
   //     the accent dictionary deliberately can't enforce (lead-qualification,
   //     portal, evidence-package, lgd-table) — need manual proofreading.
   // ncua-field-mapper, capital-adequacy, csv-ingestion, compliance-calendar,
   // and credit-risk-portfolio were driven to 0 and removed from this list.
   'pipeline/pipeline.worker.ts': 100,
-  'expenses/ap-report.service.ts': 34,
   'pipeline/alco-pack.service.ts': 18,
   'exam-prep/evidence-package.service.ts': 11,
   'leads/lead-qualification.service.ts': 8,
