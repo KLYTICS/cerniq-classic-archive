@@ -23,11 +23,6 @@ vi.mock('axios', async () => {
   };
 });
 
-// Mock the marketTransport dependency
-vi.mock('./marketTransport', () => ({
-  getMarketApiBase: vi.fn(() => 'https://market-api.test'),
-}));
-
 const isSupabaseAuthEnabledMock = vi.fn(() => false);
 const signInWithSupabasePasswordMock = vi.fn();
 const signOutSupabaseMock = vi.fn();
@@ -112,9 +107,6 @@ describe('APIClient', () => {
     expect(typeof apiClient.getCurrentUser).toBe('function');
     expect(typeof apiClient.requestPasswordReset).toBe('function');
     expect(typeof apiClient.confirmPasswordReset).toBe('function');
-
-    // Risk analysis
-    expect(typeof apiClient.getRiskAnalysis).toBe('function');
 
     // Admin methods
     expect(typeof apiClient.getDemoRequests).toBe('function');

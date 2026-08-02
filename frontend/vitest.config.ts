@@ -31,10 +31,14 @@ export default defineConfig({
       // when coverage rises (don't loosen). Applies whenever
       // `npm run test:coverage` runs (already in `verify:frontend` chain).
       thresholds: {
-        statements: 60,
-        branches: 52,
-        functions: 55,
-        lines: 62,
+        // D24 ratchet — floors only rise. Raised 60/52/55/62 -> 64/54/60/65 on
+        // 2026-08-02: removing the untested trading/SpendCheck surfaces lifted
+        // measured coverage to 64.3/54.29/60.58/65.63, so the old floor no
+        // longer constrained anything.
+        statements: 64,
+        branches: 54,
+        functions: 60,
+        lines: 65,
       },
     },
   },
