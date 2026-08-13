@@ -85,6 +85,42 @@ if [ "$ACTUAL_NAME" != "$EXPECTED_SVC_NAME" ]; then
 fi
 echo "  guard       : OK"
 
+# ── Guard: confirm railway will upload backend-node/, not the repo root ──────
+#
+# `railway up` uploads the directory registered for this project in
+# ~/.railway/config.json, keyed by ABSOLUTE PATH — not the shell's cwd. So
+# `cd backend-node && railway up` uploads the REPO ROOT whenever only the root
+# is linked. Railway then finds no Dockerfile at the archive root, silently
+# falls back to its Railpack autodetector, reads the root package.json (which
+# has no "start" script) and fails with "No start command detected".
+#
+# Observed 2026-08-12: three consecutive deploys failed this way from a clean
+# clone, ~14s each, while the service kept serving the previous container. The
+# service guard above passed every time — it validates WHAT we deploy to, not
+# WHAT we upload. Fix is `railway link` from inside backend-node/.
+if ! python3 - "$BACKEND" <<'PY'
+import json, os, sys
+backend = os.path.realpath(sys.argv[1])
+try:
+    cfg = json.load(open(os.path.expanduser('~/.railway/config.json')))
+except Exception:
+    sys.exit(0)  # cannot read config; let railway itself complain
+linked = {os.path.realpath(k) for k in (cfg.get('projects') or {})}
+sys.exit(0 if backend in linked else 1)
+PY
+then
+  echo "" >&2
+  echo "ABORT: $BACKEND is not linked to a Railway project." >&2
+  echo "'railway up' uploads the LINKED directory, not the current one, so this" >&2
+  echo "would upload the repo root, fall back to Railpack, and fail on" >&2
+  echo "'No start command detected'. Fix:" >&2
+  echo "" >&2
+  echo "  cd $BACKEND && railway link --project <id> --environment production \\" >&2
+  echo "    --service $EXPECTED_SVC_NAME" >&2
+  exit 1
+fi
+echo "  upload root : $BACKEND (linked)"
+
 if [ "$CHECK_ONLY" -eq 1 ]; then
   echo ""
   echo "Check only — nothing deployed."
