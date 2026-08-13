@@ -20,7 +20,7 @@ import {
   Activity, AlertOctagon, ArrowDownUp, ArrowUpDown, BarChart3, Bell, Bot, Brain,
   CloudLightning, Cpu, DollarSign, FileText, Gauge, GitBranch, Globe,
   Landmark, Layers, LineChart, Link2, MessageSquare, ScrollText, Shield, ShieldCheck,
-  SlidersHorizontal, Target, Timer, TrendingDown, TrendingUp, Zap,
+  SlidersHorizontal, Target, Timer, TrendingDown, TrendingUp, Users, Zap,
 } from 'lucide-react';
 
 // ─── Categories ───────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ export const ALM_CATEGORIES: readonly AlmCategory[] = [
 export type AlmModuleSlug =
   // core
   | 'overview' | 'balance-sheet' | 'balance-sheet-sim' | 'advisor-v2' | 'analyst' | 'alco-dashboard' | 'modules' | 'reseller'
-  | 'decisions' | 'agents' | 'copilot' | 'agent-alerts'
+  | 'decisions' | 'agents' | 'copilot' | 'agent-alerts' | 'member-360'
   // rate
   | 'sensitivity' | 'sensitivity-report' | 'yield-curve' | 'svensson' | 'hull-white' | 'pca-yield-curve'
   | 'repricing-gap' | 'rate-shock-v2' | 'key-rate-durations' | 'behavioral-duration' | 'sofr-exposure'
@@ -128,6 +128,7 @@ export const ALM_MODULES: readonly AlmModule[] = [
   { slug: 'agents',            href: '/alm/agents',            category: 'core', tier: 'core',     status: 'ga',   icon: Bot,              name: { en: 'Agent Activity',       es: 'Actividad Agentes'       }, description: { en: 'Run feed, alert center, cost tracking',                  es: 'Feed ejecuciones, centro alertas, seguimiento costos'  }, endpoint: '/api/v1/agents/{id}/runs' },
   { slug: 'copilot',           href: '/alm/copilot',           category: 'core', tier: 'core',     status: 'ga',   icon: MessageSquare,    name: { en: 'CFO Copilot',          es: 'Copiloto CFO'            }, description: { en: 'Real-time scenario Q&A, bilingual, tool-backed',         es: 'Q&A escenarios en tiempo real, bilingüe, con herramientas' }, endpoint: '/api/v1/agents/{id}/copilot' },
   { slug: 'agent-alerts',      href: '/alm/agents/alerts',     category: 'core', tier: 'core',     status: 'ga',   icon: Bell,             name: { en: 'Agent Alerts',         es: 'Alertas de Agentes'      }, description: { en: 'Live feed from Risk Monitor + ALM Decision agents',      es: 'Feed en vivo de agentes Monitor Riesgo + Decisión ALM' }, endpoint: '/api/v1/agents/{id}/alerts' },
+  { slug: 'member-360',        href: '/alm/member-360',        category: 'core', tier: 'core',     status: 'beta', icon: Users,            name: { en: 'Member 360',           es: 'Miembro 360'             }, description: { en: 'Member directory, lifecycle stage, and 360° financial/regulatory profile', es: 'Directorio de socios, etapa del ciclo y perfil 360° financiero/regulatorio' }, endpoint: '/api/alm/{id}/members' },
 
   // ─ Rate Risk ────────────────────────────────────────────────────────────────
   { slug: 'sensitivity',         href: '/alm/sensitivity',         category: 'rate', tier: 'core',     status: 'ga', icon: TrendingUp,        name: { en: 'Rate Sensitivity',     es: 'Sensibilidad de Tasa'    }, description: { en: 'NII/EVE impact across ±200bp parallel shifts',           es: 'Impacto NII/EVE en cambios ±200bp'                     }, regulatoryRefs: ['Basel IRRBB'], endpoint: '/api/alm/{id}/sensitivity' },
@@ -298,6 +299,8 @@ export const MIGRATED_SLUGS: ReadonlySet<AlmModuleSlug> = new Set<AlmModuleSlug>
   // Wave 7: alerts + climate + regulatory + credit + intelligence
   'alerts', 'climate-risk', 'pca-yield-curve', 'camel-forecast', 'form-5300',
   'credit-risk', 'peer-analytics', 'ews', 'concentration', 'trends',
+  // Member 360 (Wave 3 / Layer 3, fixture-first)
+  'member-360',
   // Shared layout-shell migration for the remaining page-backed modules
   ...AUTO_SHELL_SLUGS,
   // Route-backed pages that already render inside the shared ALM shell
