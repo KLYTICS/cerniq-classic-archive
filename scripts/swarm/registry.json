@@ -13,7 +13,7 @@
     "T-01": { "name": "Command & Control", "operator": "Erwin", "scope": "admin, approvals, overrides" },
     "T-02": { "name": "Engineering Backend", "operator": "swarm", "scope": "backend-node/src/" },
     "T-03": { "name": "Engineering Frontend", "operator": "swarm", "scope": "frontend/" },
-    "T-04": { "name": "GTM / Sales", "operator": "swarm", "scope": "services/outbound/" },
+    "T-04": { "name": "GTM / Sales", "operator": "swarm", "scope": "backend-node/src/leads/, scripts/gtm/" },
     "T-05": { "name": "Monitoring & Alerts", "operator": "swarm", "scope": "health checks, uptime" },
     "T-06": { "name": "ALM / Quant", "operator": "swarm", "scope": "backend-node/src/alm/" },
     "T-07": { "name": "DevOps / Infra", "operator": "swarm", "scope": "infra, CI/CD, Railway, Vercel" },
@@ -65,9 +65,9 @@
       "cli_prefix": "S",
       "cli_range": [1, 20],
       "quality_gates": {
-        "test": "cd services/outbound && python3 -m pytest tests/"
+        "test": "cd backend-node && npx jest src/leads"
       },
-      "scope_paths": ["services/outbound/"]
+      "scope_paths": ["backend-node/src/leads/", "scripts/gtm/", "datasets/pr-cooperativas/"]
     },
     "monitoring": {
       "terminal": "T-05",
@@ -99,7 +99,7 @@
       "quality_gates": {
         "ci": "cd backend-node && npx tsc --noEmit && npx prisma validate"
       },
-      "scope_paths": [".github/workflows/", "infrastructure/", "docker-compose*.yml"]
+      "scope_paths": [".github/workflows/", "scripts/ops/", "docker-compose*.yml"]
     },
     "compliance": {
       "terminal": "T-08",
@@ -171,9 +171,7 @@
         "backend-node/src/**/*.spec.ts",
         "backend-node/test/",
         "frontend/__tests__/",
-        "frontend/e2e/",
-        "test_data/",
-        ".playwright-cli/"
+        "frontend/e2e/"
       ]
     }
   },

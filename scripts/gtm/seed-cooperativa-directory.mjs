@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CSV_PATH = path.join(ROOT, 'services/outbound/data/puerto_rico_cooperativas_seed.csv');
+const CSV_PATH = path.join(ROOT, 'datasets/pr-cooperativas/puerto_rico_cooperativas_seed.csv');
 const COSSEC_PATH = path.join(
   ROOT,
   'backend-node/src/alm/data-pull/cossec-snapshots/cossec-2025q4.ts',

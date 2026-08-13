@@ -655,6 +655,31 @@ export class PortalController {
 
     // Parse and validate CSV
     const csvContent = file.buffer.toString('utf-8');
+
+    // What actually landed in the buffer, recorded on EVERY submit.
+    //
+    // A 3.4 KB / 41-line template arriving as "1 non-empty line" is a transport
+    // symptom, not a CSV problem, and the validator alone cannot tell the two
+    // apart — it only ever sees the string. Measuring the bytes and separators
+    // at the boundary is what distinguishes "the member sent a bad file" from
+    // "the body was truncated before it reached us", which are opposite fixes.
+    const receivedBytes = file.buffer.length;
+    const newlineCount = (csvContent.match(/\n/g) || []).length;
+    const carriageReturnCount = (csvContent.match(/\r/g) || []).length;
+    this.logger.log({
+      event: 'portal.upload_received',
+      jobId,
+      filename: file.originalname,
+      declaredSize: file.size,
+      receivedBytes,
+      newlineCount,
+      carriageReturnCount,
+      encoding: file.encoding,
+      mimetype: file.mimetype,
+      // Enough to identify truncation without logging member data.
+      head: csvContent.slice(0, 120),
+    });
+
     let parseResult = this.csvIngestion.parseCSV(csvContent);
 
     // ── Dynamic ingestion fallback ───────────────────────────────────

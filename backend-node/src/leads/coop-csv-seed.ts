@@ -13,7 +13,7 @@ export interface CooperativaCsvRow {
 
 const DEFAULT_CSV_PATH = path.resolve(
   __dirname,
-  '../../../services/outbound/data/puerto_rico_cooperativas_seed.csv',
+  '../../../datasets/pr-cooperativas/puerto_rico_cooperativas_seed.csv',
 );
 
 function parseCsvLine(line: string): string[] {

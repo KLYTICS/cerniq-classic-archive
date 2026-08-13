@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CSV_PATH = path.join(
   ROOT,
-  'services/outbound/data/puerto_rico_cooperativas_seed.csv',
+  'datasets/pr-cooperativas/puerto_rico_cooperativas_seed.csv',
 );
 const ARTIFACT_ROOT = process.env.GTM_ARTIFACT_ROOT || path.join(ROOT, 'data/gtm-runs');
 

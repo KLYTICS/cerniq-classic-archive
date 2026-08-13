@@ -1,8 +1,3 @@
-# Rust Backend
-/backend/target/
-/backend/**/*.rs.bk
-/backend/Cargo.lock
-
 # Node modules
 node_modules/
 
@@ -77,7 +72,7 @@ coverage/
 # Docker
 docker-compose.override.yml
 
-# Python (legacy)
+# Python — services/cossec-parser only (the sole remaining Python surface)
 __pycache__/
 *.py[cod]
 *$py.class
@@ -85,20 +80,29 @@ __pycache__/
 .Python
 venv/
 ENV/
+.pytest_cache/
 
 # Backend Node
 /backend-node/node_modules/
 /backend-node/dist/
 /backend-node/coverage/
 
-# Rust (legacy)
-/crates/
-/backend/target/
-
-# Legacy directories (archived — not part of active codebase)
+# Foreign-product trees removed in the 2026-08-12 CerniQ-only cleanup.
+# Kept as ignore rules so a stale checkout or an unpacked backup can never
+# re-enter the index the way /archive/ did (it was ignored but still TRACKED,
+# so the rule was inert and 116 MB of Rust target/ artifacts rode along).
 /archive/
+/crates/
+/backend/
 /platform/
 /projects/
+/aegis/
+/services/outbound/
+/infrastructure/
+/migrations/
+/workspace/
+/output/
+/test_data/
 
 # Git worktrees (never track sibling worktree contents)
 /Cerniq-*/
