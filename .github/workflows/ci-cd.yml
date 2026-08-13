@@ -347,39 +347,6 @@ jobs:
       - name: Verify clean worktree
         run: bash scripts/verify-clean-worktree.sh
 
-  # Outbound Python engine — lint, test
-  outbound-test:
-    name: Outbound Engine Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup outbound workspace
-        uses: ./.github/actions/setup-python-project
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache-dependency-path: services/outbound/requirements.txt
-          working-directory: services/outbound
-
-      - name: Run tests
-        working-directory: services/outbound
-        env:
-          # services/outbound/config.py:24 calls _require_env("OUTBOUND_DATABASE_URL")
-          # at module-import time (class-body assignment, not lazy). Without
-          # this, every test module fails at collection with `RuntimeError:
-          # OUTBOUND_DATABASE_URL is required.` — interrupting all 5 test
-          # files before any assertion runs. Placeholder URL is enough; these
-          # tests don't reach a real DB. Long-term fix: refactor Config to
-          # pydantic BaseSettings (lazy init) so imports succeed without env.
-          OUTBOUND_DATABASE_URL: postgresql://test:test@localhost:5432/test
-        run: python -m pytest tests/ -v --tb=short
-
-      - name: Verify clean worktree
-        run: bash scripts/verify-clean-worktree.sh
-
   # COSSEC PDF parser — Phase-1.6 FastAPI microservice with 32 pytest
   # tests covering PyMuPDF extraction, Spanish regex for Hallazgo N°X
   # headers, CAMEL+S severity mapping, SHA-256 dedup, and Pydantic v2
@@ -544,7 +511,6 @@ jobs:
       - backend-e2e
       - frontend-test
       - frontend-e2e
-      - outbound-test
       - cossec-parser-test
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
 

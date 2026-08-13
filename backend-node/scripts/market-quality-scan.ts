@@ -104,9 +104,15 @@ function runSelfTest(): void {
   if (report.scoredCount < 13) {
     throw new Error(`self-test: expected ≥13 scored, got ${report.scoredCount}`);
   }
-  if (report.universeCount < 100) {
+  // Floor is 91 — the measured size of the COSSEC cooperativa universe, not a
+  // round number. The original ≥100 was aspirational and went red the moment
+  // 91f67ad3 corrected the registry down to the real 91-coop COSSEC list; the
+  // threshold was never re-baselined, so verify:local:e2e has been failing
+  // since. D24: floors track measurement and only ratchet UP from here — if
+  // COSSEC publishes more cooperativas, raise this to the new count.
+  if (report.universeCount < 91) {
     throw new Error(
-      `self-test: expected universe ≥100, got ${report.universeCount}`,
+      `self-test: expected universe ≥91, got ${report.universeCount}`,
     );
   }
   if (report.uncoveredCount < 1) {

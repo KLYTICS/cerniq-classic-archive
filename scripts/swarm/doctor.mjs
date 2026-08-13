@@ -104,7 +104,7 @@ check('.omx/state/ directories exist', () => {
 // ── .gitignore coverage ─────────────────────────────────────────────────
 
 check('.gitignore covers .env files', () => {
-  const envFiles = ['.env', 'backend-node/.env', 'frontend/.env.local', 'services/outbound/.env'];
+  const envFiles = ['.env', 'backend-node/.env', 'frontend/.env.local'];
   const exposed = envFiles.filter((f) => {
     try {
       execSync(`git check-ignore -q "${f}"`, { cwd: REPO_ROOT, stdio: 'pipe' });

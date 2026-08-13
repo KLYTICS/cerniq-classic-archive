@@ -232,7 +232,7 @@ export function loadDefaultUniverseCsv(
 ): UniverseSeedRow[] {
   const path = resolve(
     repoRoot,
-    'services/outbound/data/puerto_rico_cooperativas_seed.csv',
+    'datasets/pr-cooperativas/puerto_rico_cooperativas_seed.csv',
   );
   return parseUniverseCsv(readFileSync(path, 'utf8'));
 }
@@ -277,7 +277,8 @@ export function buildMarketScanReport(options?: {
   return {
     generatedAt: options?.nowIso ?? new Date().toISOString(),
     asOfQuarter: snapshots[0]?.asOfQuarter ?? 'unknown',
-    universeSource: 'services/outbound/data/puerto_rico_cooperativas_seed.csv',
+    universeSource:
+      'datasets/pr-cooperativas/puerto_rico_cooperativas_seed.csv',
     snapshotSource: 'alm/data-pull/cossec-snapshots/cossec-2025q4.ts',
     universeCount,
     scoredCount,

@@ -194,16 +194,16 @@ cerniq/
 │   ├── lib/               #   API client, stores, utils, i18n (EN/ES)
 │   └── e2e/               #   Playwright E2E tests
 ├── services/
-│   └── outbound/          # Python outbound sales engine
-│       ├── agents/        #   6 autonomous agents
-│       ├── pipelines/     #   Lead ingestion + daily outreach
-│       └── templates/     #   Email templates
+│   └── cossec-parser/     # Python microservice: COSSEC exam PDF → findings
+│                          #   (POSTs to the backend's /cossec/ingest)
+├── datasets/
+│   └── pr-cooperativas/   # PR cooperativa universe seed CSV
 ├── docs/                  # Comprehensive documentation
 │   ├── ARCHITECTURE.md    #   System architecture
 │   ├── BACKEND.md         #   Backend module reference
 │   ├── FRONTEND.md        #   Frontend route & component map
 │   ├── DATABASE.md        #   Data model & schema reference
-│   ├── SERVICES.md        #   Outbound engine docs
+│   ├── SERVICES.md        #   COSSEC parser microservice docs
 │   ├── ENVIRONMENT.md     #   All env vars documented
 │   ├── analysis/          #   API contract, drift reports
 │   ├── demo/              #   Demo scripts, pricing one-pager
@@ -211,8 +211,7 @@ cerniq/
 │   ├── security/          #   Security audit
 │   └── strategy/          #   ICP, value prop, problem map
 ├── .github/workflows/     # CI/CD (typecheck, validate, build)
-├── infrastructure/        # Terraform (AWS ECS, RDS, ElastiCache)
-├── archive/               # Archived dead code (Rust backend, experiments)
+├── apple/                 # Swift package + Xcode shell
 ├── docker-compose.yml     # Dev environment
 ├── docker-compose.prod.yml# Production environment
 ├── Makefile               # Dev workflow automation

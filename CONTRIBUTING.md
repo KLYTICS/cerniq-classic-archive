@@ -146,11 +146,12 @@ See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for a complete reference. Key fil
 
 | Directory | Purpose |
 |-----------|---------|
-| `backend-node/` | NestJS 11 API server |
+| `backend-node/` | NestJS 11 API server — ALM math, COSSEC reporting, GTM/leads |
 | `frontend/` | Next.js 16 web app |
-| `services/outbound/` | Python outbound sales engine |
+| `services/cossec-parser/` | Python microservice: COSSEC exam PDF → structured findings, POSTs to `/cossec/ingest` |
+| `datasets/pr-cooperativas/` | Puerto Rico cooperativa universe seed (drives leads seeding + ALM market scan) |
+| `apple/` | Swift package + Xcode shell |
 | `docs/` | All project documentation |
-| `infra/` | Kubernetes manifests |
 | `scripts/` | Operational scripts |
 | `.github/workflows/` | CI/CD pipelines |
 
