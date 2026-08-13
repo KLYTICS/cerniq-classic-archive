@@ -43,7 +43,7 @@ jobs:
           # merge-base. Without this, checkout is a shallow clone and
           # the diff bombs with `fatal: ambiguous argument 'origin/main'`.
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - name: List changed files
