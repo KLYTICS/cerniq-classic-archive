@@ -139,7 +139,7 @@ jobs:
       # tracking issue so it doesn't get lost in the Actions-log tide.
       - name: Open tracking issue on critical findings
         if: steps.audit.outputs.critical > 0 && github.event_name == 'schedule'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const title = `[SCA] Critical vuln(s) in ${{ matrix.workspace }} devDependencies`;
