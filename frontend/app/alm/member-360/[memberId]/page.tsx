@@ -10,7 +10,7 @@ import { DataGapBanner } from '@/components/ui/cerniq';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
 import type { Locale } from '@/lib/i18n';
-import { StageBadge } from '../page';
+import { StageBadge } from '../lifecycle-stage';
 
 /**
  * Member 360 profile — single-socio financial + regulatory view.

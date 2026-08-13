@@ -251,6 +251,36 @@ export class MemberFixtureService {
   private readonly logger = new Logger(MemberFixtureService.name);
 
   /**
+   * How many of the first members are pinned to a specific lifecycle stage.
+   *
+   * Purely stochastic generation cannot reach two of the five stages the
+   * classifier can emit, so a demo book rendered them as permanently empty
+   * columns:
+   *
+   *   ONBOARDING needs `accounts.length === 1 && SHARE && tenure <= 30d`.
+   *   Tenure is drawn across 15 years, so the <=30d slice is ~0.5%, and it
+   *   has to coincide with the ~5% share-only draw. Measured on a 250-member
+   *   book: 3 members under 30 days, 13 share-only, zero overlap.
+   *
+   *   CHURNED needs `totalBalance === 0`. Every balance is drawn from a
+   *   strictly positive range, so it was unreachable by construction — 0 of
+   *   250.
+   *
+   * Pinning a small cohort is honest rather than cosmetic: these rows are
+   * `source: 'fixture'` like every other, and a closed-out member genuinely
+   * holds a 0 balance. That is not the phantom-zero D1 forbids — D1 bans
+   * fabricating 0 for an *unknown* value, exactly as `delinquencyDays`
+   * documents ("0 IS a valid 'current' value"). A redeemed share account
+   * really is zero.
+   *
+   * Cohorts are skipped for books smaller than MIN_BOOK_FOR_COHORTS so a
+   * 5-member test fixture isn't majority-pinned.
+   */
+  static readonly ONBOARDING_COHORT = 3;
+  static readonly CHURNED_COHORT = 2;
+  static readonly MIN_BOOK_FOR_COHORTS = 25;
+
+  /**
    * Generate `count` deterministic members for `institutionId`. Same
    * (institutionId, count) always produces the same book — the fixture is
    * reproducible, not merely plausible-looking.
@@ -264,21 +294,49 @@ export class MemberFixtureService {
     // instant). Day-granularity keeps repeated same-day calls byte-
     // identical while still advancing daily so demo data doesn't go stale.
     const asOfMs = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+    const useCohorts = count >= MemberFixtureService.MIN_BOOK_FOR_COHORTS;
+    const onboardingUntil = useCohorts
+      ? MemberFixtureService.ONBOARDING_COHORT
+      : 0;
+    const churnedUntil =
+      onboardingUntil + (useCohorts ? MemberFixtureService.CHURNED_COHORT : 0);
+
     const members: MemberSeed[] = [];
     for (let i = 0; i < count; i++) {
+      const isOnboarding = i < onboardingUntil;
+      const isChurned = i >= onboardingUntil && i < churnedUntil;
+
       const rng = mulberry32(hashStringToSeed(`${institutionId}:member:${i}`));
       const first = FIRST_NAMES[Math.floor(rng() * FIRST_NAMES.length)];
       const last1 = LAST_NAMES[Math.floor(rng() * LAST_NAMES.length)];
       const last2 = LAST_NAMES[Math.floor(rng() * LAST_NAMES.length)];
-      const memberSince = randomPastDate(rng, 15, 1, asOfMs);
+      // Onboarding members joined inside the classifier's 30-day window; the
+      // rest are drawn across the full 15-year tenure range.
+      const memberSince = isOnboarding
+        ? randomPastDate(rng, 30 / 365, 1, asOfMs)
+        : randomPastDate(rng, 15, 1, asOfMs);
 
       const accounts: MemberAccountSeed[] = [];
       for (const template of PRODUCT_TEMPLATES) {
+        // An onboarding member holds only the mandatory share account — that
+        // IS the classifier's onboarding signal ("only the initial share
+        // deposit is on file so far"), not an arbitrary trim.
+        if (isOnboarding && template.category !== MemberAccountCategory.SHARE) {
+          continue;
+        }
+        // A member with an outstanding loan has not churned — they'd be in
+        // WORKOUT or DELINQUENT. Churned members carry closed share/deposit
+        // records only, so the book never shows the contradiction of a
+        // "churned" socio who still owes the cooperativa money.
+        if (isChurned && template.isLoan) continue;
         if (rng() > template.incidence) continue;
 
-        const balance = Number(
-          randomInRange(rng, template.balanceRangeUSD).toFixed(2),
-        );
+        // A churned member has redeemed/closed everything: the record is
+        // retained, the money is gone. 0 here is the true balance, not a
+        // stand-in for an unknown one.
+        const balance = isChurned
+          ? 0
+          : Number(randomInRange(rng, template.balanceRangeUSD).toFixed(2));
         const interestRate = template.rateRange
           ? Number(randomInRange(rng, template.rateRange).toFixed(6))
           : null;

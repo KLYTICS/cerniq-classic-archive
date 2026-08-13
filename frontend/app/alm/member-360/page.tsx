@@ -11,7 +11,12 @@ import { resolveAlmEndpoint } from '@/hooks/useAlmEndpoint';
 import type { DataGap } from '@/hooks/useReportDataGaps';
 import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
 import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
-import type { Locale } from '@/lib/i18n';
+import {
+  isLifecycleStage,
+  StageBadge,
+  STAGE_OPTIONS,
+  type LifecycleStage,
+} from './lifecycle-stage';
 
 /**
  * Member 360 directory — Wave 3 / Layer 3 (docs/CERNIQ_LAYER2_3_ROADMAP.md §4).
@@ -24,15 +29,6 @@ import type { Locale } from '@/lib/i18n';
  */
 
 const PAGE_SIZE = 25;
-
-type LifecycleStage =
-  | 'ONBOARDING'
-  | 'ACTIVE'
-  | 'AT_RISK'
-  | 'DELINQUENT'
-  | 'WORKOUT'
-  | 'CHARGED_OFF'
-  | 'CHURNED';
 
 interface MemberDirectoryRow {
   id: string;
@@ -54,21 +50,6 @@ interface MemberDirectoryResult {
   gaps: DataGap[];
 }
 
-function isLifecycleStage(value: unknown): value is LifecycleStage {
-  return (
-    typeof value === 'string' &&
-    [
-      'ONBOARDING',
-      'ACTIVE',
-      'AT_RISK',
-      'DELINQUENT',
-      'WORKOUT',
-      'CHARGED_OFF',
-      'CHURNED',
-    ].includes(value)
-  );
-}
-
 function validateMemberDirectory(raw: unknown): MemberDirectoryResult {
   const r = raw as Partial<MemberDirectoryResult> | null;
   if (
@@ -87,43 +68,6 @@ function validateMemberDirectory(raw: unknown): MemberDirectoryResult {
     }
   }
   return r as MemberDirectoryResult;
-}
-
-const STAGE_OPTIONS: readonly { value: LifecycleStage | 'ALL'; en: string; es: string }[] = [
-  { value: 'ALL', en: 'All stages', es: 'Todas las etapas' },
-  { value: 'ONBOARDING', en: 'Onboarding', es: 'Incorporación' },
-  { value: 'ACTIVE', en: 'Active', es: 'Activo' },
-  { value: 'AT_RISK', en: 'At risk', es: 'En riesgo' },
-  { value: 'DELINQUENT', en: 'Delinquent', es: 'Moroso' },
-  { value: 'WORKOUT', en: 'Workout', es: 'Reestructuración' },
-  { value: 'CHARGED_OFF', en: 'Charged off', es: 'Castigado' },
-  { value: 'CHURNED', en: 'Churned', es: 'Inactivo' },
-];
-
-const STAGE_TONE: Record<LifecycleStage, { bg: string; text: string; border: string }> = {
-  ONBOARDING: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
-  ACTIVE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  AT_RISK: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  DELINQUENT: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-  WORKOUT: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
-  CHARGED_OFF: { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300' },
-  CHURNED: { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200' },
-};
-
-export function stageLabel(stage: LifecycleStage, locale: Locale): string {
-  const opt = STAGE_OPTIONS.find((o) => o.value === stage);
-  return opt ? (locale === 'es' ? opt.es : opt.en) : stage;
-}
-
-export function StageBadge({ stage, locale }: { stage: LifecycleStage; locale: Locale }) {
-  const tone = STAGE_TONE[stage];
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${tone.bg} ${tone.text} ${tone.border}`}
-    >
-      {stageLabel(stage, locale)}
-    </span>
-  );
 }
 
 export default function Member360DirectoryPage() {

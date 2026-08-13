@@ -1,5 +1,6 @@
 import { MemberAccountCategory } from '@prisma/client';
 import { MemberFixtureService } from './member-fixture.service';
+import { MemberLifecycleService } from './member-lifecycle.service';
 
 describe('MemberFixtureService', () => {
   let service: MemberFixtureService;
@@ -74,11 +75,71 @@ describe('MemberFixtureService', () => {
     }
   });
 
-  it('all balances are positive and finite', () => {
+  it('all balances are finite and non-negative, and only the churned cohort is zero', () => {
     const members = service.generateMembers('inst-demo-1', 50);
-    for (const member of members) {
+    const churnedStart = MemberFixtureService.ONBOARDING_COHORT;
+    const churnedEnd = churnedStart + MemberFixtureService.CHURNED_COHORT;
+
+    members.forEach((member, index) => {
+      // The churned cohort is closed out: 0 is its TRUE balance, not a
+      // stand-in for an unknown one, so it is exempt from ">0" but not from
+      // ">=0". Every other member must still hold real money.
+      const isChurnedCohort = index >= churnedStart && index < churnedEnd;
       for (const account of member.accounts) {
         expect(Number.isFinite(account.balance)).toBe(true);
+        if (isChurnedCohort) {
+          expect(account.balance).toBe(0);
+        } else {
+          expect(account.balance).toBeGreaterThan(0);
+        }
+      }
+    });
+  });
+
+  it('guarantees a demo book reaches ONBOARDING and CHURNED, not just the middle stages', () => {
+    // Regression guard for the gap found on 2026-08-13: purely stochastic
+    // generation produced 0 onboarding and 0 churned members in a 250-member
+    // book, so two lifecycle columns rendered permanently empty in the UI.
+    const members = service.generateMembers('inst-demo-1', 50);
+
+    const onboarding = members.slice(0, MemberFixtureService.ONBOARDING_COHORT);
+    expect(onboarding).toHaveLength(MemberFixtureService.ONBOARDING_COHORT);
+    for (const member of onboarding) {
+      // The classifier's onboarding rule: a single SHARE account inside the
+      // 30-day tenure window.
+      expect(member.accounts).toHaveLength(1);
+      expect(member.accounts[0].category).toBe(MemberAccountCategory.SHARE);
+      const tenureDays =
+        (Date.now() - member.memberSince.getTime()) / 86_400_000;
+      expect(tenureDays).toBeLessThanOrEqual(
+        MemberLifecycleService.ONBOARDING_WINDOW_DAYS,
+      );
+    }
+
+    const churned = members.slice(
+      MemberFixtureService.ONBOARDING_COHORT,
+      MemberFixtureService.ONBOARDING_COHORT +
+        MemberFixtureService.CHURNED_COHORT,
+    );
+    expect(churned).toHaveLength(MemberFixtureService.CHURNED_COHORT);
+    for (const member of churned) {
+      const total = member.accounts.reduce((sum, a) => sum + a.balance, 0);
+      expect(total).toBe(0);
+      // A churned member never carries an outstanding loan.
+      expect(
+        member.accounts.some((a) => a.category === MemberAccountCategory.LOAN),
+      ).toBe(false);
+    }
+  });
+
+  it('skips the pinned cohorts for small books so a tiny fixture is not majority-pinned', () => {
+    const small = service.generateMembers(
+      'inst-demo-1',
+      MemberFixtureService.MIN_BOOK_FOR_COHORTS - 1,
+    );
+    // With no cohorts, every balance is drawn from a strictly positive range.
+    for (const member of small) {
+      for (const account of member.accounts) {
         expect(account.balance).toBeGreaterThan(0);
       }
     }
