@@ -46,7 +46,10 @@ export type DataGapReason =
   | 'INDICATOR_NOT_WIRED'
   | 'NO_LOAN_SEGMENTS'
   | 'NO_COHORT_DATA'
-  | 'LOAN_TAPE_FIELD_MISSING';
+  | 'LOAN_TAPE_FIELD_MISSING'
+  | 'NO_MEMBER_DATA'
+  | 'MEMBER_ACCOUNTS_MISSING'
+  | 'MEMBER_RISK_SCORE_UNAVAILABLE';
 
 export interface DataGap {
   /**

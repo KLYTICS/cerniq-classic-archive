@@ -130,6 +130,10 @@ import { GeographicConcentrationService } from './loan-tape/geographic-concentra
 import { FhlbnyCollateralService } from './loan-tape/fhlbny-collateral.service';
 import { EwsSnapshotService } from './ews/ews-snapshot.service';
 import { EwsSchedulerService } from './ews/ews-scheduler.service';
+import { Member360Controller } from './member360/member-360.controller';
+import { Member360Service } from './member360/member-360.service';
+import { MemberFixtureService } from './member360/member-fixture.service';
+import { MemberLifecycleService } from './member360/member-lifecycle.service';
 import { AlmAdvisorController } from './alm-advisor.controller';
 import { AlmAdvisorV2Controller } from './alm-advisor-v2.controller';
 import { AlmAnalystService } from './alm-analyst.service';
@@ -163,6 +167,7 @@ import { HJMModule } from './quant/hjm.module';
   controllers: [
     EwsController,
     LoanTapeController,
+    Member360Controller,
     AlmController,
     CaelController,
     AlmAdvisorController,
@@ -232,6 +237,9 @@ import { HJMModule } from './quant/hjm.module';
     LoanTapeAggregationService,
     GeographicConcentrationService,
     FhlbnyCollateralService,
+    Member360Service,
+    MemberFixtureService,
+    MemberLifecycleService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,
@@ -357,6 +365,9 @@ import { HJMModule } from './quant/hjm.module';
     CapitalOptimizerService,
     AssetEWSService,
     EwsSnapshotService,
+    Member360Service,
+    MemberFixtureService,
+    MemberLifecycleService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,

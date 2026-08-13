@@ -266,6 +266,7 @@ model Institution {
   rateAlertThresholds   RateAlertThreshold[]
   ewsSnapshots          EwsSnapshot[]
   loanRecords           LoanRecord[]
+  members               Member[]
 
   @@unique([workspaceId, seedKey], name: "workspace_seed_key")
   @@index([workspaceId])
@@ -495,6 +496,159 @@ model LoanRecord {
   @@index([institutionId, asOfDate, borrowerId])
   @@index([institutionId, municipio])
   @@map("loan_records")
+}
+
+// ===== Member 360 (Wave 3 / Layer 3 — fixture-first slice) =====
+//
+// Layer2/3 roadmap (docs/CERNIQ_LAYER2_3_ROADMAP.md §4) scoped this as
+// member-level ingestion gated on a data-export discovery question that is
+// still open (no design partner confirmed as of this slice). This schema
+// ships the member-grain data model now so the fixture-driven demo surface
+// is real end-to-end; a core-system adapter (Fiserv DNA / Sharetec / CSV)
+// is a later, separately-gated slice per the roadmap's own sequencing.
+//
+// D1: lifecycleStage is always computable (it has a defined default and a
+// deterministic classifier), but riskScore/ceclStage are nullable and NEVER
+// defaulted — an unscored member reads as null, never as a fabricated
+// "healthy" 0 or "Stage 1". See MemberLifecycleService.
+
+enum MemberLifecycleStage {
+  ONBOARDING
+  ACTIVE
+  AT_RISK
+  DELINQUENT
+  WORKOUT
+  CHARGED_OFF
+  CHURNED
+}
+
+/// SHARE = acciones (membership equity, not a deposit product); DEPOSIT =
+/// savings/checking/CD; LOAN = any credit product. Mirrors the asset/
+/// liability split in cooperativa/product-registry.ts without importing it
+/// directly, so this module has no compile-time coupling to the CECL engine.
+enum MemberAccountCategory {
+  SHARE
+  DEPOSIT
+  LOAN
+}
+
+enum MemberEventSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+/// Core Member 360 entity — one row per socio per institution. Distinct from
+/// `Institution` (the cooperativa itself, ALM/regulatory subject) and from
+/// `User`/`OrganizationMember` (CerniQ platform accounts) — a Member never
+/// logs into CerniQ; the cooperativa's staff view Members through it.
+model Member {
+  id            String @id @default(cuid())
+  institutionId String @map("institution_id")
+  /// Core-system member/socio number. Unique within one institution's book,
+  /// exactly like LoanRecord.externalLoanId — the natural re-ingestion key.
+  memberNumber  String @map("member_number")
+  fullName      String @map("full_name")
+  /// AES-256-GCM via DataCryptoService when DATA_ENCRYPTION_KEY is set
+  /// (graceful plaintext degradation otherwise, same as every other
+  /// encrypted-at-rest field in this codebase). Nullable: fixture members
+  /// carry no real tax ID at all, which is itself the honest state, not a
+  /// missing-data gap.
+  taxIdEncrypted String? @map("tax_id_encrypted")
+  memberSince    DateTime @map("member_since") @db.Date
+
+  lifecycleStage MemberLifecycleStage @default(ONBOARDING) @map("lifecycle_stage")
+  /// 0-100, D1: null until MemberLifecycleService actually scores this
+  /// member — never a phantom 0 or 50.
+  riskScore Int? @map("risk_score")
+  /// Worst CECL stage (1/2/3) across this member's LOAN accounts. Null when
+  /// the member holds no loan accounts or none has been classified yet.
+  ceclStage Int? @map("cecl_stage")
+
+  /// Whether this member came from MemberFixtureService (demo/sales) or a
+  /// real ingested tape. Fixture rows are excluded from any future
+  /// aggregate-book reconciliation the way DEMO institutions already are
+  /// elsewhere in this codebase.
+  source String @default("fixture") @map("source")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  institution     Institution            @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  accounts        MemberAccount[]
+  lifecycleEvents MemberLifecycleEvent[]
+
+  @@unique([institutionId, memberNumber])
+  @@index([institutionId, lifecycleStage])
+  @@map("members")
+}
+
+/// One product holding per member (shares, savings, CDs, every loan type).
+/// `institutionId` is denormalized from `member.institutionId` — same
+/// tradeoff LoanRecord makes — so the RLS policy and every institution-
+/// scoped query stay single-hop instead of joining through Member first.
+model MemberAccount {
+  id            String @id @default(cuid())
+  memberId      String @map("member_id")
+  institutionId String @map("institution_id")
+
+  /// Free-text product label (e.g. "préstamo personal", "certificado"),
+  /// matching LoanRecord.segmentName's convention — the canonical 8-product
+  /// taxonomy lives in cooperativa/product-registry.ts and this field is
+  /// meant to roll up into it in the aggregation service, NOT to duplicate
+  /// it as a second enum that can drift out of sync.
+  productType String                @map("product_type")
+  category    MemberAccountCategory
+
+  balance         Decimal   @db.Decimal(18, 2)
+  interestRate    Decimal?  @map("interest_rate") @db.Decimal(8, 6)
+  /// Null = not applicable (e.g. a SHARE account) or not yet observed.
+  /// Never 0 as a stand-in for "current" — 0 IS a valid "current" value, so
+  /// collapsing null into 0 would erase the distinction D1 exists to keep.
+  delinquencyDays Int?      @map("delinquency_days")
+  maturityDate    DateTime? @map("maturity_date") @db.Date
+  openedDate      DateTime  @map("opened_date") @db.Date
+  /// COSSEC NPL staging: pass | special_mention | substandard | doubtful |
+  /// loss. Nullable and NEVER defaulted to "pass" — an unclassified loan
+  /// reading as compliant-by-omission is exactly the silent-pass hazard the
+  /// Layer2/3 roadmap flagged for the geography limit (§7); the same
+  /// discipline applies here.
+  cossecClassification String? @map("cossec_classification")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, memberId])
+  @@index([institutionId, category])
+  @@map("member_accounts")
+}
+
+/// Append-only lifecycle/audit trail for a member — KLYTICS Rule 4
+/// (audit-immutable). No `updatedAt`, no update/delete path in the service
+/// layer: a correction is a NEW event, never an edit of history, exactly
+/// like `AuditLog`/`AgentAuditLog`.
+model MemberLifecycleEvent {
+  id            String @id @default(cuid())
+  memberId      String @map("member_id")
+  institutionId String @map("institution_id")
+
+  /// e.g. 'stage_transition', 'delinquency_increase', 'deposit_drop',
+  /// 'cd_maturity_upcoming', 'next_best_action_generated'.
+  eventType String               @map("event_type")
+  severity  MemberEventSeverity  @default(INFO)
+  /// Structured context (previous/next stage, triggering account id, the
+  /// account snapshot that triggered it). Never member financial totals
+  /// beyond what the event itself concerns — this is a trail, not a dump.
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, memberId, createdAt(sort: Desc)])
+  @@map("member_lifecycle_events")
 }
 
 model DepositTier {
