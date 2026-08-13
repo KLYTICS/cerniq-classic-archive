@@ -127,8 +127,21 @@ export class CSVIngestionService {
     }
 
     if (lines.length < 2) {
+      // Report the measurements, not just the verdict. A 3.4 KB file that
+      // yields one line is a truncated upload; a genuinely one-line file is a
+      // user error. Identical message, opposite fixes — so state the bytes and
+      // separators that were actually received and let the reader tell them
+      // apart without server access.
+      const bytes = Buffer.byteLength(csvContent, 'utf8');
+      const separators =
+        (csvContent.match(/\n/g) || []).length +
+        (csvContent.match(/\r/g) || []).length;
       return this.emptyResult(
-        `The file has only ${lines.length} non-empty line(s); a CSV needs a header row and at least one data row`,
+        `The file has only ${lines.length} non-empty line(s); a CSV needs a header row and at least one data row. ` +
+          `Received ${bytes} byte(s) with ${separators} line separator(s). ` +
+          (bytes > 200 && separators === 0
+            ? 'The content arrived with no line breaks at all, which means the upload was altered in transit rather than the file being malformed — please report this.'
+            : 'If your file does have multiple rows, the upload was cut short; re-select the file and try again.'),
       );
     }
 
