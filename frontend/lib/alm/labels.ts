@@ -234,6 +234,26 @@ export const LABELS: Readonly<Record<string, Label>> = {
   p75:               { en: '75th Percentile',             es: 'Percentil 75' },
   p95:               { en: '95th Percentile',             es: 'Percentil 95' },
   p99:               { en: '99th Percentile',             es: 'Percentil 99' },
+
+  // ── Member 360 (Wave 3 / Layer 3) ──────────────────────────────────────────
+  memberNumber:              { en: 'Member #',              es: 'Núm. de Socio' },
+  fullName:                  { en: 'Name',                  es: 'Nombre' },
+  memberSince:               { en: 'Member Since',          es: 'Socio Desde' },
+  lifecycleStage:            { en: 'Lifecycle Stage',       es: 'Etapa del Ciclo' },
+  riskScore:                 { en: 'Risk Score',            es: 'Puntaje de Riesgo',     unit: 'count' },
+  totalDeposits:             { en: 'Deposits',              es: 'Depósitos',             unit: 'USD' },
+  totalShares:               { en: 'Shares',                es: 'Aportaciones',          unit: 'USD' },
+  totalLoans:                { en: 'Loans',                 es: 'Préstamos',             unit: 'USD' },
+  activeLoanBalance:         { en: 'Active Loan Balance',   es: 'Balance Préstamo Activo', unit: 'USD' },
+  loanToDepositRatio:        { en: 'Loan-to-Deposit',       es: 'Préstamo / Depósito',   unit: 'ratio' },
+  ceclStage:                 { en: 'CECL Stage',            es: 'Etapa CECL',            unit: 'count' },
+  worstCossecClassification: { en: 'COSSEC Classification', es: 'Clasificación COSSEC' },
+  delinquencyDays:           { en: 'Days Past Due',         es: 'Días de Mora',          unit: 'days' },
+  interestRate:              { en: 'Rate',                  es: 'Tasa',                  unit: '%' },
+  productType:               { en: 'Product',               es: 'Producto' },
+  openedDate:                { en: 'Opened',                es: 'Apertura' },
+  maturityDate:              { en: 'Maturity',              es: 'Vencimiento' },
+  balance:                   { en: 'Balance',               es: 'Balance',               unit: 'USD' },
 } as const;
 
 export type KnownLabelKey = keyof typeof LABELS;

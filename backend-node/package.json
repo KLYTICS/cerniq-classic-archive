@@ -54,7 +54,9 @@
     "market:quality-scan": "npx ts-node scripts/market-quality-scan.ts",
     "exports:test": "npx ts-node scripts/test-file-exports.ts",
     "gtm:run": "npx ts-node scripts/gtm-run-pipeline.ts",
-    "coop-directory:seed": "npx ts-node scripts/seed-cooperativa-directory.ts"
+    "coop-directory:seed": "npx ts-node scripts/seed-cooperativa-directory.ts",
+    "verify:member-360": "npx ts-node scripts/verify-member-360.ts",
+    "verify:member-360:self-test": "npx ts-node scripts/verify-member-360.ts --self-test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

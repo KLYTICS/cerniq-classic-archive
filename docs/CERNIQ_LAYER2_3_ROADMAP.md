@@ -250,6 +250,19 @@ wave, not a single date — we can be in-market for it without rushing the data 
 
 ## 4. Wave 3 — Tier C: member-level Layer 3 (the long-term moat)
 
+> **Update 2026-08-12.** The product-surface half of W3.0/W3.1 has shipped — **decoupled from
+> the discovery gate below**, not in violation of it. Full rationale:
+> [ADR-member-360-layer3.md](architecture/ADR-member-360-layer3.md). Short version: the discovery
+> question ("can member tapes be sourced") has no timeline, so the schema (`members` /
+> `member_accounts` / `member_lifecycle_events`, RLS-protected), the lifecycle classifier +
+> risk composite (`MemberLifecycleService`), and the directory/profile UI shipped now against a
+> **deterministic synthetic fixture population** (`MemberFixtureService`), gated behind a single
+> `Member.source` column (`"fixture"` default) rather than a parallel code path. **What this
+> update does NOT change:** the discovery question itself is still open, no real ingestion
+> adapter exists, and the classifier thresholds/risk weights are still calibrated against
+> synthetic data only — the paragraphs below remain the accurate description of the *ingestion*
+> half of W3.0, which is unstarted. Landed: backend `8f02188d`, frontend `46dff75c`.
+
 ### W3.0 / W3.1 — Member-level ingestion → Member LTV  · effort **XL** · *gated on discovery*
 - **Market driver (Handbook §1 Layer 3):** product penetration per socio, churn/**desvinculación**
   risk, profitability per member, balance migration — "the long-term differentiator." No mainland

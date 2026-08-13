@@ -94,6 +94,21 @@ W1.4 capital glide-path: golden + `CapitalPlanningService` (no dedicated HTTP ro
 
 Requires prod migration `20260711150000_add_loan_records`.
 
+## Wave 3 Member 360 HTTP surface (fixture-first)
+
+Separate controller (`Member360Controller`), not new `AlmController` methods:
+
+| Route | Notes |
+|---|---|
+| `GET :institutionId/members` | Paginated member directory |
+| `GET :institutionId/members/:memberId` | Full profile — financial overview, regulatory health, accounts, lifecycle timeline, next-best-actions, `gaps[]` |
+| `POST :institutionId/members/seed-demo` | Seeds 50 deterministic fixture members (`MemberFixtureService`); frontend only calls this from an explicit "Seed 50 demo members" button, never automatically |
+
+`Member.source` (default `"fixture"`) is the **only** fixture/real-ingestion seam — lifecycle
+classification, risk scoring, routes, and UI are all source-agnostic. No real core-system
+ingestion adapter exists yet; requires migration `20260812200000_add_member_360`. See
+[docs/architecture/ADR-member-360-layer3.md](docs/architecture/ADR-member-360-layer3.md).
+
 ---
 
 ## D1 invariant (never silent zeros)
@@ -121,6 +136,7 @@ Checklist: [docs/ops/AGENT_GOING_LIVE.md](docs/ops/AGENT_GOING_LIVE.md).
 | Market scan coverage | `docs/ops/MARKET_SCAN_COVERAGE.md` |
 | Terminal ops | `docs/TERMINAL_OPERATIONS_HANDBOOK.md` |
 | Layer 2/3 roadmap | `docs/CERNIQ_LAYER2_3_ROADMAP.md` |
+| Member 360 ADR (Wave 3) | `docs/architecture/ADR-member-360-layer3.md` |
 | Railway env | `docs/ops/railway_env_vars.md` |
 
 ---
@@ -143,3 +159,5 @@ Checklist: [docs/ops/AGENT_GOING_LIVE.md](docs/ops/AGENT_GOING_LIVE.md).
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_SUPABASE_*` belong on Vercel (frontend), not Railway API env.
 - Authoritative coop registry: 91 rows in `backend-node/src/alm/data/registry/pr-cooperativas-q2-2025.json` (COSSEC Anejo 9); ICP tiers tier1 ≥$100M, tier2 $50–100M, tier3 <$50M; exclude dissolved Aguada.
 - Pickup hub is `docs/SESSION_HANDOFF.md`; multi-session coordination uses `claude-peers` with explicit pathspec commits.
+- Member 360 (Wave 3, `member360/`) ships on synthetic fixtures deliberately, decoupled from the real member-tape ingestion discovery gate in the roadmap's §6 — `Member.source` (`"fixture"` default) is the seam, not a separate table or code path. Real ingestion is unbuilt; see the ADR before assuming any `Member` row is a real socio.
+- Some sandbox/CI environments block `unlink` on `.git/*.lock` and `.git/objects/**/tmp_obj_*` (EPERM) after a git process creates them, even though the git operation itself still completes successfully — `mv` the stale lock aside (never blindly `rm -f`; confirm via timestamp + `ps aux | grep git` first) rather than assuming the repo is corrupted.
