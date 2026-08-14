@@ -198,7 +198,10 @@ interface TokenRule {
 
 const ORDERED_TOKEN_RULES: readonly TokenRule[] = [
   // Most specific first — see the ordering note above.
-  { tokens: ['garantia', 'acciones'], productType: 'PRESTAMO_GARANTIA_ACCIONES' },
+  {
+    tokens: ['garantia', 'acciones'],
+    productType: 'PRESTAMO_GARANTIA_ACCIONES',
+  },
   { tokens: ['share', 'secured'], productType: 'PRESTAMO_GARANTIA_ACCIONES' },
   { tokens: ['club', 'navidad'], productType: 'CLUB_NAVIDAD' },
   { tokens: ['christmas', 'club'], productType: 'CLUB_NAVIDAD' },
@@ -242,7 +245,9 @@ const CANONICAL_SET: ReadonlySet<string> = new Set(COOPERATIVA_PRODUCT_TYPES);
  * Returns `null` when the label is not recognized — the caller MUST disclose
  * that as a gap rather than substituting a default (D1).
  */
-export function mapProductLabel(raw: string | null | undefined): ProductMatch | null {
+export function mapProductLabel(
+  raw: string | null | undefined,
+): ProductMatch | null {
   if (raw === null || raw === undefined) return null;
 
   const trimmed = raw.trim();
@@ -279,7 +284,11 @@ export function mapProductLabel(raw: string | null | undefined): ProductMatch | 
     // malformed future entry cannot silently swallow every unmapped label.
     const hasCriteria = rule.tokens.length > 0 || (rule.stems ?? []).length > 0;
     if (hasCriteria && tokensPresent && stemsPresent) {
-      return { productType: rule.productType, method: 'token-rule', normalized };
+      return {
+        productType: rule.productType,
+        method: 'token-rule',
+        normalized,
+      };
     }
   }
 

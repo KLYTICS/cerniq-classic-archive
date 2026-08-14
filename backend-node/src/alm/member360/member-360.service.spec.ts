@@ -3,6 +3,7 @@ import { MemberAccountCategory, MemberLifecycleStage } from '@prisma/client';
 import { Member360Service } from './member-360.service';
 import { MemberFixtureService } from './member-fixture.service';
 import { MemberLifecycleService } from './member-lifecycle.service';
+import { LoanLifecycleService } from './loan-lifecycle.service';
 
 function buildPrismaMock() {
   const tx = {
@@ -29,7 +30,7 @@ describe('Member360Service', () => {
     prisma = buildPrismaMock();
     service = new Member360Service(
       prisma as never,
-      new MemberFixtureService(),
+      new MemberFixtureService(new LoanLifecycleService()),
       new MemberLifecycleService(),
     );
   });

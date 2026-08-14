@@ -44,7 +44,10 @@ describe('LoanLifecycleService', () => {
       [90, 'NONACCRUAL', 'doubtful'],
       [400, 'NONACCRUAL', 'doubtful'],
     ])('%i DPD -> %s (%s)', (dpd, stage, cossec) => {
-      const result = service.classifyLoan(loan({ delinquencyDays: dpd }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ delinquencyDays: dpd }),
+        AS_OF,
+      );
       expect(result.stage).toBe(stage);
       expect(result.cossecClassification).toBe(cossec);
       expect(result.reasons.length).toBeGreaterThan(0);
@@ -58,20 +61,29 @@ describe('LoanLifecycleService', () => {
 
   describe('D1 — unknown delinquency is not performing', () => {
     it('returns a null stage rather than CURRENT when DPD is unknown', () => {
-      const result = service.classifyLoan(loan({ delinquencyDays: null }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ delinquencyDays: null }),
+        AS_OF,
+      );
       expect(result.stage).toBeNull();
       expect(result.cossecClassification).toBeNull();
     });
 
     it('discloses the missing field as a gap', () => {
-      const result = service.classifyLoan(loan({ delinquencyDays: null }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ delinquencyDays: null }),
+        AS_OF,
+      );
       expect(result.gaps).toHaveLength(1);
       expect(result.gaps[0].reason).toBe('LOAN_TAPE_FIELD_MISSING');
     });
 
     it('never classifies an unknown-DPD loan as pass', () => {
       // A blanket 'pass' on an unclassified loan is compliance-by-omission.
-      const result = service.classifyLoan(loan({ delinquencyDays: null }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ delinquencyDays: null }),
+        AS_OF,
+      );
       expect(result.cossecClassification).not.toBe('pass');
     });
   });
@@ -95,7 +107,10 @@ describe('LoanLifecycleService', () => {
 
     it('delinquency outranks the origination window', () => {
       const result = service.classifyLoan(
-        loan({ openedDate: new Date('2026-06-01T00:00:00.000Z'), delinquencyDays: 45 }),
+        loan({
+          openedDate: new Date('2026-06-01T00:00:00.000Z'),
+          delinquencyDays: 45,
+        }),
         AS_OF,
       );
       expect(result.stage).toBe('DELINQUENT_30');
@@ -104,14 +119,17 @@ describe('LoanLifecycleService', () => {
 
   describe('terminal states are explicit, never inferred', () => {
     it('CHARGED_OFF only when the back office says so', () => {
-      expect(service.classifyLoan(loan({ chargedOff: true }), AS_OF).stage).toBe(
-        'CHARGED_OFF',
-      );
+      expect(
+        service.classifyLoan(loan({ chargedOff: true }), AS_OF).stage,
+      ).toBe('CHARGED_OFF');
     });
 
     it('a 400-DPD loan is NONACCRUAL, not CHARGED_OFF', () => {
       // Charge-off is an accounting decision, not a delinquency inference.
-      const result = service.classifyLoan(loan({ delinquencyDays: 400 }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ delinquencyDays: 400 }),
+        AS_OF,
+      );
       expect(result.stage).toBe('NONACCRUAL');
       expect(result.stage).not.toBe('CHARGED_OFF');
     });
@@ -124,7 +142,10 @@ describe('LoanLifecycleService', () => {
     it('a charged-off loan with zero balance is CHARGED_OFF, not PAID_OFF', () => {
       // Ordering matters: writing a loan off also zeroes its balance, and
       // reporting that as "repaid" would hide a loss.
-      const result = service.classifyLoan(loan({ balance: 0, chargedOff: true }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ balance: 0, chargedOff: true }),
+        AS_OF,
+      );
       expect(result.stage).toBe('CHARGED_OFF');
       expect(result.cossecClassification).toBe('loss');
     });
@@ -140,7 +161,10 @@ describe('LoanLifecycleService', () => {
     });
 
     it('a 120-DPD loan that was never restructured is NONACCRUAL, not WORKOUT', () => {
-      const result = service.classifyLoan(loan({ delinquencyDays: 120 }), AS_OF);
+      const result = service.classifyLoan(
+        loan({ delinquencyDays: 120 }),
+        AS_OF,
+      );
       expect(result.stage).toBe('NONACCRUAL');
     });
 
@@ -178,18 +202,25 @@ describe('LoanLifecycleService', () => {
 
     it('discloses that PD/LGD came from the registry prior, not loss history', () => {
       const e = service.economics(loan(), AS_OF);
-      expect(e.gaps.some((g) => g.reason === 'PD_LGD_REGISTRY_DEFAULT')).toBe(true);
+      expect(e.gaps.some((g) => g.reason === 'PD_LGD_REGISTRY_DEFAULT')).toBe(
+        true,
+      );
     });
 
     it('returns nulls and a gap when the product could not be mapped', () => {
       const e = service.economics(loan({ productCode: null }), AS_OF);
       expect(e.expectedLoss).toBeNull();
       expect(e.annualPd).toBeNull();
-      expect(e.gaps.some((g) => g.reason === 'PRODUCT_TYPE_UNMAPPED')).toBe(true);
+      expect(e.gaps.some((g) => g.reason === 'PRODUCT_TYPE_UNMAPPED')).toBe(
+        true,
+      );
     });
 
     it('has no PD for deposit-side products, and calls that no gap', () => {
-      const e = service.economics(loan({ productCode: 'CUENTA_AHORRO' }), AS_OF);
+      const e = service.economics(
+        loan({ productCode: 'CUENTA_AHORRO' }),
+        AS_OF,
+      );
       expect(e.expectedLoss).toBeNull();
       expect(e.gaps).toHaveLength(0);
     });

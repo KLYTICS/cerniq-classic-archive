@@ -132,6 +132,8 @@ import { EwsSnapshotService } from './ews/ews-snapshot.service';
 import { EwsSchedulerService } from './ews/ews-scheduler.service';
 import { Member360Controller } from './member360/member-360.controller';
 import { Member360Service } from './member360/member-360.service';
+import { LoanLifecycleService } from './member360/loan-lifecycle.service';
+import { MemberBookFromTapeService } from './member360/member-book-from-tape.service';
 import { MemberFixtureService } from './member360/member-fixture.service';
 import { MemberLifecycleService } from './member360/member-lifecycle.service';
 import { AlmAdvisorController } from './alm-advisor.controller';
@@ -240,6 +242,8 @@ import { HJMModule } from './quant/hjm.module';
     Member360Service,
     MemberFixtureService,
     MemberLifecycleService,
+    LoanLifecycleService,
+    MemberBookFromTapeService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,
@@ -368,6 +372,8 @@ import { HJMModule } from './quant/hjm.module';
     Member360Service,
     MemberFixtureService,
     MemberLifecycleService,
+    LoanLifecycleService,
+    MemberBookFromTapeService,
     PrepaymentEngineService,
     SOFRMonitorService,
     TreasuryRatesService,

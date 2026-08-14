@@ -156,13 +156,17 @@ export class LoanLifecycleService {
     if (loan.chargedOff === true) {
       return {
         stage: 'CHARGED_OFF',
-        reasons: ['Charged off by the back office (explicit action, not inferred)'],
+        reasons: [
+          'Charged off by the back office (explicit action, not inferred)',
+        ],
         cossecClassification: 'loss',
         gaps,
       };
     }
 
-    if (loan.balance === 0 && loan.chargedOff !== true) {
+    // Reached only when chargedOff is not true (the branch above returned), so
+    // a zero balance here really is repayment rather than a write-off.
+    if (loan.balance === 0) {
       // A true zero on a closed loan is the real value, not a phantom zero —
       // the same distinction delinquencyDays already documents.
       return {
@@ -206,7 +210,10 @@ export class LoanLifecycleService {
           'Loan has been restructured (troubled debt restructuring)',
           `Currently ${dpd} days past due`,
         ],
-        cossecClassification: dpd >= LoanLifecycleService.DPD_30 ? 'substandard' : 'special_mention',
+        cossecClassification:
+          dpd >= LoanLifecycleService.DPD_30
+            ? 'substandard'
+            : 'special_mention',
         gaps,
       };
     }
@@ -381,7 +388,8 @@ export class LoanLifecycleService {
     if (loan.originalPrincipal === null || loan.originalPrincipal <= 0) {
       return null;
     }
-    const repaid = (loan.originalPrincipal - loan.balance) / loan.originalPrincipal;
+    const repaid =
+      (loan.originalPrincipal - loan.balance) / loan.originalPrincipal;
     return Math.min(1, Math.max(0, repaid));
   }
 }

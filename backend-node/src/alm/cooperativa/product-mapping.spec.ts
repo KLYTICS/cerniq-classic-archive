@@ -16,7 +16,9 @@ describe('normalizeProductLabel', () => {
   });
 
   it('collapses punctuation and whitespace to single spaces', () => {
-    expect(normalizeProductLabel('  Préstamo   de/auto  ')).toBe('prestamo de auto');
+    expect(normalizeProductLabel('  Préstamo   de/auto  ')).toBe(
+      'prestamo de auto',
+    );
     expect(normalizeProductLabel('C&I')).toBe('c i');
   });
 });
@@ -70,13 +72,17 @@ describe('mapProductLabel — the share-secured / shares collision', () => {
       'Share Secured Loan',
       'prestamo con garantia de acciones',
     ]) {
-      expect(mapProductLabel(raw)?.productType).toBe('PRESTAMO_GARANTIA_ACCIONES');
+      expect(mapProductLabel(raw)?.productType).toBe(
+        'PRESTAMO_GARANTIA_ACCIONES',
+      );
     }
   });
 
   it('still maps bare acciones/ahorros to the savings product', () => {
     expect(mapProductLabel('acciones')?.productType).toBe('CUENTA_AHORRO');
-    expect(mapProductLabel('cuenta de ahorros')?.productType).toBe('CUENTA_AHORRO');
+    expect(mapProductLabel('cuenta de ahorros')?.productType).toBe(
+      'CUENTA_AHORRO',
+    );
   });
 
   it('keeps the two on opposite sides of the balance sheet', () => {
