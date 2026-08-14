@@ -49,7 +49,16 @@ export type DataGapReason =
   | 'LOAN_TAPE_FIELD_MISSING'
   | 'NO_MEMBER_DATA'
   | 'MEMBER_ACCOUNTS_MISSING'
-  | 'MEMBER_RISK_SCORE_UNAVAILABLE';
+  | 'MEMBER_RISK_SCORE_UNAVAILABLE'
+  /** A free-text product label did not map to the cooperativa product
+   * registry, so the product cannot be priced or entered into CECL. Never
+   * resolved by guessing a default product — see `product-mapping.ts`. */
+  | 'PRODUCT_TYPE_UNMAPPED'
+  /** Expected loss was computed from the registry's cold-start PD/LGD prior
+   * rather than the institution's own loss history. The registry documents
+   * these as provisional (OPERATOR-INPUT-NEEDED); this gap carries that
+   * provenance into the report instead of letting the number look calibrated. */
+  | 'PD_LGD_REGISTRY_DEFAULT';
 
 export interface DataGap {
   /**

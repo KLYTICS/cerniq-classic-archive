@@ -532,6 +532,42 @@ enum MemberAccountCategory {
   LOAN
 }
 
+/// Canonical cooperativa product taxonomy — the SAME eight products as
+/// `COOPERATIVA_PRODUCT_TYPES` in src/alm/cooperativa/product-registry.ts,
+/// which carries each one's PD, LGD, CECL eligibility and balance-sheet
+/// subcategory. Persisting the code (rather than only the free-text label)
+/// is what lets a member's auto loan reach its own PD.
+///
+/// `MemberAccount.productType` stays as the raw label the source system gave
+/// us: keeping both means an unmappable label is still visible to an operator
+/// instead of being destroyed on write.
+enum CooperativaProductCode {
+  PRESTAMO_PERSONAL
+  PRESTAMO_AUTO
+  HIPOTECA
+  PRESTAMO_COMERCIAL
+  PRESTAMO_GARANTIA_ACCIONES
+  CLUB_NAVIDAD
+  CUENTA_AHORRO
+  CERTIFICADO_DEPOSITO
+}
+
+/// The lifecycle stage of one LOAN — distinct from MemberLifecycleStage,
+/// which describes the member relationship. See the header of
+/// src/alm/member360/loan-lifecycle.service.ts for why these must not be
+/// the same enum (>=90 DPD is member-WORKOUT but loan-NONACCRUAL).
+enum LoanLifecycleStage {
+  ORIGINATED
+  CURRENT
+  EARLY_DELINQUENCY
+  DELINQUENT_30
+  DELINQUENT_60
+  NONACCRUAL
+  WORKOUT
+  PAID_OFF
+  CHARGED_OFF
+}
+
 enum MemberEventSeverity {
   INFO
   WARNING
@@ -600,6 +636,37 @@ model MemberAccount {
   productType String                @map("product_type")
   category    MemberAccountCategory
 
+  /// Canonical registry code resolved from `productType` by
+  /// `mapProductLabel()`. NULL means the label could not be mapped — the
+  /// honest state, disclosed as PRODUCT_TYPE_UNMAPPED. Never back-filled with
+  /// a default product: that would hand the loan a PD/LGD it was never
+  /// measured to have.
+  productCode CooperativaProductCode? @map("product_code")
+
+  /// Per-loan lifecycle stage. NULL for non-loan accounts (a share account has
+  /// no delinquency lifecycle) and ALSO null when delinquencyDays is unknown —
+  /// an unclassified loan must not render as a green CURRENT badge.
+  loanStage LoanLifecycleStage? @map("loan_stage")
+
+  /// Principal at origination. Null when the source did not carry it; the
+  /// amortization-progress figure then reads null rather than being inferred
+  /// from a product-average term.
+  originalPrincipal Decimal? @map("original_principal") @db.Decimal(18, 2)
+
+  /// Core-system loan number, when this account came from a loan tape. This is
+  /// the join key back to `LoanRecord.externalLoanId`, so an ingested member
+  /// book can be reconciled against the tape it was built from.
+  externalLoanId String? @map("external_loan_id")
+
+  /// Whether the loan has been restructured/re-aged (TDR). Explicit, never
+  /// inferred from delinquency — a re-aged loan can read 0 DPD precisely
+  /// because it was re-aged.
+  restructured Boolean @default(false)
+
+  /// Whether the back office has charged the loan off. Explicit, never
+  /// inferred — same discipline as MemberLifecycleStage.CHARGED_OFF.
+  chargedOff Boolean @default(false) @map("charged_off")
+
   balance         Decimal   @db.Decimal(18, 2)
   interestRate    Decimal?  @map("interest_rate") @db.Decimal(8, 6)
   /// Null = not applicable (e.g. a SHARE account) or not yet observed.
@@ -622,6 +689,9 @@ model MemberAccount {
 
   @@index([institutionId, memberId])
   @@index([institutionId, category])
+  @@index([institutionId, productCode])
+  @@index([institutionId, loanStage])
+  @@index([institutionId, externalLoanId])
   @@map("member_accounts")
 }
 

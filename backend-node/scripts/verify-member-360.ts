@@ -34,6 +34,10 @@ import { PrismaService } from '../src/prisma.service';
 import { Member360Service } from '../src/alm/member360/member-360.service';
 import { MemberFixtureService } from '../src/alm/member360/member-fixture.service';
 import { MemberLifecycleService } from '../src/alm/member360/member-lifecycle.service';
+import {
+  LOAN_LIFECYCLE_STAGES,
+  LoanLifecycleService,
+} from '../src/alm/member360/loan-lifecycle.service';
 
 const VERIFY_INSTITUTION_ID = 'm360-verify-inst';
 const EMPTY_INSTITUTION_ID = 'm360-verify-empty';
@@ -50,6 +54,9 @@ interface MemberRow {
     category: string;
     balance: unknown;
     cossecClassification: string | null;
+    productCode: string | null;
+    loanStage: string | null;
+    originalPrincipal: unknown;
   }[];
   lifecycleEvents: { id: string }[];
 }
@@ -74,7 +81,7 @@ function check(name: string, ok: boolean, detail = ''): void {
  * carries a --self-test).
  */
 function runSelfTest(): void {
-  const fixtures = new MemberFixtureService();
+  const fixtures = new MemberFixtureService(new LoanLifecycleService());
   const lifecycle = new MemberLifecycleService();
 
   const a = fixtures.generateMembers('inst-selftest', 40);
@@ -164,7 +171,7 @@ async function main(): Promise<void> {
   try {
     const service = new Member360Service(
       prisma,
-      new MemberFixtureService(),
+      new MemberFixtureService(new LoanLifecycleService()),
       new MemberLifecycleService(),
     );
 
@@ -333,6 +340,89 @@ async function main(): Promise<void> {
     check(
       'the book contains loan accounts',
       accounts.some((a) => a.category === 'LOAN'),
+    );
+
+    // ── Canonical product taxonomy ──────────────────────────────────────
+    // Free-text product labels used to have no path to the product registry,
+    // so a member's auto loan could not reach its own PD/LGD. Every seeded
+    // account must now carry a canonical code.
+    const withoutCode = accounts.filter((a) => a.productCode === null);
+    check(
+      'every seeded account carries a canonical product code',
+      withoutCode.length === 0,
+      `uncoded=${withoutCode.length}`,
+    );
+
+    const productCounts: Record<string, number> = {};
+    for (const a of accounts) {
+      const key = a.productCode ?? 'NULL';
+      productCounts[key] = (productCounts[key] ?? 0) + 1;
+    }
+    console.log(`product mix: ${JSON.stringify(productCounts)}`);
+
+    for (const code of [
+      'PRESTAMO_AUTO',
+      'PRESTAMO_PERSONAL',
+      'HIPOTECA',
+      'PRESTAMO_COMERCIAL',
+    ]) {
+      check(
+        `product ${code} is represented in the demo book`,
+        (productCounts[code] ?? 0) > 0,
+        `n=${productCounts[code] ?? 0}`,
+      );
+    }
+
+    // ── Per-loan lifecycle ──────────────────────────────────────────────
+    const loanAccounts = accounts.filter((a) => a.category === 'LOAN');
+    const stageCounts: Record<string, number> = {};
+    for (const a of loanAccounts) {
+      const key = a.loanStage ?? 'NULL';
+      stageCounts[key] = (stageCounts[key] ?? 0) + 1;
+    }
+    console.log(`loan stage distribution: ${JSON.stringify(stageCounts)}`);
+
+    // Every stage the engine can emit must actually appear, or a sales demo
+    // shows permanently empty columns — the same failure the ONBOARDING and
+    // CHURNED member cohorts were pinned to prevent.
+    for (const stage of LOAN_LIFECYCLE_STAGES) {
+      check(
+        `loan stage ${stage} is represented in the demo book`,
+        (stageCounts[stage] ?? 0) > 0,
+        `n=${stageCounts[stage] ?? 0}`,
+      );
+    }
+
+    check(
+      'no non-loan account carries a loan lifecycle stage',
+      accounts
+        .filter((a) => a.category !== 'LOAN')
+        .every((a) => a.loanStage === null),
+    );
+
+    check(
+      'loan stages are not all one constant',
+      new Set(loanAccounts.map((a) => a.loanStage)).size > 1,
+      `distinct=${new Set(loanAccounts.map((a) => a.loanStage)).size}`,
+    );
+
+    // A paid-off loan is the ONE place a zero loan balance is honest.
+    const zeroBalanceLoans = loanAccounts.filter(
+      (a) => Number(a.balance) === 0,
+    );
+    check(
+      'every zero-balance loan is explicitly PAID_OFF (no phantom zeros)',
+      zeroBalanceLoans.every((a) => a.loanStage === 'PAID_OFF'),
+      `zeroBalanceLoans=${zeroBalanceLoans.length}`,
+    );
+
+    check(
+      'original principal is never below the outstanding balance',
+      loanAccounts.every(
+        (a) =>
+          a.originalPrincipal === null ||
+          Number(a.originalPrincipal) >= Number(a.balance),
+      ),
     );
 
     // ── Audit trail (KLYTICS Rule 4) ────────────────────────────────────

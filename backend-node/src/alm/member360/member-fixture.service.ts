@@ -1,6 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MemberAccountCategory } from '@prisma/client';
 
+import type { CooperativaProductType } from '../cooperativa/product-registry';
+import {
+  LoanLifecycleService,
+  type LoanLifecycleStage,
+  type LoanSignal,
+} from './loan-lifecycle.service';
+
 /**
  * Deterministic fixture data for the Member 360 demo surface.
  *
@@ -99,6 +106,15 @@ const LAST_NAMES = [
 /** Mirrors cooperativa/product-registry.ts's 8-product taxonomy by label. */
 interface ProductTemplate {
   productType: string;
+  /**
+   * Canonical registry code for this template.
+   *
+   * Declared explicitly rather than derived at generation time so the fixture
+   * book does not silently depend on the mapper's behaviour — but the spec
+   * asserts `mapProductLabel(productType).productType === productCode` for
+   * every template, so the label and the code cannot drift apart either.
+   */
+  productCode: CooperativaProductType;
   category: MemberAccountCategory;
   balanceRangeUSD: [number, number];
   /** Annual rate as a decimal (0.065 = 6.5%). Null for SHARE (no stated rate). */
@@ -106,72 +122,95 @@ interface ProductTemplate {
   /** Fraction of members who hold this product, independent per product. */
   incidence: number;
   isLoan: boolean;
+  /**
+   * Scheduled term in years, per product — a mortgage does not amortize on the
+   * same clock as an auto loan, and the demo book is unconvincing if they do.
+   * Anchored on the registry's `defaultMaturityYears` WAM priors, rounded to
+   * the contractual terms a PR cooperativa actually writes.
+   */
+  termYears: number;
 }
 
 const PRODUCT_TEMPLATES: readonly ProductTemplate[] = [
   {
     productType: 'acciones',
+    productCode: 'CUENTA_AHORRO',
     category: MemberAccountCategory.SHARE,
     balanceRangeUSD: [25, 500],
     rateRange: null,
     incidence: 1.0,
     isLoan: false,
+    termYears: 0,
   },
   {
     productType: 'cuenta de ahorros',
+    productCode: 'CUENTA_AHORRO',
     category: MemberAccountCategory.DEPOSIT,
     balanceRangeUSD: [200, 45000],
     rateRange: [0.001, 0.015],
     incidence: 0.86,
     isLoan: false,
+    termYears: 0,
   },
   {
     productType: 'certificado de depósito',
+    productCode: 'CERTIFICADO_DEPOSITO',
     category: MemberAccountCategory.DEPOSIT,
     balanceRangeUSD: [1000, 60000],
     rateRange: [0.02, 0.045],
     incidence: 0.17,
     isLoan: false,
+    termYears: 1,
   },
   {
     productType: 'préstamo personal',
+    productCode: 'PRESTAMO_PERSONAL',
     category: MemberAccountCategory.LOAN,
     balanceRangeUSD: [800, 15000],
     rateRange: [0.09, 0.16],
     incidence: 0.28,
     isLoan: true,
+    termYears: 4,
   },
   {
     productType: 'préstamo de auto',
+    productCode: 'PRESTAMO_AUTO',
     category: MemberAccountCategory.LOAN,
     balanceRangeUSD: [4000, 32000],
     rateRange: [0.055, 0.09],
     incidence: 0.19,
     isLoan: true,
+    termYears: 5,
   },
   {
     productType: 'hipoteca',
+    productCode: 'HIPOTECA',
     category: MemberAccountCategory.LOAN,
     balanceRangeUSD: [45000, 260000],
     rateRange: [0.045, 0.07],
     incidence: 0.06,
     isLoan: true,
+    termYears: 20,
   },
   {
     productType: 'préstamo comercial',
+    productCode: 'PRESTAMO_COMERCIAL',
     category: MemberAccountCategory.LOAN,
     balanceRangeUSD: [15000, 180000],
     rateRange: [0.065, 0.11],
     incidence: 0.03,
     isLoan: true,
+    termYears: 7,
   },
   {
     productType: 'garantía de acciones',
+    productCode: 'PRESTAMO_GARANTIA_ACCIONES',
     category: MemberAccountCategory.LOAN,
     balanceRangeUSD: [500, 8000],
     rateRange: [0.06, 0.085],
     incidence: 0.08,
     isLoan: true,
+    termYears: 2,
   },
 ];
 
@@ -186,14 +225,28 @@ const DELINQUENCY_BANDS: readonly { maxDays: number; upTo: number }[] = [
 
 export interface MemberAccountSeed {
   productType: string;
+  /** Canonical registry code — see ProductTemplate.productCode. */
+  productCode: CooperativaProductType;
   category: MemberAccountCategory;
   balance: number;
+  /** Principal at origination. Null for non-loan accounts. */
+  originalPrincipal: number | null;
   interestRate: number | null;
   delinquencyDays: number | null;
   maturityDate: Date | null;
   openedDate: Date;
-  /** Derived from delinquencyDays at generation time — see classifyCossec(). */
+  /**
+   * Both of these come from LoanLifecycleService.classifyLoan(), which is the
+   * single COSSEC-mapping authority in the codebase. The fixture deliberately
+   * does NOT carry its own delinquency->classification table: a second mapping
+   * is the same drift hazard the product taxonomy just had, and here it would
+   * disagree with the classifier the product actually ships.
+   */
   cossecClassification: string | null;
+  loanStage: LoanLifecycleStage | null;
+  /** Explicit lifecycle facts — never inferred from delinquency days. */
+  restructured: boolean;
+  chargedOff: boolean;
 }
 
 export interface MemberSeed {
@@ -203,16 +256,19 @@ export interface MemberSeed {
   accounts: MemberAccountSeed[];
 }
 
-/** COSSEC NPL staging derived from a KNOWN delinquency value. Only ever
- * called with a real, generated DPD — never used to backfill an unknown one
- * (that path lives in MemberLifecycleService and stays null on purpose). */
-function classifyCossec(delinquencyDays: number): string {
-  if (delinquencyDays === 0) return 'pass';
-  if (delinquencyDays <= 29) return 'special_mention';
-  if (delinquencyDays <= 59) return 'substandard';
-  if (delinquencyDays <= 89) return 'doubtful';
-  return 'loss';
-}
+/**
+ * The fixture's own delinquency->COSSEC table used to live here. It was
+ * deleted on purpose: it mapped 1-29 DPD to `special_mention` while
+ * LoanLifecycleService maps that same bucket to `pass`, so the demo book
+ * disagreed with the classifier the product actually ships.
+ *
+ * COSSEC/NCUA special mention begins at 30 days; 1-29 DPD is a performing
+ * loan. Classification now comes from LoanLifecycleService.classifyLoan() and
+ * nowhere else — one authority, exactly like the product taxonomy.
+ */
+
+/** The pinned loan-lifecycle cohorts, in the index order they occupy. */
+type LoanCohort = 'workout' | 'chargedOff' | 'nonaccrual' | 'paidOff';
 
 function pickDelinquencyDays(rng: () => number): number {
   const roll = rng();
@@ -250,6 +306,38 @@ function randomPastDate(
 export class MemberFixtureService {
   private readonly logger = new Logger(MemberFixtureService.name);
 
+  constructor(private readonly loanLifecycle: LoanLifecycleService) {}
+
+  /**
+   * Maps a member index to its pinned loan cohort, walking contiguous index
+   * bands that begin right after the churned band. Returns null for the
+   * ordinary majority of the book, whose loans are drawn from the delinquency
+   * distribution instead.
+   *
+   * Band sizes come straight from the cohort constants — a second hand-kept
+   * list of sizes here would be free to drift away from them.
+   */
+  private pickLoanCohort(index: number, startAt: number): LoanCohort | null {
+    const bands: readonly { cohort: LoanCohort; size: number }[] = [
+      { cohort: 'workout', size: MemberFixtureService.WORKOUT_LOAN_COHORT },
+      {
+        cohort: 'chargedOff',
+        size: MemberFixtureService.CHARGED_OFF_LOAN_COHORT,
+      },
+      {
+        cohort: 'nonaccrual',
+        size: MemberFixtureService.NONACCRUAL_LOAN_COHORT,
+      },
+      { cohort: 'paidOff', size: MemberFixtureService.PAID_OFF_LOAN_COHORT },
+    ];
+    let cursor = startAt;
+    for (const band of bands) {
+      if (index >= cursor && index < cursor + band.size) return band.cohort;
+      cursor += band.size;
+    }
+    return null;
+  }
+
   /**
    * How many of the first members are pinned to a specific lifecycle stage.
    *
@@ -278,6 +366,31 @@ export class MemberFixtureService {
    */
   static readonly ONBOARDING_COHORT = 3;
   static readonly CHURNED_COHORT = 2;
+  /**
+   * Loan-lifecycle cohorts. WORKOUT (a restructuring) and CHARGED_OFF (a
+   * write-off) are back-office DECISIONS, not draws from a delinquency
+   * distribution, so no amount of sampling reaches them — exactly the reason
+   * ONBOARDING and CHURNED needed pinning. Without these two the demo book
+   * shows two permanently empty loan-stage columns.
+   */
+  static readonly WORKOUT_LOAN_COHORT = 4;
+  static readonly CHARGED_OFF_LOAN_COHORT = 3;
+  /**
+   * NONACCRUAL and PAID_OFF need pinning for two different reasons, both
+   * measured on a 250-member book:
+   *
+   *   * NONACCRUAL (>=90 DPD) sits in a 1%-probability delinquency band, so on
+   *     ~155 loan accounts it appears 0-2 times — present or absent depending
+   *     on the seed. "Usually there" is not good enough for a demo column.
+   *   * PAID_OFF (zero balance) was structurally UNREACHABLE for loans: the
+   *     only zero-balance path was the churned cohort, and churned members
+   *     are explicitly given no loans at all. A socio who paid off their auto
+   *     loan is an ordinary, active member — that is the whole point of
+   *     showing a lifecycle — so it gets its own cohort rather than being
+   *     folded into churn.
+   */
+  static readonly NONACCRUAL_LOAN_COHORT = 3;
+  static readonly PAID_OFF_LOAN_COHORT = 4;
   static readonly MIN_BOOK_FOR_COHORTS = 25;
 
   /**
@@ -316,6 +429,13 @@ export class MemberFixtureService {
         ? randomPastDate(rng, 30 / 365, 1, asOfMs)
         : randomPastDate(rng, 15, 1, asOfMs);
 
+      // Which pinned loan-lifecycle cohort (if any) this member belongs to.
+      // Assigned once per member, from contiguous index bands after the
+      // churned band, so the whole book stays deterministic.
+      const loanCohort = useCohorts
+        ? this.pickLoanCohort(i, churnedUntil)
+        : null;
+
       const accounts: MemberAccountSeed[] = [];
       for (const template of PRODUCT_TEMPLATES) {
         // An onboarding member holds only the mandatory share account — that
@@ -334,9 +454,12 @@ export class MemberFixtureService {
         // A churned member has redeemed/closed everything: the record is
         // retained, the money is gone. 0 here is the true balance, not a
         // stand-in for an unknown one.
-        const balance = isChurned
+        const drawnBalance = isChurned
           ? 0
           : Number(randomInRange(rng, template.balanceRangeUSD).toFixed(2));
+        // The paid-off cohort overrides this for LOAN accounts only; deposits
+        // and shares keep their drawn balance so the member still looks active.
+        let balance = drawnBalance;
         const interestRate = template.rateRange
           ? Number(randomInRange(rng, template.rateRange).toFixed(6))
           : null;
@@ -350,14 +473,68 @@ export class MemberFixtureService {
         let delinquencyDays: number | null = null;
         let cossecClassification: string | null = null;
         let maturityDate: Date | null = null;
+        let originalPrincipal: number | null = null;
+        let loanStage: LoanLifecycleStage | null = null;
+        let restructured = false;
+        let chargedOff = false;
 
         if (template.isLoan) {
           delinquencyDays = pickDelinquencyDays(rng);
-          cossecClassification = classifyCossec(delinquencyDays);
-          const termYears = template.productType === 'hipoteca' ? 20 : 5;
           maturityDate = new Date(
-            openedDate.getTime() + termYears * 365 * 86_400_000,
+            openedDate.getTime() + template.termYears * 365 * 86_400_000,
           );
+
+          // Original principal sits ABOVE the current balance so amortization
+          // progress is a real number rather than always 0. Drawn as a
+          // multiple so a 20-year mortgage can show more paydown than a
+          // 2-year share-secured loan.
+          // Anchored on the DRAWN balance, not the possibly-zeroed one, so a
+          // paid-off loan still reports the principal it started with (and
+          // therefore shows 100% repaid rather than a meaningless null).
+          originalPrincipal = Number(
+            (drawnBalance * (1 + rng() * 0.9 + 0.1)).toFixed(2),
+          );
+
+          // Deterministic pinned lifecycle cohorts — see the cohort constants
+          // for why each one cannot be reached by sampling alone.
+          switch (loanCohort) {
+            case 'workout':
+              restructured = true;
+              break;
+            case 'chargedOff':
+              chargedOff = true;
+              break;
+            case 'nonaccrual':
+              delinquencyDays = 90 + Math.floor(rng() * 180);
+              break;
+            case 'paidOff':
+              // A repaid loan. 0 here is the TRUE outstanding principal, not a
+              // phantom zero standing in for unknown data (D1) — the same
+              // distinction the churned cohort documents for deposits.
+              balance = 0;
+              delinquencyDays = 0;
+              break;
+            default:
+              break;
+          }
+
+          const signal: LoanSignal = {
+            id: `${institutionId}:${i}:${template.productCode}`,
+            productCode: template.productCode,
+            balance,
+            originalPrincipal,
+            delinquencyDays,
+            openedDate,
+            maturityDate,
+            restructured,
+            chargedOff,
+          };
+          const classification = this.loanLifecycle.classifyLoan(
+            signal,
+            new Date(asOfMs),
+          );
+          loanStage = classification.stage;
+          cossecClassification = classification.cossecClassification;
         } else if (template.productType === 'certificado de depósito') {
           // CDs carry a maturity even though they're not loans — the
           // upcoming-maturity next-best-action depends on this.
@@ -369,13 +546,18 @@ export class MemberFixtureService {
 
         accounts.push({
           productType: template.productType,
+          productCode: template.productCode,
           category: template.category,
           balance,
+          originalPrincipal,
           interestRate,
           delinquencyDays,
           maturityDate,
           openedDate,
           cossecClassification,
+          loanStage,
+          restructured,
+          chargedOff,
         });
       }
 

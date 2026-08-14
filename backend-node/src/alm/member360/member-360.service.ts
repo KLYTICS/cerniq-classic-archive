@@ -196,13 +196,18 @@ export class Member360Service {
               memberId: member.id,
               institutionId,
               productType: a.productType,
+              productCode: a.productCode,
               category: a.category,
               balance: a.balance,
+              originalPrincipal: a.originalPrincipal,
               interestRate: a.interestRate,
               delinquencyDays: a.delinquencyDays,
               maturityDate: a.maturityDate,
               openedDate: a.openedDate,
               cossecClassification: a.cossecClassification,
+              loanStage: a.loanStage,
+              restructured: a.restructured,
+              chargedOff: a.chargedOff,
             })),
           });
         }
