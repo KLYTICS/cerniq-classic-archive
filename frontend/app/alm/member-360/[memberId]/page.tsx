@@ -1,16 +1,28 @@
-'use client';
+"use client";
 
-import { useParams, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Calendar, Sparkles } from 'lucide-react';
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Calendar, Sparkles } from "lucide-react";
 
-import { AlmPage, type AlmPageContext } from '@/components/alm/AlmPage';
-import { useReportDataGaps, type DataGap } from '@/hooks/useReportDataGaps';
-import { DataGapBanner } from '@/components/ui/cerniq';
-import { MetricStrip, type MetricStripItem } from '@/components/density/MetricStrip';
-import { DataTable, type DataTableColumn } from '@/components/density/DataTable';
-import type { Locale } from '@/lib/i18n';
-import { StageBadge } from '../lifecycle-stage';
+import { AlmPage, type AlmPageContext } from "@/components/alm/AlmPage";
+import { useReportDataGaps, type DataGap } from "@/hooks/useReportDataGaps";
+import { DataGapBanner } from "@/components/ui/cerniq";
+import {
+  MetricStrip,
+  type MetricStripItem,
+} from "@/components/density/MetricStrip";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/density/DataTable";
+import type { Locale } from "@/lib/i18n";
+import { StageBadge } from "../lifecycle-stage";
+import {
+  AmortizationBar,
+  isLoanStage,
+  LoanStageBadge,
+  type LoanStage,
+} from "../loan-stage";
 
 /**
  * Member 360 profile — single-socio financial + regulatory view.
@@ -22,27 +34,44 @@ import { StageBadge } from '../lifecycle-stage';
  */
 
 type LifecycleStage =
-  | 'ONBOARDING'
-  | 'ACTIVE'
-  | 'AT_RISK'
-  | 'DELINQUENT'
-  | 'WORKOUT'
-  | 'CHARGED_OFF'
-  | 'CHURNED';
+  | "ONBOARDING"
+  | "ACTIVE"
+  | "AT_RISK"
+  | "DELINQUENT"
+  | "WORKOUT"
+  | "CHARGED_OFF"
+  | "CHURNED";
 
-type AccountCategory = 'SHARE' | 'DEPOSIT' | 'LOAN';
-type EventSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
-type ActionPriority = 'high' | 'medium' | 'low';
+type AccountCategory = "SHARE" | "DEPOSIT" | "LOAN";
+type EventSeverity = "INFO" | "WARNING" | "CRITICAL";
+type ActionPriority = "high" | "medium" | "low";
 
 interface MemberAccountRow {
   id: string;
+  /** Raw label from the source system, kept verbatim. */
   productType: string;
+  /** Canonical registry code; null when the label could not be mapped. */
+  productCode: string | null;
+  /** Registry display names, null alongside an unmapped productCode. */
+  productNameEs: string | null;
+  productNameEn: string | null;
   category: AccountCategory;
   balance: number;
+  originalPrincipal: number | null;
   interestRate: number | null;
   delinquencyDays: number | null;
   maturityDate: string | null;
   cossecClassification: string | null;
+  /** The loan's own stage. Null for deposits, and for unclassifiable loans. */
+  loanStage: string | null;
+  loanStageReasons: string[];
+  restructured: boolean;
+  chargedOff: boolean;
+  expectedLoss: number | null;
+  annualPd: number | null;
+  lgd: number | null;
+  termElapsedFraction: number | null;
+  principalRepaidFraction: number | null;
 }
 
 interface LifecycleEvent {
@@ -91,40 +120,40 @@ function validateMemberProfile(raw: unknown): MemberProfile {
   const r = raw as Partial<MemberProfile> | null;
   if (
     !r ||
-    typeof r !== 'object' ||
+    typeof r !== "object" ||
     !r.member ||
     !r.financialOverview ||
     !r.regulatoryHealth ||
     !Array.isArray(r.accounts)
   ) {
-    throw new Error('Malformed member profile response');
+    throw new Error("Malformed member profile response");
   }
   return r as MemberProfile;
 }
 
 const PRIORITY_TONE: Record<ActionPriority, string> = {
-  high: 'border-rose-200 bg-rose-50 text-rose-700',
-  medium: 'border-amber-200 bg-amber-50 text-amber-700',
-  low: 'border-slate-200 bg-slate-50 text-slate-600',
+  high: "border-rose-200 bg-rose-50 text-rose-700",
+  medium: "border-amber-200 bg-amber-50 text-amber-700",
+  low: "border-slate-200 bg-slate-50 text-slate-600",
 };
 
 const SEVERITY_TONE: Record<EventSeverity, string> = {
-  INFO: 'bg-sky-400',
-  WARNING: 'bg-amber-500',
-  CRITICAL: 'bg-rose-500',
+  INFO: "bg-sky-400",
+  WARNING: "bg-amber-500",
+  CRITICAL: "bg-rose-500",
 };
 
 const CATEGORY_LABEL: Record<AccountCategory, { en: string; es: string }> = {
-  SHARE: { en: 'Share', es: 'Aportación' },
-  DEPOSIT: { en: 'Deposit', es: 'Depósito' },
-  LOAN: { en: 'Loan', es: 'Préstamo' },
+  SHARE: { en: "Share", es: "Aportación" },
+  DEPOSIT: { en: "Deposit", es: "Depósito" },
+  LOAN: { en: "Loan", es: "Préstamo" },
 };
 
 function formatDate(iso: string, locale: Locale): string {
-  return new Date(iso).toLocaleDateString(locale === 'es' ? 'es-PR' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+  return new Date(iso).toLocaleDateString(locale === "es" ? "es-PR" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
 }
 
@@ -145,64 +174,154 @@ export default function MemberProfilePage() {
   );
 }
 
-function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPageContext }) {
+function MemberProfileContent({
+  data,
+  ctx,
+}: {
+  data: MemberProfile;
+  ctx: AlmPageContext;
+}) {
   const { locale } = ctx;
   const searchParams = useSearchParams();
-  const institutionIdParam = searchParams.get('id') ?? '';
+  const institutionIdParam = searchParams.get("id") ?? "";
   const { gaps, criticalCount, warningCount } = useReportDataGaps(data.gaps);
 
   const financialMetrics: MetricStripItem[] = [
-    { key: 'totalDeposits', value: data.financialOverview.totalDeposits, unit: 'USD' },
-    { key: 'totalShares', value: data.financialOverview.totalShares, unit: 'USD' },
-    { key: 'activeLoanBalance', value: data.financialOverview.activeLoanBalance, unit: 'USD' },
     {
-      key: 'loanToDepositRatio',
-      value: data.financialOverview.loanToDepositRatio,
-      unit: 'ratio',
+      key: "totalDeposits",
+      value: data.financialOverview.totalDeposits,
+      unit: "USD",
     },
-    { key: 'riskScore', value: data.regulatoryHealth.riskScore, unit: 'count' },
-    { key: 'ceclStage', value: data.regulatoryHealth.ceclStage, unit: 'count' },
+    {
+      key: "totalShares",
+      value: data.financialOverview.totalShares,
+      unit: "USD",
+    },
+    {
+      key: "activeLoanBalance",
+      value: data.financialOverview.activeLoanBalance,
+      unit: "USD",
+    },
+    {
+      key: "loanToDepositRatio",
+      value: data.financialOverview.loanToDepositRatio,
+      unit: "ratio",
+    },
+    { key: "riskScore", value: data.regulatoryHealth.riskScore, unit: "count" },
+    { key: "ceclStage", value: data.regulatoryHealth.ceclStage, unit: "count" },
   ];
 
   const accountColumns: DataTableColumn<MemberAccountRow>[] = [
     {
-      id: 'productType',
-      headerKey: 'productType',
-      kind: 'custom',
+      id: "productType",
+      headerKey: "productType",
+      kind: "custom",
       accessor: () => null,
-      render: (r) => (
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold text-slate-800">{r.productType}</span>
-          <span className="text-[10px] uppercase tracking-wide text-slate-400">
-            {locale === 'es' ? CATEGORY_LABEL[r.category].es : CATEGORY_LABEL[r.category].en}
+      render: (r) => {
+        // Prefer the canonical registry name; fall back to the raw source
+        // label. An unmapped product still shows what the core system called
+        // it — destroying the label would hide the thing an operator needs in
+        // order to map it.
+        const canonical = locale === "es" ? r.productNameEs : r.productNameEn;
+        return (
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold text-slate-800">
+              {canonical ?? r.productType}
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-slate-400">
+              {locale === "es"
+                ? CATEGORY_LABEL[r.category].es
+                : CATEGORY_LABEL[r.category].en}
+              {r.productCode === null && (
+                <span
+                  className="ml-1 normal-case text-amber-600"
+                  title={
+                    locale === "es"
+                      ? "Producto no mapeado al registro — no se puede valorar"
+                      : "Product not mapped to the registry — cannot be priced"
+                  }
+                >
+                  {locale === "es" ? "· sin mapear" : "· unmapped"}
+                </span>
+              )}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "loanStage",
+      header: locale === "es" ? "Etapa del préstamo" : "Loan stage",
+      kind: "custom",
+      accessor: () => null,
+      render: (r) =>
+        // Deposits and shares have no delinquency lifecycle at all, so they get
+        // an em dash rather than an "Unclassified" badge, which would imply a
+        // missing measurement instead of an inapplicable one.
+        r.category !== "LOAN" ? (
+          <span className="text-xs text-slate-300">—</span>
+        ) : (
+          <span title={r.loanStageReasons.join(" · ")}>
+            <LoanStageBadge
+              stage={
+                isLoanStage(r.loanStage) ? (r.loanStage as LoanStage) : null
+              }
+              locale={locale}
+            />
           </span>
-        </div>
-      ),
+        ),
     },
-    { id: 'balance', headerKey: 'balance', kind: 'number', accessor: (r) => r.balance, unit: 'USD' },
-    { id: 'interestRate', headerKey: 'interestRate', kind: 'number', accessor: (r) => r.interestRate, unit: '%' },
     {
-      id: 'delinquencyDays',
-      headerKey: 'delinquencyDays',
-      kind: 'number',
+      id: "amortization",
+      header: locale === "es" ? "Amortizado" : "Repaid",
+      kind: "custom",
+      accessor: () => null,
+      render: (r) =>
+        r.category !== "LOAN" ? (
+          <span className="text-xs text-slate-300">—</span>
+        ) : (
+          <AmortizationBar
+            fraction={r.principalRepaidFraction}
+            locale={locale}
+          />
+        ),
+    },
+    {
+      id: "balance",
+      headerKey: "balance",
+      kind: "number",
+      accessor: (r) => r.balance,
+      unit: "USD",
+    },
+    {
+      id: "interestRate",
+      headerKey: "interestRate",
+      kind: "number",
+      accessor: (r) => r.interestRate,
+      unit: "%",
+    },
+    {
+      id: "delinquencyDays",
+      headerKey: "delinquencyDays",
+      kind: "number",
       accessor: (r) => r.delinquencyDays,
-      unit: 'days',
+      unit: "days",
     },
     {
-      id: 'cossecClassification',
-      headerKey: 'worstCossecClassification',
-      kind: 'text',
+      id: "cossecClassification",
+      headerKey: "worstCossecClassification",
+      kind: "text",
       accessor: (r) => r.cossecClassification,
     },
     {
-      id: 'openedMaturity',
-      header: locale === 'es' ? 'Apertura / Vencimiento' : 'Opened / Maturity',
-      kind: 'custom',
+      id: "openedMaturity",
+      header: locale === "es" ? "Apertura / Vencimiento" : "Opened / Maturity",
+      kind: "custom",
       accessor: () => null,
-      align: 'text-right',
+      align: "text-right",
       render: (r) => (
         <span className="text-xs text-slate-500">
-          {r.maturityDate ? formatDate(r.maturityDate, locale) : '—'}
+          {r.maturityDate ? formatDate(r.maturityDate, locale) : "—"}
         </span>
       ),
     },
@@ -211,27 +330,34 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
   return (
     <div className="space-y-4">
       <Link
-        href={`/alm/member-360${institutionIdParam ? `?id=${institutionIdParam}` : ''}`}
+        href={`/alm/member-360${institutionIdParam ? `?id=${institutionIdParam}` : ""}`}
         className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-        {locale === 'es' ? 'Volver al directorio' : 'Back to directory'}
+        {locale === "es" ? "Volver al directorio" : "Back to directory"}
       </Link>
 
       {/* Header card — identity + lifecycle stage */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-[11px] text-slate-400">{data.member.memberNumber}</p>
-            <h2 className="text-lg font-semibold text-slate-900">{data.member.fullName}</h2>
+            <p className="font-mono text-[11px] text-slate-400">
+              {data.member.memberNumber}
+            </p>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {data.member.fullName}
+            </h2>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
               <Calendar className="h-3.5 w-3.5" aria-hidden />
-              {locale === 'es' ? 'Socio desde' : 'Member since'}{' '}
+              {locale === "es" ? "Socio desde" : "Member since"}{" "}
               {formatDate(data.member.memberSince, locale)}
             </p>
           </div>
           <div className="text-right">
-            <StageBadge stage={data.regulatoryHealth.lifecycleStage} locale={locale} />
+            <StageBadge
+              stage={data.regulatoryHealth.lifecycleStage}
+              locale={locale}
+            />
             {data.regulatoryHealth.worstCossecClassification ? (
               <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">
                 COSSEC: {data.regulatoryHealth.worstCossecClassification}
@@ -251,7 +377,11 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
       </section>
 
       {gaps.length > 0 ? (
-        <DataGapBanner gaps={gaps} criticalCount={criticalCount} warningCount={warningCount} />
+        <DataGapBanner
+          gaps={gaps}
+          criticalCount={criticalCount}
+          warningCount={warningCount}
+        />
       ) : null}
 
       {/* Financial + regulatory KPI strip */}
@@ -262,7 +392,7 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {locale === 'es' ? 'Acciones Recomendadas' : 'Recommended Actions'}
+            {locale === "es" ? "Acciones Recomendadas" : "Recommended Actions"}
           </h3>
           <div className="mt-3 space-y-2">
             {data.nextBestActions.map((action) => (
@@ -270,7 +400,7 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
                 key={action.id}
                 className={`rounded-lg border px-3 py-2 text-xs ${PRIORITY_TONE[action.priority]}`}
               >
-                {locale === 'es' ? action.titleEs : action.titleEn}
+                {locale === "es" ? action.titleEs : action.titleEn}
               </div>
             ))}
           </div>
@@ -280,14 +410,14 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
       {/* Accounts */}
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {locale === 'es' ? 'Cuentas' : 'Accounts'}
+          {locale === "es" ? "Cuentas" : "Accounts"}
         </h3>
         <DataTable
           rows={data.accounts}
           columns={accountColumns}
           locale={locale}
           rowKey={(r) => r.id}
-          emptyText={locale === 'es' ? 'Sin cuentas' : 'No accounts'}
+          emptyText={locale === "es" ? "Sin cuentas" : "No accounts"}
         />
       </section>
 
@@ -295,7 +425,9 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
       {data.lifecycleTimeline.length > 0 ? (
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {locale === 'es' ? 'Historial del Ciclo de Vida' : 'Lifecycle Timeline'}
+            {locale === "es"
+              ? "Historial del Ciclo de Vida"
+              : "Lifecycle Timeline"}
           </h3>
           <ol className="mt-3 space-y-3">
             {data.lifecycleTimeline.map((event) => (
@@ -305,8 +437,12 @@ function MemberProfileContent({ data, ctx }: { data: MemberProfile; ctx: AlmPage
                   aria-hidden
                 />
                 <div>
-                  <p className="text-xs font-medium text-slate-700">{event.eventType}</p>
-                  <p className="text-[10px] text-slate-400">{formatDate(event.createdAt, locale)}</p>
+                  <p className="text-xs font-medium text-slate-700">
+                    {event.eventType}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {formatDate(event.createdAt, locale)}
+                  </p>
                 </div>
               </li>
             ))}

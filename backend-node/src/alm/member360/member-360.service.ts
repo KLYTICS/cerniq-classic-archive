@@ -14,6 +14,15 @@ import {
   type AccountSignal,
   type NextBestAction,
 } from './member-lifecycle.service';
+import {
+  LoanLifecycleService,
+  type LoanLifecycleStage,
+  type LoanSignal,
+} from './loan-lifecycle.service';
+import {
+  COOPERATIVA_PRODUCT_REGISTRY,
+  type CooperativaProductType,
+} from '../cooperativa/product-registry';
 
 // GetPayload aliases for findMany/findFirst({ include }) results — the
 // same pattern cooperativa-directory.service.ts uses for its
@@ -73,13 +82,46 @@ export interface MemberProfile {
   regulatoryHealth: MemberRegulatoryHealth;
   accounts: Array<{
     id: string;
+    /** The raw label the source system gave us, kept verbatim. */
     productType: string;
+    /**
+     * Canonical registry code. NULL means the label could not be mapped — the
+     * UI must render that as an explicit gap, never as a default product.
+     */
+    productCode: CooperativaProductType | null;
+    /** Bilingual display names from the product registry, when mapped. */
+    productNameEs: string | null;
+    productNameEn: string | null;
     category: MemberAccountCategory;
     balance: number;
+    originalPrincipal: number | null;
     interestRate: number | null;
     delinquencyDays: number | null;
     maturityDate: Date | null;
+    openedDate: Date;
     cossecClassification: string | null;
+    /**
+     * The loan's own lifecycle stage — distinct from the member's. NULL for
+     * non-loan accounts, and also NULL when delinquency is unknown, so an
+     * unclassified loan never renders as a green CURRENT badge.
+     */
+    loanStage: LoanLifecycleStage | null;
+    /** Why the classifier landed on that stage, in plain language. */
+    loanStageReasons: string[];
+    restructured: boolean;
+    chargedOff: boolean;
+    /**
+     * Registry-priced economics. Every non-null expectedLoss is accompanied by
+     * a PD_LGD_REGISTRY_DEFAULT gap on the profile naming its provenance —
+     * these are cold-start priors, not this institution's loss history.
+     */
+    expectedLoss: number | null;
+    annualPd: number | null;
+    lgd: number | null;
+    /** 0..1 fraction of scheduled term elapsed; null when maturity unknown. */
+    termElapsedFraction: number | null;
+    /** 0..1 principal repaid; null when original principal unknown. */
+    principalRepaidFraction: number | null;
   }>;
   lifecycleTimeline: Array<{
     id: string;
@@ -117,6 +159,7 @@ export class Member360Service {
     private readonly prisma: PrismaService,
     private readonly fixtures: MemberFixtureService,
     private readonly lifecycle: MemberLifecycleService,
+    private readonly loanLifecycle: LoanLifecycleService,
   ) {}
 
   /**
@@ -399,16 +442,67 @@ export class Member360Service {
         lifecycleStage: classification.stage,
         lifecycleReasons: classification.reasons,
       },
-      accounts: member.accounts.map((a) => ({
-        id: a.id,
-        productType: a.productType,
-        category: a.category,
-        balance: Number(a.balance),
-        interestRate: a.interestRate !== null ? Number(a.interestRate) : null,
-        delinquencyDays: a.delinquencyDays,
-        maturityDate: a.maturityDate,
-        cossecClassification: a.cossecClassification,
-      })),
+      accounts: member.accounts.map((a) => {
+        const registry =
+          a.productCode !== null
+            ? COOPERATIVA_PRODUCT_REGISTRY[a.productCode]
+            : null;
+
+        // Re-classify from the stored signal rather than echoing the stored
+        // stage back. The stored value is what the writer decided; running the
+        // classifier here means the API answers "why is it in this stage" with
+        // live reasons, and any drift between a persisted stage and the current
+        // rules surfaces instead of hiding.
+        const signal: LoanSignal = {
+          id: a.id,
+          productCode: a.productCode,
+          balance: Number(a.balance),
+          originalPrincipal:
+            a.originalPrincipal !== null ? Number(a.originalPrincipal) : null,
+          delinquencyDays: a.delinquencyDays,
+          openedDate: a.openedDate,
+          maturityDate: a.maturityDate,
+          restructured: a.restructured,
+          chargedOff: a.chargedOff,
+        };
+
+        const isLoan = a.category === MemberAccountCategory.LOAN;
+        const classification = isLoan
+          ? this.loanLifecycle.classifyLoan(signal, new Date())
+          : null;
+        const economics = isLoan
+          ? this.loanLifecycle.economics(signal, new Date())
+          : null;
+
+        if (classification !== null) gaps.push(...classification.gaps);
+        if (economics !== null) gaps.push(...economics.gaps);
+
+        return {
+          id: a.id,
+          productType: a.productType,
+          productCode: a.productCode,
+          productNameEs: registry?.nombre ?? null,
+          productNameEn: registry?.nameEn ?? null,
+          category: a.category,
+          balance: Number(a.balance),
+          originalPrincipal:
+            a.originalPrincipal !== null ? Number(a.originalPrincipal) : null,
+          interestRate: a.interestRate !== null ? Number(a.interestRate) : null,
+          delinquencyDays: a.delinquencyDays,
+          maturityDate: a.maturityDate,
+          openedDate: a.openedDate,
+          cossecClassification: a.cossecClassification,
+          loanStage: classification?.stage ?? null,
+          loanStageReasons: classification?.reasons ?? [],
+          restructured: a.restructured,
+          chargedOff: a.chargedOff,
+          expectedLoss: economics?.expectedLoss ?? null,
+          annualPd: economics?.annualPd ?? null,
+          lgd: economics?.lgd ?? null,
+          termElapsedFraction: economics?.termElapsedFraction ?? null,
+          principalRepaidFraction: economics?.principalRepaidFraction ?? null,
+        };
+      }),
       lifecycleTimeline: member.lifecycleEvents.map((e) => ({
         id: e.id,
         eventType: e.eventType,

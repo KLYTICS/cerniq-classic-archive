@@ -32,6 +32,7 @@ describe('Member360Service', () => {
       prisma as never,
       new MemberFixtureService(new LoanLifecycleService()),
       new MemberLifecycleService(),
+      new LoanLifecycleService(),
     );
   });
 

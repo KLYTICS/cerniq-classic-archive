@@ -173,6 +173,7 @@ async function main(): Promise<void> {
       prisma,
       new MemberFixtureService(new LoanLifecycleService()),
       new MemberLifecycleService(),
+      new LoanLifecycleService(),
     );
 
     // ── Institutions ────────────────────────────────────────────────────
