@@ -9,6 +9,11 @@
         "include": "alm/data/registry/**/*.json",
         "outDir": "dist/src",
         "watchAssets": true
+      },
+      {
+        "include": "alm/data/fixtures/**/*.json",
+        "outDir": "dist/src",
+        "watchAssets": true
       }
     ]
   }
