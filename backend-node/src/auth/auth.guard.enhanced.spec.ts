@@ -64,6 +64,10 @@ describe('AuthGuard (enhanced)', () => {
         findUnique: jest.fn().mockResolvedValue(null),
         update: jest.fn(),
       },
+      // See auth.guard.spec.ts — org-context fallback needs this to exist.
+      workspace: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       ...prismaOverrides,
     } as unknown as PrismaService;
 
@@ -101,6 +105,106 @@ describe('AuthGuard (enhanced)', () => {
       platformAccess,
     };
   }
+
+  describe('org context fallback — the workspace the user owns', () => {
+    /**
+     * Regression for the defect that made the whole ALM surface unusable.
+     *
+     * TenantScopeGuard rejects org-scoped routes unless it can resolve an org
+     * id, from `user.orgId` or an `x-organization-id` header. The access-token
+     * payload carries no orgId, and the browser only sends the header when
+     * `getStoredOrganizationId()` is populated — which is written solely by
+     * `useCurrentOrg`, a hook no page ever calls. So the header was ALWAYS
+     * absent, every ALM request 403'd, ALMProvider read that as auth loss and
+     * bounced the user to /login. The product rendered nothing, anywhere,
+     * while the API itself was healthy — it was only ever reachable by a
+     * client that hand-supplied the header (curl, tests).
+     */
+    function jwtOk() {
+      return {
+        decode: jest.fn().mockReturnValue({ sub: 'user-1' }),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-1',
+          email: 'test@cerniq.io',
+          role: 'admin',
+        }),
+      };
+    }
+
+    it('resolves the org from the single workspace the user owns', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard(jwtOk(), {
+        workspace: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'ws-owned' }]),
+        },
+      });
+      const request: any = {
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
+        cookies: {},
+        method: 'GET',
+      };
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('ws-owned');
+    });
+
+    it('does not guess when the user owns several workspaces', async () => {
+      // Ambiguity must stay ambiguous — the caller says which one.
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard(jwtOk(), {
+        workspace: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'ws-a' }, { id: 'ws-b' }]),
+        },
+      });
+      const request: any = {
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
+        cookies: {},
+        method: 'GET',
+      };
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBeNull();
+    });
+
+    it('lets an explicit header win over the owned workspace', async () => {
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard(jwtOk(), {
+        workspace: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'ws-owned' }]),
+        },
+      });
+      const request: any = {
+        headers: {
+          authorization: `Bearer ${FAKE_JWT}`,
+          'x-organization-id': 'ws-explicit',
+        },
+        cookies: {},
+        method: 'GET',
+      };
+      await guard.canActivate(createContext(request));
+      expect(request.user.orgId).toBe('ws-explicit');
+    });
+
+    it('a failing lookup degrades to no-org, it does not break authentication', async () => {
+      // The fallback is an enhancement, not a term of authentication: a
+      // database hiccup must not turn into an auth failure for every request.
+      process.env.AUTH_ALLOW_LEGACY = 'true';
+      const { guard } = createGuard(jwtOk(), {
+        workspace: {
+          findMany: jest.fn().mockRejectedValue(new Error('db down')),
+        },
+      });
+      const request: any = {
+        headers: { authorization: `Bearer ${FAKE_JWT}` },
+        cookies: {},
+        method: 'GET',
+      };
+      await expect(
+        guard.canActivate(createContext(request)),
+      ).resolves.not.toThrow();
+      expect(request.user.userId).toBe('user-1');
+    });
+  });
 
   describe('JWT token authentication', () => {
     it('extracts token from Authorization Bearer header', async () => {
