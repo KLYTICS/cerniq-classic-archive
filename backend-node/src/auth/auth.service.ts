@@ -668,9 +668,22 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    // Role is REQUIRED here, not optional. `evaluateAccess(email, subscription,
+    // role)` grants `owner_recovery_bypass` only when the role is OWNER, so
+    // omitting the third argument silently evaluated every user as roleless
+    // and returned `platformAccessAllowed: false / subscription_required`.
+    //
+    // That put this endpoint in direct contradiction with AuthGuard, which
+    // DOES pass the role: the guard let the request through (GET
+    // /api/alm/institutions -> 200) while /api/auth/profile — the payload the
+    // frontend's AuthInitializer reads to decide access — said "no". The UI
+    // therefore redirected a fully-authorized operator to the paywall on every
+    // protected route, so every module rendered as "Access now requires a paid
+    // plan" even though the API would have served them.
     const access = this.platformAccess.evaluateAccess(
       email || user.email,
       user.subscription,
+      user.role,
     );
 
     return {
