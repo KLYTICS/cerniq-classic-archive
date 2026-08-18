@@ -32,7 +32,7 @@ import { AnalysisRunsService } from './analysis-runs.service';
 import { IngestionLogsService } from './ingestion-logs.service';
 import { ComplianceCalendarService } from './compliance-calendar.service';
 import { ScenarioPersistenceService } from './scenarios/scenario-persistence.service';
-import { YieldCurveService } from './yield-curve.service';
+import { BASEL_SHOCKS, YieldCurveService } from './yield-curve.service';
 import { CECLService } from './cecl.service';
 import { FTPService } from './ftp.service';
 import { DepositBetaService } from './deposit-beta.service';
@@ -840,6 +840,24 @@ export class AlmController {
     return this.yieldCurve.getYieldCurveAnalysis(institutionId);
   }
 
+  // GET alias for the Rate Shock v2 panel.
+  //
+  // Unlike the other compute aliases, this endpoint's `shockBpsPerTenor` is
+  // REQUIRED — there is no "run with defaults" already defined by the service.
+  // Rather than invent a shock table, the alias reuses BASEL_SHOCKS.steepener,
+  // the same canonical Basel IRRBB definition the yield-curve service applies
+  // for its own shock modelling, and the panel's own headline scenario
+  // ("Non-parallel shocks: steepener, flattener, twist"). The POST remains the
+  // way to run any other tenor vector.
+  @Get(':institutionId/yield-curve/forward-nii')
+  @UseGuards(AuthTenantGuard)
+  async getForwardNII(@Param('institutionId') institutionId: string) {
+    return this.yieldCurve.computeForwardNIISchedule(
+      institutionId,
+      BASEL_SHOCKS.steepener,
+    );
+  }
+
   @Post(':institutionId/yield-curve/forward-nii')
   @UseGuards(AuthTenantGuard)
   async computeForwardNII(
@@ -1249,6 +1267,18 @@ export class AlmController {
 
   // ─── MP-013: Monte Carlo Simulation ───────────────────────────
 
+  // GET alias for the panel. NOTE the path differs from the POST: the
+  // registry (and therefore the panel) asks for `/monte-carlo`, while the
+  // POST lives at `/monte-carlo/run`. Aliasing at the path the panel
+  // actually requests is what makes it live. Same throttle — identical
+  // 10k-path compute.
+  @Get(':institutionId/monte-carlo')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @UseGuards(AuthTenantGuard)
+  async getMonteCarlo(@Param('institutionId') institutionId: string) {
+    return this.monteCarlo.runSimulation(institutionId, {});
+  }
+
   @Post(':institutionId/monte-carlo/run')
   @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — heavy compute
   @UseGuards(AuthTenantGuard)
@@ -1360,6 +1390,13 @@ export class AlmController {
 
   // ─── Phase IV: Forward Simulation (MP-010) ─────────────────────
 
+  // GET alias for the panel — see the black-litterman alias.
+  @Get(':institutionId/forward-simulation')
+  @UseGuards(AuthTenantGuard)
+  async getForwardSimulation(@Param('institutionId') institutionId: string) {
+    return this.forwardSim.runForwardSimulation({ institutionId });
+  }
+
   @Post(':institutionId/forward-simulation')
   @UseGuards(AuthTenantGuard)
   async runForwardSimulation(
@@ -1421,6 +1458,13 @@ export class AlmController {
   }
 
   // ─── Phase V: Capital Optimizer (MP-019) ──────────────────────
+
+  // GET alias for the panel — see the black-litterman alias.
+  @Get(':institutionId/optimize')
+  @UseGuards(AuthTenantGuard)
+  async getCapitalOptimization(@Param('institutionId') institutionId: string) {
+    return this.capitalOptimizer.optimize(institutionId);
+  }
 
   @Post(':institutionId/optimize')
   @UseGuards(AuthTenantGuard)
@@ -1912,6 +1956,22 @@ export class AlmController {
 
   // ─── V9: Black-Litterman Portfolio ──────────────────────────────
 
+  // ── GET alias for the panel ────────────────────────────────────
+  //
+  // `<AlmPage slug=...>` — the wrapper every ALM panel is built on — issues a
+  // GET against the registry endpoint and has no `method`/`body` prop at all.
+  // A POST-only analytic therefore renders as a dead panel: the page returns
+  // 200 and its data call 404s. That is exactly how several panels shipped broken.
+  //
+  // Every parameter on the POST body below is optional and already defaulted
+  // by the service, so a GET that runs with defaults is well-defined. The POST
+  // stays for parameterized runs. Same shape as the existing `@Get(hrp)` route.
+  @Get(':institutionId/black-litterman')
+  @UseGuards(AuthTenantGuard)
+  async getBlackLitterman(@Param('institutionId') id: string) {
+    return this.blackLitterman.computeBLPortfolio(id);
+  }
+
   @Post(':institutionId/black-litterman')
   @UseGuards(AuthTenantGuard)
   async runBlackLitterman(
@@ -1922,6 +1982,15 @@ export class AlmController {
   }
 
   // ─── V9: CVaR Portfolio Optimizer ─────────────────────────────
+
+  // GET alias for the panel — see the black-litterman alias above. Carries
+  // the same throttle as the POST: it runs the identical solver.
+  @Get(':institutionId/cvar-optimize')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @UseGuards(AuthTenantGuard)
+  async getCVaROptimizer(@Param('institutionId') id: string) {
+    return this.cvarOptimizer.optimize(id);
+  }
 
   @Post(':institutionId/cvar-optimize')
   @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 runs per minute — optimization solver
