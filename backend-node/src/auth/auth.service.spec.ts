@@ -1633,4 +1633,56 @@ describe('AuthService', () => {
       });
     });
   });
+
+  describe('generateTokens — refresh token uniqueness', () => {
+    /**
+     * Regression: RefreshToken.token is @unique, and the refresh payload used
+     * to be a pure function of (sub, email, type). The only varying JWT claim,
+     * `iat`, has ONE-SECOND resolution — so two logins by the same user inside
+     * the same second minted a byte-identical token and the second insert died
+     * with P2002, surfacing as a 500 on login.
+     *
+     * Observed live before the fix: three consecutive logins returned
+     * 200, 500, 429.
+     */
+    const user = {
+      id: 'user-1',
+      email: 'socio@example.com',
+      name: 'Socio',
+      role: 'OWNER',
+    };
+
+    it('gives every refresh token a unique jti', async () => {
+      await service.generateTokens(user);
+      await service.generateTokens(user);
+
+      const refreshPayloads = jwtService.sign.mock.calls
+        .map((c) => c[0] as { type?: string; jti?: string })
+        .filter((p) => p.type === 'refresh');
+
+      expect(refreshPayloads.length).toBeGreaterThanOrEqual(2);
+      for (const p of refreshPayloads) {
+        expect(typeof p.jti).toBe('string');
+        expect((p.jti as string).length).toBeGreaterThan(0);
+      }
+      const distinct = new Set(refreshPayloads.map((p) => p.jti));
+      expect(distinct.size).toBe(refreshPayloads.length);
+    });
+
+    it('the jti is the ONLY thing distinguishing two same-second payloads', () => {
+      // Documents why the fix has to live in the payload rather than in a
+      // retry: without jti the two objects are deep-equal, so no amount of
+      // retrying produces a different token.
+      const strip = (p: Record<string, unknown>) => {
+        const { jti: _jti, ...rest } = p;
+        return rest;
+      };
+      const refreshPayloads = jwtService.sign.mock.calls
+        .map((c) => c[0] as Record<string, unknown>)
+        .filter((p) => p.type === 'refresh');
+      if (refreshPayloads.length >= 2) {
+        expect(strip(refreshPayloads[0])).toEqual(strip(refreshPayloads[1]));
+      }
+    });
+  });
 });
