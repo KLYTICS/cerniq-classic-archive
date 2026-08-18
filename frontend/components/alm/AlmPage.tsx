@@ -1,23 +1,24 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import type { ReactNode } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
-import { useALM } from '@/components/alm/ALMProvider';
-import { useTranslation, type Locale } from '@/lib/i18n';
+import { useALM } from "@/components/alm/ALMProvider";
+import { useTranslation, type Locale } from "@/lib/i18n";
 import {
   useAlmEndpoint,
   formatAlmError,
   type UseAlmEndpointOptions,
   type AlmEndpointState,
-} from '@/hooks/useAlmEndpoint';
+} from "@/hooks/useAlmEndpoint";
 import {
   getAlmModule,
   type AlmModule,
   type AlmModuleSlug,
-} from '@/lib/alm/registry';
-import { AlmModuleHeader, type AlmIconTint } from './AlmModuleHeader';
-import { AlmPageSkeleton } from './AlmPageSkeleton';
+} from "@/lib/alm/registry";
+import { AlmModuleHeader, type AlmIconTint } from "./AlmModuleHeader";
+import { AlmPageSkeleton } from "./AlmPageSkeleton";
+import { NoInstitutionPrompt } from "./NoInstitutionPrompt";
 
 /**
  * AlmPage — render-prop shell for every ALM module page.
@@ -67,7 +68,10 @@ export interface AlmPageContext {
   readonly isDemo: boolean;
 }
 
-export interface AlmPageProps<T> extends Omit<UseAlmEndpointOptions<T>, 'institutionId'> {
+export interface AlmPageProps<T> extends Omit<
+  UseAlmEndpointOptions<T>,
+  "institutionId"
+> {
   readonly slug: AlmModuleSlug;
   /**
    * Render prop invoked with the typed data once the fetch succeeds. Use a
@@ -107,12 +111,15 @@ export function AlmPage<T>({
   children,
   controls,
   className,
-  iconTint = 'slate',
+  iconTint = "slate",
   institutionIdOverride,
 }: AlmPageProps<T>) {
   const alm = useALM();
   const { locale } = useTranslation();
-  const institutionId = institutionIdOverride !== undefined ? institutionIdOverride : alm.selectedId;
+  const institutionId =
+    institutionIdOverride !== undefined
+      ? institutionIdOverride
+      : alm.selectedId;
 
   // Resolve the module at the top so it's available to header / error screens
   // even when the fetch fails with `missing-endpoint`.
@@ -133,20 +140,24 @@ export function AlmPage<T>({
     return (
       <div className="flex-1 flex items-center justify-center p-6" role="alert">
         <div className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
-          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" aria-hidden />
+          <AlertTriangle
+            className="mx-auto h-10 w-10 text-rose-500"
+            aria-hidden
+          />
           <p className="mt-3 text-sm font-semibold text-rose-900">
             Module &quot;{slug}&quot; is not registered
           </p>
           <p className="mt-1 text-xs text-rose-700">
-            Add an entry to <code>lib/alm/registry.ts</code> to render this page.
+            Add an entry to <code>lib/alm/registry.ts</code> to render this
+            page.
           </p>
         </div>
       </div>
     );
   }
 
-  const containerClass = className ?? 'p-6 space-y-4 max-w-[1500px] mx-auto';
-  const isDemo = state.status === 'success' && state.source === 'demo';
+  const containerClass = className ?? "p-6 space-y-4 max-w-[1500px] mx-auto";
+  const isDemo = state.status === "success" && state.source === "demo";
 
   return (
     <div className={containerClass}>
@@ -155,9 +166,13 @@ export function AlmPage<T>({
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
           role="note"
         >
-          <strong>{locale === 'es' ? 'Datos de muestra' : 'Sample data'}</strong>
-          {' — '}
-          {locale === 'es' ? 'Conecte su institución para análisis en vivo.' : 'Connect your institution for live analysis.'}
+          <strong>
+            {locale === "es" ? "Datos de muestra" : "Sample data"}
+          </strong>
+          {" — "}
+          {locale === "es"
+            ? "Conecte su institución para análisis en vivo."
+            : "Connect your institution for live analysis."}
         </div>
       ) : null}
 
@@ -182,20 +197,50 @@ interface AlmPageContentProps<T> {
   readonly children: (data: T, ctx: AlmPageContext) => ReactNode;
 }
 
-function AlmPageContent<T>({ state, locale, mod, children }: AlmPageContentProps<T>) {
-  if (state.status === 'idle' || state.status === 'loading') {
-    return <AlmPageSkeleton label={locale === 'es' ? `Cargando ${mod.name.es}` : `Loading ${mod.name.en}`} />;
+function AlmPageContent<T>({
+  state,
+  locale,
+  mod,
+  children,
+}: AlmPageContentProps<T>) {
+  if (state.status === "idle" || state.status === "loading") {
+    return (
+      <AlmPageSkeleton
+        label={
+          locale === "es" ? `Cargando ${mod.name.es}` : `Loading ${mod.name.en}`
+        }
+      />
+    );
   }
 
-  if (state.status === 'error') {
+  if (state.status === "error") {
+    // `no-institution` is not a failure of this panel — the workspace simply
+    // has no book yet, and EVERY panel hits it simultaneously. Rendering it as
+    // a red error with a Retry button is a dead end: retrying cannot conjure
+    // an institution. Route it to an actionable empty state instead. Landing
+    // it here means all ~35 AlmPage-backed panels get the affordance at once.
+    if (state.error.kind === "no-institution") {
+      return <NoInstitutionPrompt locale={locale} />;
+    }
+
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center" role="alert">
-          <AlertTriangle className="mx-auto h-10 w-10 text-rose-500" aria-hidden />
+        <div
+          className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-6 text-center"
+          role="alert"
+        >
+          <AlertTriangle
+            className="mx-auto h-10 w-10 text-rose-500"
+            aria-hidden
+          />
           <p className="mt-3 text-sm font-semibold text-rose-900">
-            {locale === 'es' ? `No se pudo cargar ${mod.name.es}` : `Could not load ${mod.name.en}`}
+            {locale === "es"
+              ? `No se pudo cargar ${mod.name.es}`
+              : `Could not load ${mod.name.en}`}
           </p>
-          <p className="mt-1 text-xs text-rose-700">{formatAlmError(state.error, locale)}</p>
+          <p className="mt-1 text-xs text-rose-700">
+            {formatAlmError(state.error, locale)}
+          </p>
           {/* retry is a synchronous nonce-bump (useAlmEndpoint) that swaps this
               branch for the loading skeleton — there is no per-button async
               state to track, so aria-busy is a static false baseline. ~35 ALM
@@ -208,7 +253,7 @@ function AlmPageContent<T>({ state, locale, mod, children }: AlmPageContentProps
             className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            {locale === 'es' ? 'Reintentar' : 'Retry'}
+            {locale === "es" ? "Reintentar" : "Retry"}
           </button>
         </div>
       </div>
@@ -219,7 +264,7 @@ function AlmPageContent<T>({ state, locale, mod, children }: AlmPageContentProps
   const ctx: AlmPageContext = {
     locale,
     mod,
-    isDemo: state.source === 'demo',
+    isDemo: state.source === "demo",
   };
   return <>{children(state.data, ctx)}</>;
 }
