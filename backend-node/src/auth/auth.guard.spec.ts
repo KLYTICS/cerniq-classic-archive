@@ -51,6 +51,12 @@ describe('AuthGuard', () => {
           findUnique: jest.fn(),
           update: jest.fn().mockResolvedValue({}),
         },
+        // Org-context fallback: the guard resolves the workspace a session
+        // user OWNS when no x-organization-id header is present. Default to
+        // none so these cases keep exercising the header/token paths.
+        workspace: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
       } as unknown as PrismaService);
 
     const authService =

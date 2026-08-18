@@ -161,6 +161,63 @@ export class AuthGuard implements CanActivate {
         this.getHeader(request, 'x-organization-id') ||
         this.getHeader(request, 'x-klytics-org-id');
       orgId = orgId || orgHeader || null;
+
+      // Fall back to the workspace this user actually owns.
+      //
+      // WHY: `TenantScopeGuard` rejects org-scoped routes with "Organization
+      // context required. Pass x-organization-id or authenticate with
+      // workspace membership." — but nothing implemented the second half of
+      // that sentence. The access-token payload carries only {sub, email,
+      // type}, so `user.orgId` is always null, and the browser only sends
+      // `x-organization-id` if `getStoredOrganizationId()` has a value.
+      // That value is written exclusively by `useCurrentOrg`, which no page in
+      // app/ or components/ ever calls — so it is ALWAYS empty.
+      //
+      // Net effect before this fix: every ALM request from a signed-in browser
+      // returned 403, ALMProvider read the failure as an auth error and
+      // redirected to /login, and the user saw nothing anywhere. The API was
+      // healthy the whole time; it was only ever reachable by a client that
+      // hand-supplied the header (curl, tests), which is exactly why endpoint
+      // probing kept reporting the platform as fine.
+      //
+      // Resolving it here rather than in the client keeps a storage bug from
+      // being able to lock a user out again, and it is strictly narrower than
+      // the header path: this only ever selects a workspace the user OWNS.
+      // Ambiguity is not guessed — with more than one owned workspace the
+      // caller must say which, so we leave orgId null and the explicit 403
+      // stands.
+      if (!orgId && applicationUserId) {
+        try {
+          const owned = await this.prisma.workspace.findMany({
+            where: { ownerId: applicationUserId },
+            select: { id: true },
+            orderBy: { createdAt: 'asc' },
+            take: 2,
+          });
+          if (owned.length === 1) {
+            orgId = owned[0].id;
+            this.logger.debug({
+              event: 'auth.org_resolved_from_owned_workspace',
+              userId: applicationUserId,
+            });
+          }
+        } catch (error) {
+          // This lookup is an ENHANCEMENT to org resolution, not a term of
+          // authentication. Letting it throw would turn a transient database
+          // hiccup into a hard failure of the auth guard itself — i.e. every
+          // request from every user erroring — which is a strictly worse
+          // outcome than the 403 this fallback exists to avoid.
+          //
+          // Logged at warn, never swallowed silently: a persistently failing
+          // lookup shows up as a 403 for the user, and the reason has to be
+          // findable in the logs rather than invisible.
+          this.logger.warn({
+            event: 'auth.org_fallback_lookup_failed',
+            userId: applicationUserId,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
       const orgAllowed = isMasterAccount
         ? true
         : await this.enforceOrgAccess(authSubject, orgId);
