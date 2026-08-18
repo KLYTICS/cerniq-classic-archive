@@ -22,7 +22,12 @@ const DEFAULT_BASE_CURVE: TenorRate[] = [
 
 // ─── Basel IRRBB Standard Shocks (bps by tenor) ─────────────
 
-const BASEL_SHOCKS: Record<string, Record<number, number>> = {
+/**
+ * Exported so the controller's GET alias for the Rate Shock v2 panel can
+ * default to the SAME canonical shock definitions this service already uses,
+ * rather than a second hand-written shock table that could drift from it.
+ */
+export const BASEL_SHOCKS: Record<string, Record<number, number>> = {
   parallel_up: Object.fromEntries(STANDARD_TENORS.map((t) => [t, 200])),
   parallel_down: Object.fromEntries(STANDARD_TENORS.map((t) => [t, -200])),
   steepener: {

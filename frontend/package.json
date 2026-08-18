@@ -6,7 +6,7 @@
     "dev": "next dev --port 3001",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint app components hooks lib types instrumentation.ts instrumentation-client.ts next.config.ts playwright.config.ts proxy.ts vitest.config.ts eslint.config.mjs && node scripts/verify-alm-registry.mjs && node scripts/verify-d1-no-silent-fallback.mjs && node scripts/verify-no-orphan-tests.mjs && node scripts/verify-rule-12-crypto-randomness.mjs && node scripts/verify-i18n-parity.mjs && tsc --noEmit",
+    "lint": "NODE_OPTIONS=--max-old-space-size=8192 eslint app components hooks lib types instrumentation.ts instrumentation-client.ts next.config.ts playwright.config.ts proxy.ts vitest.config.ts eslint.config.mjs && node scripts/verify-alm-registry.mjs && node scripts/verify-d1-no-silent-fallback.mjs && node scripts/verify-no-orphan-tests.mjs && node scripts/verify-rule-12-crypto-randomness.mjs && node scripts/verify-i18n-parity.mjs && node scripts/verify-alm-endpoint-contract.mjs && node scripts/verify-alm-endpoint-contract.mjs --self-test && tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "verify:alm": "node scripts/verify-alm-registry.mjs",
     "verify:d1-no-silent-fallback": "node scripts/verify-d1-no-silent-fallback.mjs",
