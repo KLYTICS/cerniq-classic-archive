@@ -460,6 +460,21 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       type: 'refresh',
+      // Unique token id. WITHOUT THIS, two logins by the same user inside the
+      // same SECOND mint a byte-identical JWT: the payload is a pure function
+      // of (sub, email, type) and the only varying claim `iat` has one-second
+      // resolution. `RefreshToken.token` is @unique, so the second insert dies
+      // with P2002 and the login returns 500.
+      //
+      // Observed live: three logins in a row returned 200, 500, 429. That is
+      // not a rare race — it fires on an ordinary double-submit, on two tabs
+      // signing in together, and on a token-refresh retry, and a failed
+      // refresh logs the user out mid-session.
+      //
+      // `jti` is the registered JWT claim for exactly this. randomUUID() is
+      // crypto-grade (KLYTICS Rule 12 — this is a security path, so
+      // Math.random() would be a violation as well as a collision risk).
+      jti: crypto.randomUUID(),
     };
 
     const accessToken = this.jwtService.sign(accessPayload, {
